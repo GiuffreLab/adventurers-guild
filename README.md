@@ -24,6 +24,24 @@ You start by creating your character — a Hero — and registering with the gui
 
 **Skills** — Party members learn skills as they level up. Each class has a unique skill tree with passive and active abilities that can trigger during quests.
 
+## Classes
+
+**Hero** — Your starting character. A balanced all-rounder with solid stats across the board and no glaring weaknesses. Good versatility for any party composition.
+
+**Knight** (Unlocks at F-Rank) — The iron wall. Massive HP and defense make the Knight the party's frontline. Slow, but nearly impossible to bring down.
+
+**Mage** (Unlocks at F-Rank) — Glass cannon. Devastating arcane damage from ice shards, lightning bolts, and fire, but extremely fragile. Keep them behind a Knight.
+
+**Rogue** (Unlocks at F-Rank) — Swift and deadly. High speed and luck mean frequent crits and backstabs. Daggers find weak spots that heavier weapons miss.
+
+**Cleric** (Unlocks at F-Rank) — The party's lifeline. The only class that can cast direct group heals, restoring HP to the entire party mid-combat. Also deals divine damage through smites and holy wrath.
+
+**Ranger** (Unlocks at E-Rank) — Precision archer. Excels at ranged combat with piercing arrows and rapid volleys. High attack and speed with decent luck.
+
+**Bard** (Unlocks at C-Rank) — The ultimate support. Buffs the entire party's stats through songs and war drums, and casts a regeneration melody that heals the party each round for the rest of the fight. No direct damage skills — pure party amplification.
+
+**Monk** (Unlocks at A-Rank) — Martial arts master. Perfectly balanced stats that grow quickly. Fights with fists, palm strikes, and ki-powered blows. A late-game powerhouse worth the wait.
+
 **Equipment** — Gear comes in five rarities (Common, Magic, Rare, Epic, Legendary) and four slots (Weapon, Armor, Accessory, Offhand). Equipping items boosts your party members' stats and affects combat outcomes.
 
 ## Running Locally
