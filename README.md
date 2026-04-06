@@ -2,6 +2,8 @@
 
 A browser-based idle RPG where you manage a guild of adventurers, send them on quests, and climb the ranks from a fledgling F-Rank guild to legendary S-Rank.
 
+**[Play Now](https://giuffrelab.github.io/adventurers-guild/)**
+
 ## How to Play
 
 You start by creating your character — a Hero — and registering with the guild. From there, the game revolves around four main tabs:
