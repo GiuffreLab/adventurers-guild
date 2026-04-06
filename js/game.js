@@ -683,14 +683,17 @@ const Game = (() => {
     state.partySynergy.lastPartyHash = currentHash;
     state.partySynergy.totalQuestsAsTeam++;
 
-    // Check for new unlocks
+    // Check for new unlocks — return list of newly unlocked thresholds
+    const newUnlocks = [];
     for (const thresh of SYNERGY_THRESHOLDS) {
       if (state.partySynergy.totalQuestsAsTeam >= thresh.quests &&
           !state.partySynergy.bonusesUnlocked.includes(thresh.id)) {
         state.partySynergy.bonusesUnlocked.push(thresh.id);
+        newUnlocks.push(thresh);
         logEvent(`Party Synergy: ${thresh.label} unlocked! ${thresh.desc}`);
       }
     }
+    return newUnlocks;
   }
 
   function getMaxAutoRun() {
@@ -991,6 +994,8 @@ const Game = (() => {
       if (m) m.stats.hp = Math.max(1, m.stats.hp - inj.hpLost);
     }
 
+    let synergyUnlocks = [];
+    const skillGains = [];
     if (result.success) {
       state.guild.completedQuests.push(aq.questId);
       for (const snap of aq.partySnapshot) {
@@ -1000,12 +1005,13 @@ const Game = (() => {
           const masterySkill = getMasterySkill(m.questsCompleted);
           if (masterySkill && !m.skills.includes(masterySkill.id)) {
             m.skills.push(masterySkill.id);
+            skillGains.push({ memberName: m.name, skillName: masterySkill.name, skillIcon: masterySkill.icon || '⚡' });
             logEvent(`${m.name} mastered ${masterySkill.name}!`);
           }
         }
       }
       // Update party synergy
-      updatePartySynergy();
+      synergyUnlocks = updatePartySynergy();
     }
 
     logEvent(result.success ? `Quest complete: ${quest.title} (+${result.goldEarned}g)` : `Quest failed: ${quest.title}`);
@@ -1013,7 +1019,7 @@ const Game = (() => {
     // Add to quest history
     addToHistory(quest, result, levelUps, aq.partySnapshot);
 
-    state.pendingResults = { quest, result, levelUps, rankUp, resolvedAt: Date.now() };
+    state.pendingResults = { quest, result, levelUps, rankUp, synergyUnlocks, skillGains, resolvedAt: Date.now() };
     state.guild.activeQuest = null;
 
     // Refresh quest board for this rank on completion

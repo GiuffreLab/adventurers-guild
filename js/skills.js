@@ -13,9 +13,9 @@ export const SKILLS = {
   RALLY_CRY: {
     id: 'RALLY_CRY', name: 'Rally Cry', type: 'active', source: 'class',
     classId: 'HERO', unlockLevel: 5,
-    description: 'Rallies the party mid-combat, restoring HP to all allies. 60% proc.',
-    icon: '📣', effects: { partyHealPct: 0.12 }, procChance: 0.60,
-    narrative: 'lets out a Rally Cry — the party is reinvigorated!',
+    description: 'When any ally drops below 30% HP, the Hero rallies them — restoring 15% HP and granting +10% ATK for 3 rounds.',
+    icon: '📣', effects: { rallyTrigger: true, rallyHealPct: 0.15, rallyAtkBuff: 0.10 }, procChance: 1.0, cooldown: 4,
+    narrative: 'lets out a Rally Cry — the party fights on with renewed vigor!',
   },
   LEADERS_AURA: {
     id: 'LEADERS_AURA', name: 'Leader\'s Aura', type: 'passive', source: 'class',
@@ -50,8 +50,8 @@ export const SKILLS = {
   IRON_CONSTITUTION: {
     id: 'IRON_CONSTITUTION', name: 'Iron Constitution', type: 'passive', source: 'class',
     classId: 'KNIGHT', unlockLevel: 6,
-    description: 'Grants +20% MAX HP.',
-    icon: '🪨', effects: { hpBonus: 0.20 }, procChance: 1.0,
+    description: 'DEF +20%, MAX HP +25%.',
+    icon: '🪨', effects: { defBonus: 0.20, hpBonus: 0.25 }, procChance: 1.0,
     narrative: null,
   },
   LAST_STAND: {
@@ -61,12 +61,12 @@ export const SKILLS = {
     icon: '⚒', effects: { defBonus: 0.30 }, procChance: 0.50,
     narrative: 'digs in for their Last Stand!',
   },
-  SENTINEL: {
-    id: 'SENTINEL', name: 'Sentinel', type: 'passive', source: 'class',
+  BULWARK: {
+    id: 'BULWARK', name: 'Bulwark', type: 'active', source: 'class',
     classId: 'KNIGHT', unlockLevel: 14,
-    description: 'DEF +20%, MAX HP +15%.',
-    icon: '👑', effects: { defBonus: 0.20, hpBonus: 0.15 }, procChance: 1.0,
-    narrative: null,
+    description: 'Every 3 rounds, intercepts an attack aimed at an ally and absorbs the damage.',
+    icon: '🛡', effects: { bulwark: true }, procChance: 1.0, cooldown: 3,
+    narrative: 'raises their shield and absorbs the blow for an ally!',
   },
   UNBREAKABLE: {
     id: 'UNBREAKABLE', name: 'Unbreakable', type: 'active', source: 'class',
@@ -128,12 +128,12 @@ export const SKILLS = {
     icon: '💨', effects: { dodgeChance: 0.15 }, procChance: 1.0,
     narrative: null,
   },
-  BACKSTAB: {
-    id: 'BACKSTAB', name: 'Backstab', type: 'active', source: 'class',
+  MARK_FOR_DEATH: {
+    id: 'MARK_FOR_DEATH', name: 'Mark for Death', type: 'active', source: 'class',
     classId: 'ROGUE', unlockLevel: 8,
-    description: 'Devastating backstab. 45% proc, high damage.',
-    icon: '🔪', effects: { atkBonus: 1.0, critChance: 0.40 }, procChance: 0.45,
-    narrative: 'finds the perfect moment for a Backstab!',
+    description: 'On crit, marks the target — all party members deal +20% damage to it for 2 rounds.',
+    icon: '🎯', effects: { markDmgAmp: 0.20, markDuration: 2 }, procChance: 1.0,
+    narrative: 'exposes a critical weakness — the target is Marked for Death!',
   },
   ACROBATICS: {
     id: 'ACROBATICS', name: 'Acrobatics', type: 'passive', source: 'class',
@@ -209,12 +209,12 @@ export const SKILLS = {
     icon: '🌲', effects: { goldBonus: 0.20, expBonus: 0.20 }, procChance: 1.0,
     narrative: null,
   },
-  MULTISHOT: {
-    id: 'MULTISHOT', name: 'Multishot', type: 'active', source: 'class',
+  VOLLEY: {
+    id: 'VOLLEY', name: 'Volley', type: 'active', source: 'class',
     classId: 'RANGER', unlockLevel: 10,
-    description: 'Rain of arrows hits multiple times. 40% proc.',
-    icon: '🎯', effects: { powerMultiplier: 1.5 }, procChance: 0.40,
-    narrative: 'unleashes a Multishot barrage!',
+    description: 'Fires a rain of arrows that strikes ALL enemies for 60% damage each. 40% proc.',
+    icon: '🎯', effects: { volleyAoe: true, volleyDmgPct: 0.60 }, procChance: 0.40,
+    narrative: 'launches a Volley — arrows rain down on every foe!',
   },
   HUNTER_INSTINCT: {
     id: 'HUNTER_INSTINCT', name: 'Hunter Instinct', type: 'passive', source: 'class',
@@ -283,12 +283,12 @@ export const SKILLS = {
     icon: '⚖', effects: { atkBonus: 0.08, defBonus: 0.08, spdBonus: 0.12, magBonus: 0.08, lckBonus: 0.08 }, procChance: 1.0,
     narrative: null,
   },
-  RISING_DRAGON_KICK: {
-    id: 'RISING_DRAGON_KICK', name: 'Rising Dragon Kick', type: 'active', source: 'class',
+  KI_BARRIER: {
+    id: 'KI_BARRIER', name: 'Ki Barrier', type: 'active', source: 'class',
     classId: 'MONK', unlockLevel: 9,
-    description: 'A devastating spinning kick that launches the enemy. 50% proc.',
-    icon: '🦶', effects: { atkBonus: 0.70, spdBonus: 0.15, critChance: 0.20 }, procChance: 0.50,
-    narrative: 'leaps into a Rising Dragon Kick — the enemy is sent flying!',
+    description: 'Channels ki to heal 25% of damage dealt back as HP. Lasts the entire battle.',
+    icon: '🔮', effects: { kiBarrier: true, lifeStealPct: 0.25 }, procChance: 1.0,
+    narrative: 'surrounds themselves with a shimmering Ki Barrier!',
   },
   ENLIGHTENMENT: {
     id: 'ENLIGHTENMENT', name: 'Enlightenment', type: 'passive', source: 'class',

@@ -26,21 +26,23 @@ You start by creating your character — a Hero — and registering with the gui
 
 ## Classes
 
-**Hero** — Your starting character. A balanced all-rounder with solid stats across the board and no glaring weaknesses. Good versatility for any party composition.
+Every class brings a unique signature ability to the party. Building a diverse roster lets you combine these strengths for harder content.
 
-**Knight** (Unlocks at F-Rank) — The iron wall. Massive HP and defense make the Knight the party's frontline. Slow, but nearly impossible to bring down.
+**Hero** — Your starting character. A balanced all-rounder with solid stats across the board. Signature: **Rally Cry** — when any ally drops below 30% HP, the Hero rallies them with a burst heal and attack buff. The insurance policy that keeps runs from falling apart.
 
-**Mage** (Unlocks at F-Rank) — Glass cannon. Devastating arcane damage from ice shards, lightning bolts, and fire, but extremely fragile. Keep them behind a Knight.
+**Knight** (Unlocks at F-Rank) — The iron wall. Massive HP and defense make the Knight the party's frontline. Signature: **Bulwark** — every 3 rounds, the Knight intercepts an attack aimed at an ally and absorbs the damage. Keeps your squishies alive.
 
-**Rogue** (Unlocks at F-Rank) — Swift and deadly. High speed and luck mean frequent crits and backstabs. Daggers find weak spots that heavier weapons miss.
+**Mage** (Unlocks at F-Rank) — Glass cannon. Devastating arcane damage from ice shards, lightning bolts, and fire. Signature: **Spell Echo** — spells hit twice, and the capstone Meteor Storm deals the highest single-target damage in the game. Pure destruction.
 
-**Cleric** (Unlocks at F-Rank) — The party's lifeline. The only class that can cast direct group heals, restoring HP to the entire party mid-combat. Also deals divine damage through smites and holy wrath.
+**Rogue** (Unlocks at F-Rank) — Swift and deadly. High speed and luck mean frequent crits and backstabs. Signature: **Mark for Death** — on a critical hit, the Rogue marks the target so ALL party members deal +20% damage to it for 2 rounds. A force multiplier for the whole team.
 
-**Ranger** (Unlocks at E-Rank) — Precision archer. Excels at ranged combat with piercing arrows and rapid volleys. High attack and speed with decent luck.
+**Cleric** (Unlocks at F-Rank) — The party's lifeline. Signature: **Group Heal** — the only class that can cast direct group heals, restoring HP to the entire party mid-combat. Also deals divine damage through smites and holy wrath.
 
-**Bard** (Unlocks at C-Rank) — The ultimate support. Buffs the entire party's stats through songs and war drums, and casts a regeneration melody that heals the party each round for the rest of the fight. No direct damage skills — pure party amplification.
+**Ranger** (Unlocks at E-Rank) — Precision archer with keen survival instincts. Signature: **Volley** — fires a rain of arrows that strikes ALL enemies at once. The answer to swarm encounters with lots of weaker foes. Also boosts gold and XP gain through Wilderness Mastery.
 
-**Monk** (Unlocks at A-Rank) — Martial arts master. Perfectly balanced stats that grow quickly. Fights with fists, palm strikes, and ki-powered blows. A late-game powerhouse worth the wait.
+**Bard** (Unlocks at C-Rank) — The ultimate support. Signature: **Regen Melody + Party Buffs** — the only class that provides persistent HP regeneration each round AND boosts the entire party's ATK, DEF, and SPD through songs. No direct damage — pure party amplification.
+
+**Monk** (Unlocks at A-Rank) — Martial arts master with perfectly balanced stats. Signature: **Ki Barrier** — heals 25% of all damage dealt back as HP, making the Monk a self-sustaining frontliner who doesn't need a healer. A late-game powerhouse worth the wait.
 
 **Equipment** — Gear comes in five rarities (Common, Magic, Rare, Epic, Legendary) and four slots (Weapon, Armor, Accessory, Offhand). Equipping items boosts your party members' stats and affects combat outcomes.
 

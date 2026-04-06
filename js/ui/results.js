@@ -11,7 +11,7 @@ function formatLootEntry(d) {
 export function showResultsModal() {
   const pr = Game.state.pendingResults;
   if (!pr) return;
-  const { quest, result, levelUps, rankUp } = pr;
+  const { quest, result, levelUps, rankUp, synergyUnlocks, skillGains } = pr;
   const s = Game.state;
 
   let rewardsHtml = '';
@@ -49,6 +49,19 @@ export function showResultsModal() {
   const levelUpHtml = levelUps.length > 0 ? levelUps.map(lu =>
     `<div class="result-levelup">⭐ ${lu.name} reached Level ${lu.level}!</div>`
   ).join('') : '';
+
+  const skillGainHtml = skillGains && skillGains.length > 0 ? skillGains.map(sg =>
+    `<div class="result-skill-gain">${sg.skillIcon} ${sg.memberName} learned <strong>${sg.skillName}</strong>!</div>`
+  ).join('') : '';
+
+  const synergyHtml = synergyUnlocks && synergyUnlocks.length > 0 ? `
+    <div class="result-synergy-unlocks">
+      <div class="synergy-unlock-title">🔗 Party Synergy</div>
+      ${synergyUnlocks.map(su =>
+        `<div class="synergy-unlock-entry"><span class="synergy-unlock-label">${su.label}</span><span class="synergy-unlock-desc">${su.desc}</span></div>`
+      ).join('')}
+    </div>
+  ` : '';
 
   const skillActivationHtml = result.activatedSkills && result.activatedSkills.length > 0
     ? `<div class="result-section">
@@ -106,6 +119,8 @@ export function showResultsModal() {
     ${rewardsHtml}
     ${injuriesHtml}
     ${levelUpHtml}
+    ${skillGainHtml}
+    ${synergyHtml}
   `;
 
   document.getElementById('modal-results').classList.remove('hidden');

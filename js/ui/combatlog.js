@@ -163,6 +163,37 @@ const T_REGEN_TICK = [
   (hp) => `The party recovers <span class="dmg-num dmg-heal">+${hp}</span> HP from the bard's melody.`,
   (hp) => `The lingering song restores <span class="dmg-num dmg-heal">+${hp}</span> HP to the party.`,
 ];
+
+// ── Knight Bulwark templates ──────────────────────────────────────────
+const T_BULWARK = [
+  (knight, ally, dmg) => `${knight} leaps in front of ${ally}, absorbing <span class="dmg-num dmg-block">${dmg}</span> damage!`,
+  (knight, ally, dmg) => `${knight} throws themselves between ${ally} and the blow — <span class="dmg-num dmg-block">${dmg}</span> taken!`,
+  (knight, ally, dmg) => `"Not on my watch!" ${knight} shields ${ally}, taking <span class="dmg-num dmg-block">${dmg}</span> damage!`,
+];
+// ── Hero Rally Cry templates ─────────────────────────────────────────
+const T_RALLY_CRY = [
+  (hero, ally, hp) => `${hero} shouts a Rally Cry! ${ally} is reinvigorated — <span class="dmg-num dmg-heal">+${hp}</span> HP!`,
+  (hero, ally, hp) => `"Fight on!" ${hero} rallies ${ally} back from the brink — <span class="dmg-num dmg-heal">+${hp}</span> HP!`,
+  (hero, ally, hp) => `${hero}'s inspiring cry reaches ${ally} — <span class="dmg-num dmg-heal">+${hp}</span> HP restored!`,
+];
+// ── Rogue Mark for Death templates ──────────────────────────────────
+const T_MARK_FOR_DEATH = [
+  (rogue, target) => `${rogue} exposes a weakness — ${target} is <span class="dmg-num" style="color:#f44">Marked for Death</span>!`,
+  (rogue, target) => `${rogue}'s critical strike reveals a vulnerability — ${target} is <span class="dmg-num" style="color:#f44">Marked</span>!`,
+  (rogue, target) => `"There!" ${rogue} marks ${target}'s weak point — <span class="dmg-num" style="color:#f44">+20% damage taken</span>!`,
+];
+// ── Ranger Volley templates ─────────────────────────────────────────
+const T_VOLLEY = [
+  (ranger, count, dmg) => `${ranger} launches a Volley — arrows rain on <span class="dmg-num">${count}</span> enemies for <span class="dmg-num dmg-ally">${dmg}</span> each!`,
+  (ranger, count, dmg) => `${ranger} darkens the sky! Volley hits <span class="dmg-num">${count}</span> foes for <span class="dmg-num dmg-ally">${dmg}</span> each!`,
+  (ranger, count, dmg) => `A rain of arrows from ${ranger} strikes <span class="dmg-num">${count}</span> enemies — <span class="dmg-num dmg-ally">${dmg}</span> damage each!`,
+];
+// ── Monk Ki Barrier templates ───────────────────────────────────────
+const T_KI_BARRIER = [
+  (monk, hp) => `${monk}'s Ki Barrier pulses — <span class="dmg-num dmg-heal">+${hp}</span> HP drained from the enemy!`,
+  (monk, hp) => `${monk} absorbs life energy through their Ki Barrier — <span class="dmg-num dmg-heal">+${hp}</span> HP!`,
+];
+
 const T_DEFEND = [
   (m, e, dmg) => `${m} blocks ${e}'s attack — only <span class="dmg-num dmg-block">${dmg}</span> damage taken!`,
   (m, e, dmg) => `${m} parries ${e} — <span class="dmg-num dmg-block">${dmg}</span> damage absorbed!`,
@@ -281,6 +312,47 @@ function buildSimulation(aq, quest) {
   let regenPerTick = 0; // Bard regen — HP per member per round
   let regenSource = null; // Name of the bard who cast regen
 
+  // Knight Bulwark — track cooldown per knight (keyed by party member id)
+  const coverCooldowns = {}; // { memberId: roundsRemaining }
+  // Build set of knights that have the Bulwark skill
+  const knightsWithCover = new Set();
+
+  // Hero Rally Cry — track cooldown per hero
+  const rallyCooldowns = {}; // { memberId: roundsRemaining }
+  const heroesWithRally = new Set();
+
+  // Rogue Mark for Death — track which enemies are marked
+  const markedEnemies = {}; // { enemyId: roundsRemaining }
+  const roguesWithMark = new Set();
+
+  // Ranger Volley — track which rangers have the skill
+  const rangersWithVolley = new Set();
+
+  // Monk Ki Barrier — track monks with lifesteal
+  const monksWithKiBarrier = new Set();
+
+  for (const m of members) {
+    const memberData = Game.getMember(m.id);
+    const memberSkills = memberData && memberData.skills ? memberData.skills : [];
+    if (m.class === 'KNIGHT' && memberSkills.includes('BULWARK')) {
+      knightsWithCover.add(m.id);
+      coverCooldowns[m.id] = 0;
+    }
+    if (m.class === 'HERO' && memberSkills.includes('RALLY_CRY')) {
+      heroesWithRally.add(m.id);
+      rallyCooldowns[m.id] = 0;
+    }
+    if (m.class === 'ROGUE' && memberSkills.includes('MARK_FOR_DEATH')) {
+      roguesWithMark.add(m.id);
+    }
+    if (m.class === 'RANGER' && memberSkills.includes('VOLLEY')) {
+      rangersWithVolley.add(m.id);
+    }
+    if (m.class === 'MONK' && memberSkills.includes('KI_BARRIER')) {
+      monksWithKiBarrier.add(m.id);
+    }
+  }
+
   for (let i = 0; i < MAX_BATTLE_EVENTS; i++) {
     const livingEnemies = enemies.filter(e => e.alive);
     const livingParty = partyHp.filter(p => p.hp > 0);
@@ -306,6 +378,20 @@ function buildSimulation(aq, quest) {
       if (partyHp.filter(p => p.hp > 0).length === 0) { battleOutcome = 'defeat'; break; }
     }
 
+    // Tick down Bulwark cooldowns
+    for (const id of Object.keys(coverCooldowns)) {
+      if (coverCooldowns[id] > 0) coverCooldowns[id]--;
+    }
+    // Tick down Rally Cry cooldowns
+    for (const id of Object.keys(rallyCooldowns)) {
+      if (rallyCooldowns[id] > 0) rallyCooldowns[id]--;
+    }
+    // Tick down Mark for Death durations
+    for (const id of Object.keys(markedEnemies)) {
+      if (markedEnemies[id] > 0) markedEnemies[id]--;
+      if (markedEnemies[id] <= 0) delete markedEnemies[id];
+    }
+
     const es = seed + (i + 10) * 7919;
     const roll = sRand(es + 3);
     let text = '';
@@ -318,7 +404,9 @@ function buildSimulation(aq, quest) {
       const target = sPick(livingEnemies, es + 11);
       const cls = getClass(attacker.class);
       const avgEnemyHp = enemies.reduce((s, e) => s + e.maxHp, 0) / Math.max(1, enemies.length);
-      const baseDmg = Math.max(2, Math.floor(avgEnemyHp * (0.15 + sRand(es + 12) * 0.20) * dmgBonus));
+      let baseDmg = Math.max(2, Math.floor(avgEnemyHp * (0.15 + sRand(es + 12) * 0.20) * dmgBonus));
+      // Mark for Death amplification
+      if (markedEnemies[target.id]) baseDmg = Math.floor(baseDmg * 1.20);
       const isCrit = sRand(es + 13) < 0.15;
       const dmg = isCrit ? Math.floor(baseDmg * 1.5) : baseDmg;
       target.hp = Math.max(0, target.hp - dmg);
@@ -330,6 +418,29 @@ function buildSimulation(aq, quest) {
         icon = '✨'; type = 'magic';
       } else {
         icon = '⚔'; type = 'attack';
+      }
+
+      // Monk Ki Barrier — lifesteal on hit
+      if (monksWithKiBarrier.has(attacker.id) && attacker.hp > 0) {
+        const lifeSteal = Math.max(1, Math.floor(dmg * 0.25));
+        const before = attacker.hp;
+        attacker.hp = Math.min(attacker.maxHp, attacker.hp + lifeSteal);
+        const actual = attacker.hp - before;
+        if (actual > 0) {
+          events.push({ text, type, icon, phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies));
+          text = sPick(T_KI_BARRIER, es + 90)(attacker.name, actual);
+          icon = '🔮'; type = 'heal';
+        }
+      }
+
+      // Rogue Mark for Death — on crit, mark the target
+      if (isCrit && roguesWithMark.has(attacker.id) && target.alive) {
+        events.push({ text, type, icon, phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies));
+        markedEnemies[target.id] = 2;
+        text = sPick(T_MARK_FOR_DEATH, es + 91)(attacker.name, target.name);
+        icon = '🎯'; type = 'debuff';
       }
 
       if (target.hp <= 0) {
@@ -350,17 +461,56 @@ function buildSimulation(aq, quest) {
         const skillId = sPick(skills, es + 22);
         const skill = getSkill(skillId);
         if (skill) {
-          const avgEHp = enemies.reduce((s, e) => s + e.maxHp, 0) / Math.max(1, enemies.length);
-          const baseDmg = Math.max(3, Math.floor(avgEHp * (0.20 + sRand(es + 23) * 0.25) * dmgBonus));
-          target.hp = Math.max(0, target.hp - baseDmg);
-          text = sPick(T_SKILL, es)(attacker.name, skill.name, target.name, baseDmg);
-          icon = skill.icon || '⚡'; type = 'skill';
-          if (target.hp <= 0) {
-            target.alive = false;
-            events.push({ text, type, icon, phase: 'battle' });
-            snapshots.push(makeSnapshot(partyHp, enemies));
-            text = sPick(T_ENEMY_DEFEAT, es + 51)(target.name, attacker.name);
-            icon = '💥'; type = 'defeat';
+          // ── Ranger Volley: AoE all enemies ──
+          if (skillId === 'VOLLEY' && rangersWithVolley.has(attacker.id)) {
+            const avgEHp = enemies.reduce((s, e) => s + e.maxHp, 0) / Math.max(1, enemies.length);
+            const perTargetDmg = Math.max(2, Math.floor(avgEHp * (0.12 + sRand(es + 23) * 0.15) * dmgBonus * 0.60));
+            const currentLiving = enemies.filter(e => e.alive);
+            currentLiving.forEach(e => {
+              const ampDmg = markedEnemies[e.id] ? Math.floor(perTargetDmg * 1.20) : perTargetDmg;
+              e.hp = Math.max(0, e.hp - ampDmg);
+              if (e.hp <= 0) e.alive = false;
+            });
+            text = sPick(T_VOLLEY, es)(attacker.name, currentLiving.length, perTargetDmg);
+            icon = '🏹'; type = 'skill';
+            // Check for kills
+            const killed = currentLiving.filter(e => !e.alive);
+            if (killed.length > 0) {
+              events.push({ text, type, icon, phase: 'battle' });
+              snapshots.push(makeSnapshot(partyHp, enemies));
+              text = killed.map(e => `${e.name} falls!`).join(' ');
+              icon = '💥'; type = 'defeat';
+            }
+          } else {
+            // Standard skill attack
+            const avgEHp = enemies.reduce((s, e) => s + e.maxHp, 0) / Math.max(1, enemies.length);
+            let baseDmg = Math.max(3, Math.floor(avgEHp * (0.20 + sRand(es + 23) * 0.25) * dmgBonus));
+            if (markedEnemies[target.id]) baseDmg = Math.floor(baseDmg * 1.20);
+            target.hp = Math.max(0, target.hp - baseDmg);
+            text = sPick(T_SKILL, es)(attacker.name, skill.name, target.name, baseDmg);
+            icon = skill.icon || '⚡'; type = 'skill';
+
+            // Monk Ki Barrier lifesteal on skill use
+            if (monksWithKiBarrier.has(attacker.id) && attacker.hp > 0) {
+              const lifeSteal = Math.max(1, Math.floor(baseDmg * 0.25));
+              const before = attacker.hp;
+              attacker.hp = Math.min(attacker.maxHp, attacker.hp + lifeSteal);
+              const actual = attacker.hp - before;
+              if (actual > 0) {
+                events.push({ text, type, icon, phase: 'battle' });
+                snapshots.push(makeSnapshot(partyHp, enemies));
+                text = sPick(T_KI_BARRIER, es + 90)(attacker.name, actual);
+                icon = '🔮'; type = 'heal';
+              }
+            }
+
+            if (target.hp <= 0) {
+              target.alive = false;
+              events.push({ text, type, icon, phase: 'battle' });
+              snapshots.push(makeSnapshot(partyHp, enemies));
+              text = sPick(T_ENEMY_DEFEAT, es + 51)(target.name, attacker.name);
+              icon = '💥'; type = 'defeat';
+            }
           }
         } else {
           const avgEHp2 = enemies.reduce((s, e) => s + e.maxHp, 0) / Math.max(1, enemies.length);
@@ -397,12 +547,61 @@ function buildSimulation(aq, quest) {
         icon = '💀'; type = 'enemy';
       }
 
-      // Check if party member was KO'd
-      if (target.hp <= 0) {
+      // Knight Bulwark — intercept ANY hit on an ally every 3 rounds
+      const dmgTaken = isSkill ? Math.floor(baseDmg * 1.3) : baseDmg;
+      const availableBulwark = partyHp.filter(p =>
+        p.hp > 0 && p.id !== target.id && knightsWithCover.has(p.id) && coverCooldowns[p.id] === 0
+      );
+      if (availableBulwark.length > 0) {
+        const knight = sPick(availableBulwark, es + 80);
+        // Undo damage to target, redirect to knight
+        target.hp = Math.min(target.hp + dmgTaken, target.maxHp); // restore target
+        knight.hp = Math.max(0, knight.hp - dmgTaken); // knight absorbs it
+        coverCooldowns[knight.id] = 3; // 3-round cooldown
+
+        // Push the original attack event first
+        events.push({ text, type, icon, phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies));
+
+        // Then the Bulwark intercept event
+        text = sPick(T_BULWARK, es + 81)(knight.name, target.name, dmgTaken);
+        icon = '🛡'; type = 'cover';
+
+        // Check if the knight was KO'd from absorbing the hit
+        if (knight.hp <= 0) {
+          events.push({ text, type, icon, phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies));
+          text = sPick(T_PARTY_KO, es + 82)(knight.name, attacker.name);
+          icon = '💀'; type = 'ko';
+        }
+      } else if (target.hp <= 0) {
+        // No Bulwark available — normal KO
         events.push({ text, type, icon, phase: 'battle' });
         snapshots.push(makeSnapshot(partyHp, enemies));
         text = sPick(T_PARTY_KO, es + 70)(target.name, attacker.name);
         icon = '💀'; type = 'ko';
+      }
+
+      // Hero Rally Cry — triggers when any ally drops below 30% HP
+      const woundedAlly = partyHp.find(p => p.hp > 0 && p.hp < p.maxHp * 0.30);
+      if (woundedAlly) {
+        const availableHero = partyHp.find(p =>
+          p.hp > 0 && heroesWithRally.has(p.id) && rallyCooldowns[p.id] === 0
+        );
+        if (availableHero) {
+          const rallyHeal = Math.max(1, Math.floor(woundedAlly.maxHp * 0.15));
+          const before = woundedAlly.hp;
+          woundedAlly.hp = Math.min(woundedAlly.maxHp, woundedAlly.hp + rallyHeal);
+          const actual = woundedAlly.hp - before;
+          rallyCooldowns[availableHero.id] = 4;
+
+          if (actual > 0) {
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies));
+            text = sPick(T_RALLY_CRY, es + 85)(availableHero.name, woundedAlly.name, actual);
+            icon = '📣'; type = 'buff';
+          }
+        }
       }
 
     } else if (roll < 0.82) {
