@@ -266,13 +266,13 @@ const QUEST_TEMPLATES = {
 // Base scales — these define the FLOOR for each rank.
 // Quest power is dynamically scaled up based on actual party strength.
 const RANK_SCALES = {
-  F: { gold:[10,50],    exp:[12,35],  rp:[50,120],    dur:[15,20],   diff:[0.4,1.0],  recPow:[12,30] },
-  E: { gold:[50,180],   exp:[35,80],  rp:[150,350],   dur:[20,30],   diff:[1.0,2.0],  recPow:[40,75] },
-  D: { gold:[180,500],  exp:[80,200], rp:[450,900],   dur:[25,35],   diff:[2.0,3.5],  recPow:[100,180] },
-  C: { gold:[400,1200], exp:[180,420],rp:[800,2000],  dur:[30,40],   diff:[3.0,5.0],  recPow:[200,400] },
-  B: { gold:[1200,3000],exp:[400,900],rp:[2000,4500], dur:[35,50],   diff:[5.0,8.0],  recPow:[400,700] },
-  A: { gold:[3000,10000],exp:[800,2500],rp:[4000,10000],dur:[40,55],diff:[8.0,14.0],recPow:[700,1200] },
-  S: { gold:[15000,35000],exp:[3000,8000],rp:[15000,30000],dur:[50,60],diff:[14.0,22.0],recPow:[1400,2200] },
+  F: { gold:[10,50],    exp:[12,35],  rp:[25,60],      dur:[15,20],   diff:[0.4,1.0],  recPow:[12,30] },
+  E: { gold:[50,180],   exp:[35,80],  rp:[75,175],     dur:[20,30],   diff:[1.0,2.0],  recPow:[40,75] },
+  D: { gold:[180,500],  exp:[80,200], rp:[225,450],    dur:[25,35],   diff:[2.0,3.5],  recPow:[100,180] },
+  C: { gold:[400,1200], exp:[180,420],rp:[400,1000],   dur:[30,40],   diff:[3.0,5.0],  recPow:[200,400] },
+  B: { gold:[1200,3000],exp:[400,900],rp:[1000,2250],  dur:[35,50],   diff:[5.0,8.0],  recPow:[400,700] },
+  A: { gold:[3000,10000],exp:[800,2500],rp:[2000,5000],dur:[40,55],  diff:[8.0,14.0], recPow:[700,1200] },
+  S: { gold:[15000,35000],exp:[3000,8000],rp:[7500,15000],dur:[50,60],diff:[14.0,22.0],recPow:[1400,2200] },
 };
 
 // Loot table definitions per rank

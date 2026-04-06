@@ -66,27 +66,102 @@ const T_RESOLVE_LOSE = [
   (m) => `${m} drags the wounded to safety as hope fades.`,
 ];
 
-// Party attack flavor (with damage placeholder {dmg})
+// ── Class-specific attack templates ────────────────────────────────────
+// Each class gets its own flavor. Fallback T_ATTACK used for unknown classes.
+const T_ATTACK_HERO = [
+  (m, e, dmg) => `${m} slashes ${e} with a swift blade — <span class="dmg-num dmg-phys">${dmg}</span>!`,
+  (m, e, dmg) => `${m} charges ${e} with a mighty strike — <span class="dmg-num dmg-phys">${dmg}</span>!`,
+  (m, e, dmg) => `${m} lunges forward, cutting ${e} for <span class="dmg-num dmg-phys">${dmg}</span>!`,
+  (m, e, dmg) => `${m} follows up with a swift combo on ${e} — <span class="dmg-num dmg-phys">${dmg}</span>!`,
+];
+const T_ATTACK_KNIGHT = [
+  (m, e, dmg) => `${m} delivers a crushing overhead blow to ${e} — <span class="dmg-num dmg-phys">${dmg}</span>!`,
+  (m, e, dmg) => `${m} shield-bashes ${e} and follows with a heavy slash — <span class="dmg-num dmg-phys">${dmg}</span>!`,
+  (m, e, dmg) => `${m} drives their sword through ${e}'s guard — <span class="dmg-num dmg-phys">${dmg}</span>!`,
+  (m, e, dmg) => `${m} charges ${e} in full plate — <span class="dmg-num dmg-phys">${dmg}</span>!`,
+];
+const T_ATTACK_MAGE = [
+  (m, e, dmg) => `${m} hurls a bolt of arcane fire at ${e} — <span class="dmg-num dmg-mag">${dmg}</span>!`,
+  (m, e, dmg) => `${m} conjures a shard of ice that pierces ${e} — <span class="dmg-num dmg-mag">${dmg}</span>!`,
+  (m, e, dmg) => `Arcane energy crackles from ${m}'s staff, striking ${e} for <span class="dmg-num dmg-mag">${dmg}</span>!`,
+  (m, e, dmg) => `${m} channels a lightning bolt at ${e} — <span class="dmg-num dmg-mag">${dmg}</span>!`,
+];
+const T_ATTACK_ROGUE = [
+  (m, e, dmg) => `${m} darts behind ${e} and stabs deep — <span class="dmg-num dmg-phys">${dmg}</span>!`,
+  (m, e, dmg) => `${m} flicks a dagger into ${e}'s weak spot — <span class="dmg-num dmg-phys">${dmg}</span>!`,
+  (m, e, dmg) => `${m} slips through ${e}'s defenses with a quick stab — <span class="dmg-num dmg-phys">${dmg}</span>!`,
+  (m, e, dmg) => `${m} strikes from the shadows, piercing ${e} — <span class="dmg-num dmg-phys">${dmg}</span>!`,
+];
+const T_ATTACK_CLERIC = [
+  (m, e, dmg) => `${m} smites ${e} with divine light — <span class="dmg-num dmg-mag">${dmg}</span>!`,
+  (m, e, dmg) => `${m} calls down holy wrath upon ${e} — <span class="dmg-num dmg-mag">${dmg}</span>!`,
+  (m, e, dmg) => `${m} channels sacred energy, searing ${e} for <span class="dmg-num dmg-mag">${dmg}</span>!`,
+  (m, e, dmg) => `${m} swings their mace with divine fury — ${e} takes <span class="dmg-num dmg-mag">${dmg}</span>!`,
+];
+const T_ATTACK_RANGER = [
+  (m, e, dmg) => `${m} looses an arrow that pierces ${e} — <span class="dmg-num dmg-phys">${dmg}</span>!`,
+  (m, e, dmg) => `${m} lines up a precise shot and hits ${e} for <span class="dmg-num dmg-phys">${dmg}</span>!`,
+  (m, e, dmg) => `An arrow whistles from ${m}'s bow, striking ${e} — <span class="dmg-num dmg-phys">${dmg}</span>!`,
+  (m, e, dmg) => `${m} fires a rapid volley at ${e} — <span class="dmg-num dmg-phys">${dmg}</span>!`,
+];
+const T_ATTACK_BARD = [
+  (m, e, dmg) => `${m} strikes a dissonant chord that rattles ${e} — <span class="dmg-num dmg-mag">${dmg}</span>!`,
+  (m, e, dmg) => `${m} sings a piercing note — sonic energy blasts ${e} for <span class="dmg-num dmg-mag">${dmg}</span>!`,
+  (m, e, dmg) => `${m} strums a war melody, sending a shockwave into ${e} — <span class="dmg-num dmg-mag">${dmg}</span>!`,
+  (m, e, dmg) => `A cutting verse from ${m} strikes ${e} for <span class="dmg-num dmg-mag">${dmg}</span>!`,
+];
+const T_ATTACK_MONK = [
+  (m, e, dmg) => `${m} delivers a flurry of fists to ${e} — <span class="dmg-num dmg-phys">${dmg}</span>!`,
+  (m, e, dmg) => `${m} lands a devastating palm strike on ${e} — <span class="dmg-num dmg-phys">${dmg}</span>!`,
+  (m, e, dmg) => `${m} sweeps ${e}'s legs and follows with an elbow strike — <span class="dmg-num dmg-phys">${dmg}</span>!`,
+  (m, e, dmg) => `${m} channels ki into a crushing blow against ${e} — <span class="dmg-num dmg-phys">${dmg}</span>!`,
+];
+
+// Fallback for unknown classes
 const T_ATTACK = [
   (m, e, dmg) => `${m} strikes ${e} for <span class="dmg-num dmg-phys">${dmg}</span> damage!`,
   (m, e, dmg) => `${m} lands a clean hit on ${e} — <span class="dmg-num dmg-phys">${dmg}</span>!`,
-  (m, e, dmg) => `${m} slashes at ${e}, dealing <span class="dmg-num dmg-phys">${dmg}</span> damage!`,
-  (m, e, dmg) => `${m} charges ${e} — <span class="dmg-num dmg-phys">${dmg}</span>!`,
-  (m, e, dmg) => `${m} follows up with a combo on ${e} for <span class="dmg-num dmg-phys">${dmg}</span>!`,
+  (m, e, dmg) => `${m} attacks ${e}, dealing <span class="dmg-num dmg-phys">${dmg}</span> damage!`,
 ];
-const T_MAGIC = [
-  (m, e, dmg) => `${m} unleashes arcane energy at ${e} for <span class="dmg-num dmg-mag">${dmg}</span> damage!`,
-  (m, e, dmg) => `A blast of magic from ${m} engulfs ${e} — <span class="dmg-num dmg-mag">${dmg}</span>!`,
-  (m, e, dmg) => `${m} chants an incantation — ${e} takes <span class="dmg-num dmg-mag">${dmg}</span>!`,
-];
+
+// Map class IDs to their template sets
+const CLASS_ATTACK_TEMPLATES = {
+  HERO: T_ATTACK_HERO, KNIGHT: T_ATTACK_KNIGHT, MAGE: T_ATTACK_MAGE,
+  ROGUE: T_ATTACK_ROGUE, CLERIC: T_ATTACK_CLERIC, RANGER: T_ATTACK_RANGER,
+  BARD: T_ATTACK_BARD, MONK: T_ATTACK_MONK,
+};
+// Magic-style classes (use ✨ icon instead of ⚔)
+const MAGIC_CLASSES = new Set(['MAGE', 'CLERIC', 'BARD']);
+
+function getAttackTemplate(classId, seed) {
+  const templates = CLASS_ATTACK_TEMPLATES[classId] || T_ATTACK;
+  return sPick(templates, seed);
+}
+function isMagicClass(classId) { return MAGIC_CLASSES.has(classId); }
+
 const T_SKILL = [
   (m, sk, e, dmg) => `${m} activates <strong>${sk}</strong> on ${e} — <span class="dmg-num dmg-skill">${dmg}</span>!`,
   (m, sk, e, dmg) => `${m} unleashes <strong>${sk}</strong> — ${e} takes <span class="dmg-num dmg-skill">${dmg}</span>!`,
   (m, sk, e, dmg) => `The power of <strong>${sk}</strong> surges through ${m} — <span class="dmg-num dmg-skill">${dmg}</span> to ${e}!`,
 ];
-const T_HEAL = [
-  (m, hp) => `${m} channels healing magic — party recovers <span class="dmg-num dmg-heal">+${hp}</span> HP!`,
-  (m, hp) => `A warm glow from ${m} heals <span class="dmg-num dmg-heal">+${hp}</span> HP!`,
+
+// ── Cleric heal templates (direct group heal) ────────────────────────
+const T_HEAL_CLERIC = [
+  (m, hp) => `${m} invokes a prayer of restoration — party recovers <span class="dmg-num dmg-heal">+${hp}</span> HP!`,
+  (m, hp) => `Divine light radiates from ${m}, healing the party for <span class="dmg-num dmg-heal">+${hp}</span> HP!`,
+  (m, hp) => `${m} lays hands on the wounded — <span class="dmg-num dmg-heal">+${hp}</span> HP restored!`,
+];
+function getHealTemplate(seed) { return sPick(T_HEAL_CLERIC, seed); }
+
+// ── Bard regen templates (weaker but persistent) ─────────────────────
+const T_BARD_REGEN = [
+  (m, hp) => `${m} plays an invigorating melody — the party gains <span class="dmg-num dmg-heal">+${hp}</span> HP regen per round!`,
+  (m, hp) => `${m} strums a restorative chord — party regenerates <span class="dmg-num dmg-heal">+${hp}</span> HP each round!`,
+  (m, hp) => `A soothing song from ${m} washes over the party — <span class="dmg-num dmg-heal">+${hp}</span> HP regen!`,
+];
+const T_REGEN_TICK = [
+  (hp) => `The party recovers <span class="dmg-num dmg-heal">+${hp}</span> HP from the bard's melody.`,
+  (hp) => `The lingering song restores <span class="dmg-num dmg-heal">+${hp}</span> HP to the party.`,
 ];
 const T_DEFEND = [
   (m, e, dmg) => `${m} blocks ${e}'s attack — only <span class="dmg-num dmg-block">${dmg}</span> damage taken!`,
@@ -203,6 +278,8 @@ function buildSimulation(aq, quest) {
   const MAX_BATTLE_EVENTS = 40;
   let reinforceCount = 0;
   const maxReinforcements = Math.min(3, enemyNames.length);
+  let regenPerTick = 0; // Bard regen — HP per member per round
+  let regenSource = null; // Name of the bard who cast regen
 
   for (let i = 0; i < MAX_BATTLE_EVENTS; i++) {
     const livingEnemies = enemies.filter(e => e.alive);
@@ -211,6 +288,23 @@ function buildSimulation(aq, quest) {
     // Check end conditions
     if (livingEnemies.length === 0) { battleOutcome = 'victory'; break; }
     if (livingParty.length === 0) { battleOutcome = 'defeat'; break; }
+
+    // Apply bard regen tick (if active)
+    if (regenPerTick > 0 && livingParty.length > 0) {
+      let anyHealed = false;
+      livingParty.forEach(p => {
+        const before = p.hp;
+        p.hp = Math.min(p.maxHp, p.hp + regenPerTick);
+        if (p.hp > before) anyHealed = true;
+      });
+      if (anyHealed) {
+        const regenText = sPick(T_REGEN_TICK, seed + i * 1111)(regenPerTick);
+        events.push({ text: regenText, type: 'heal', icon: '🎵', phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies));
+      }
+      // Re-check after regen in case everyone died (shouldn't happen, but safety)
+      if (partyHp.filter(p => p.hp > 0).length === 0) { battleOutcome = 'defeat'; break; }
+    }
 
     const es = seed + (i + 10) * 7919;
     const roll = sRand(es + 3);
@@ -230,11 +324,11 @@ function buildSimulation(aq, quest) {
       target.hp = Math.max(0, target.hp - dmg);
 
       const dmgStr = isCrit ? `${dmg} CRIT` : `${dmg}`;
-      if (cls && cls.baseStats.mag > 10) {
-        text = sPick(T_MAGIC, es)(attacker.name, target.name, dmgStr);
+      const classId = attacker.class || 'HERO';
+      text = getAttackTemplate(classId, es)(attacker.name, target.name, dmgStr);
+      if (isMagicClass(classId)) {
         icon = '✨'; type = 'magic';
       } else {
-        text = sPick(T_ATTACK, es)(attacker.name, target.name, dmgStr);
         icon = '⚔'; type = 'attack';
       }
 
@@ -321,13 +415,64 @@ function buildSimulation(aq, quest) {
       icon = '🛡'; type = 'defend';
 
     } else if (roll < 0.90) {
-      // ── Healing ──
-      const healer = sPick(livingParty, es + 45);
-      const baseHeal = Math.max(3, Math.floor(healer.maxHp * (0.08 + sRand(es + 46) * 0.12)));
-      const healAmt = Math.floor(baseHeal * healBonus);
-      livingParty.forEach(p => { p.hp = Math.min(p.maxHp, p.hp + Math.floor(healAmt * 0.5)); });
-      text = sPick(T_HEAL, es)(healer.name, healAmt);
-      icon = '💚'; type = 'heal';
+      // ── Healing / Regen — only Clerics and Bards ──
+      const clerics = livingParty.filter(p => p.class === 'CLERIC');
+      const bards = livingParty.filter(p => p.class === 'BARD');
+
+      if (clerics.length === 0 && bards.length === 0) {
+        // No healer alive — fall back to a party attack
+        const attacker = sPick(livingParty, es + 60);
+        const target = sPick(livingEnemies, es + 61);
+        const avgEHp = enemies.reduce((s, e) => s + e.maxHp, 0) / Math.max(1, enemies.length);
+        const fallbackDmg = Math.max(2, Math.floor(avgEHp * (0.15 + sRand(es + 62) * 0.20) * dmgBonus));
+        target.hp = Math.max(0, target.hp - fallbackDmg);
+        const classId = attacker.class || 'HERO';
+        text = getAttackTemplate(classId, es)(attacker.name, target.name, fallbackDmg);
+        if (isMagicClass(classId)) { icon = '✨'; type = 'magic'; }
+        else { icon = '⚔'; type = 'attack'; }
+        if (target.hp <= 0) { target.alive = false; }
+      } else if (clerics.length > 0 && (bards.length === 0 || sRand(es + 44) < 0.6)) {
+        // ── Cleric: direct group heal ──
+        const healer = sPick(clerics, es + 45);
+        const baseHeal = Math.max(3, Math.floor(healer.maxHp * (0.08 + sRand(es + 46) * 0.12)));
+        const healAmt = Math.floor(baseHeal * healBonus);
+        const perMemberHeal = Math.floor(healAmt * 0.5);
+
+        const healed = [];
+        livingParty.forEach(p => {
+          const before = p.hp;
+          p.hp = Math.min(p.maxHp, p.hp + perMemberHeal);
+          const actual = p.hp - before;
+          if (actual > 0 && p.id !== healer.id) healed.push({ name: p.name, amt: actual });
+        });
+
+        text = getHealTemplate(es)(healer.name, healAmt);
+        icon = '💚'; type = 'heal';
+        events.push({ text, type, icon, phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies));
+
+        if (healed.length > 0) {
+          const names = healed.map(h => `${h.name} (<span class="dmg-num dmg-heal">+${h.amt}</span>)`).join(', ');
+          text = `${names} received healing from ${healer.name}.`;
+          icon = '💚'; type = 'heal';
+          events.push({ text, type, icon, phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies));
+        }
+        continue;
+      } else {
+        // ── Bard: regen buff (stacks/refreshes) ──
+        const bard = sPick(bards, es + 45);
+        const baseRegen = Math.max(1, Math.floor(bard.maxHp * (0.03 + sRand(es + 47) * 0.04)));
+        const regenAmt = Math.max(1, Math.floor(baseRegen * healBonus));
+        regenPerTick = regenAmt; // refreshes the regen value each time bard casts
+        regenSource = bard.name;
+
+        text = sPick(T_BARD_REGEN, es)(bard.name, regenAmt);
+        icon = '🎵'; type = 'buff';
+        events.push({ text, type, icon, phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies));
+        continue;
+      }
 
     } else {
       // ── Reinforcement spawn (limited) ──

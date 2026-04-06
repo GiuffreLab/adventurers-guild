@@ -204,7 +204,7 @@ export const QUESTS = {
     environment: { name: "Dobbs' Farmland", icon: '🌾', mood: 'pastoral' },
     enemies: ['Slime', 'Green Slime', 'Slime King'],
     duration:15, difficulty:0.5, recommendedPower:15,
-    goldReward:{min:10,max:25}, expReward:{min:12,max:20}, rankPointReward:50,
+    goldReward:{min:10,max:25}, expReward:{min:12,max:20}, rankPointReward:25,
     lootTable:[
       {itemId:'SLIME_JELLY',   chance:0.70, quantity:[1,3]},
       {itemId:'WORN_SWORD',    chance:0.12, quantity:[1,1]},
@@ -223,7 +223,7 @@ export const QUESTS = {
     environment: { name: "Millhaven Inn Cellar", icon: '🏚', mood: 'dungeon' },
     enemies: ['Giant Rat', 'Plague Rat', 'Rat Swarm'],
     duration:18, difficulty:0.6, recommendedPower:18,
-    goldReward:{min:15,max:30}, expReward:{min:15,max:25}, rankPointReward:60,
+    goldReward:{min:15,max:30}, expReward:{min:15,max:25}, rankPointReward:30,
     lootTable:[
       {itemId:'CHAINMAIL',    chance:0.15, quantity:[1,1]},
       {itemId:'LUCKY_CHARM',  chance:0.10, quantity:[1,1]},
@@ -241,7 +241,7 @@ export const QUESTS = {
     environment: { name: "Millhaven Road", icon: '🛤', mood: 'wilderness' },
     enemies: ['Goblin Scout', 'Goblin Archer', 'Goblin Ambusher'],
     duration:20, difficulty:0.8, recommendedPower:25,
-    goldReward:{min:30,max:50}, expReward:{min:20,max:35}, rankPointReward:100,
+    goldReward:{min:30,max:50}, expReward:{min:20,max:35}, rankPointReward:50,
     lootTable:[
       {itemId:'GOBLIN_EAR',  chance:0.40, quantity:[1,3]},
       {itemId:'IRON_SWORD',  chance:0.08, quantity:[1,1]},
@@ -260,7 +260,7 @@ export const QUESTS = {
     environment: { name: "Goblin Caves", icon: '🕳', mood: 'dungeon' },
     enemies: ['Goblin Warrior', 'Goblin Shaman', 'Goblin Chieftain'],
     duration:22, difficulty:1.2, recommendedPower:45,
-    goldReward:{min:50,max:90}, expReward:{min:35,max:55}, rankPointReward:180,
+    goldReward:{min:50,max:90}, expReward:{min:35,max:55}, rankPointReward:90,
     lootTable:[
       {itemId:'GOBLIN_EAR',  chance:0.80, quantity:[3,8]},
       {itemId:'IRON_SWORD',  chance:0.20, quantity:[1,1]},
@@ -280,7 +280,7 @@ export const QUESTS = {
     environment: { name: "Western Grazelands", icon: '🌙', mood: 'wilderness' },
     enemies: ['Dire Wolf', 'Shadow Wolf', 'Alpha Wolf'],
     duration:25, difficulty:1.4, recommendedPower:55,
-    goldReward:{min:70,max:120}, expReward:{min:40,max:65}, rankPointReward:220,
+    goldReward:{min:70,max:120}, expReward:{min:40,max:65}, rankPointReward:110,
     lootTable:[
       {itemId:'WOLF_PELT',   chance:0.90, quantity:[2,5]},
       {itemId:'CHAINMAIL',   chance:0.15, quantity:[1,1]},
@@ -299,7 +299,7 @@ export const QUESTS = {
     environment: { name: "Abandoned Farmhouse", icon: '👻', mood: 'haunted' },
     enemies: ['Skeleton', 'Restless Spirit', 'Ghostly Knight'],
     duration:28, difficulty:1.6, recommendedPower:65,
-    goldReward:{min:90,max:140}, expReward:{min:50,max:80}, rankPointReward:280,
+    goldReward:{min:90,max:140}, expReward:{min:50,max:80}, rankPointReward:140,
     lootTable:[
       {itemId:'SKELETON_BONE',chance:0.70, quantity:[2,5]},
       {itemId:'MAGE_ROBES',   chance:0.12, quantity:[1,1]},
@@ -319,7 +319,7 @@ export const QUESTS = {
     environment: { name: "The Iron Tomb", icon: '⚰', mood: 'dungeon' },
     enemies: ['Skeleton Knight', 'Iron Golem', 'Ancient Lich'],
     duration:30, difficulty:2.2, recommendedPower:120,
-    goldReward:{min:200,max:350}, expReward:{min:100,max:160}, rankPointReward:550,
+    goldReward:{min:200,max:350}, expReward:{min:100,max:160}, rankPointReward:275,
     lootTable:[
       {itemId:'SKELETON_BONE',chance:0.60, quantity:[3,7]},
       {itemId:'STEEL_SWORD',  chance:0.20, quantity:[1,1]},
@@ -340,7 +340,7 @@ export const QUESTS = {
     environment: { name: "Ruined Keep", icon: '🏰', mood: 'fortress' },
     enemies: ['Bandit Thug', 'Bandit Lieutenant', 'The Bandit King'],
     duration:35, difficulty:2.5, recommendedPower:140,
-    goldReward:{min:280,max:450}, expReward:{min:120,max:190}, rankPointReward:700,
+    goldReward:{min:280,max:450}, expReward:{min:120,max:190}, rankPointReward:350,
     lootTable:[
       {itemId:'BANDIT_MASK',  chance:0.90, quantity:[2,4]},
       {itemId:'STEEL_SWORD',  chance:0.25, quantity:[1,1]},
@@ -362,7 +362,7 @@ export const QUESTS = {
     environment: { name: "Northern Trade Bridge", icon: '🌉', mood: 'wilderness' },
     enemies: ['Stone Troll', 'Elder Stone Troll'],
     duration:35, difficulty:3.5, recommendedPower:250,
-    goldReward:{min:500,max:800}, expReward:{min:200,max:320}, rankPointReward:1200,
+    goldReward:{min:500,max:800}, expReward:{min:200,max:320}, rankPointReward:600,
     lootTable:[
       {itemId:'OGRE_TOOTH',   chance:0.50, quantity:[1,2]},
       {itemId:'MYTHRIL_BLADE',chance:0.15, quantity:[1,1]},
@@ -383,7 +383,7 @@ export const QUESTS = {
     environment: { name: "The Ashwood", icon: '🌳', mood: 'haunted' },
     enemies: ['Corrupted Treant', 'Shadow Stalker', 'Corrupted Dryad'],
     duration:40, difficulty:4.0, recommendedPower:300,
-    goldReward:{min:700,max:1100}, expReward:{min:250,max:400}, rankPointReward:1600,
+    goldReward:{min:700,max:1100}, expReward:{min:250,max:400}, rankPointReward:800,
     lootTable:[
       {itemId:'MANA_CRYSTAL',  chance:0.60, quantity:[2,5]},
       {itemId:'MYTHRIL_BLADE', chance:0.18, quantity:[1,1]},
@@ -405,7 +405,7 @@ export const QUESTS = {
     environment: { name: "Stormcrest Pass", icon: '⛰', mood: 'mountain' },
     enemies: ['Mountain Drake', 'Wyvern Hatchling', 'Young Wyvern'],
     duration:45, difficulty:6.0, recommendedPower:500,
-    goldReward:{min:1500,max:2500}, expReward:{min:500,max:800}, rankPointReward:3000,
+    goldReward:{min:1500,max:2500}, expReward:{min:500,max:800}, rankPointReward:1500,
     lootTable:[
       {itemId:'DRAGON_SCALE',  chance:0.80, quantity:[1,3]},
       {itemId:'MYTHRIL_PLATE',chance:0.20,quantity:[1,1]},
@@ -425,7 +425,7 @@ export const QUESTS = {
     environment: { name: "Eastern Wastes Rift", icon: '🌀', mood: 'demonic' },
     enemies: ['Lesser Demon', 'Hellfire Imp', 'Demon Commander'],
     duration:50, difficulty:10.0, recommendedPower:900,
-    goldReward:{min:5000,max:8000}, expReward:{min:1200,max:2000}, rankPointReward:7000,
+    goldReward:{min:5000,max:8000}, expReward:{min:1200,max:2000}, rankPointReward:3500,
     lootTable:[
       {itemId:'DRAGON_SCALE',  chance:0.60, quantity:[2,5]},
       {itemId:'MANA_CRYSTAL',  chance:0.90, quantity:[5,10]},
@@ -445,7 +445,7 @@ export const QUESTS = {
     environment: { name: "Obsidian Citadel", icon: '🏯', mood: 'demonic' },
     enemies: ['Demon Elite Guard', 'Arch-Demon', 'The Demon King'],
     duration:60, difficulty:18.0, recommendedPower:1800,
-    goldReward:{min:20000,max:30000}, expReward:{min:5000,max:8000}, rankPointReward:20000,
+    goldReward:{min:20000,max:30000}, expReward:{min:5000,max:8000}, rankPointReward:10000,
     lootTable:[
       {itemId:'DRAGON_SCALE',  chance:1.0, quantity:[5,10]},
       {itemId:'MANA_CRYSTAL',  chance:1.0, quantity:[10,20]},
