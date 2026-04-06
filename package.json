@@ -1,0 +1,11 @@
+{
+  "name": "adventurers-guild",
+  "version": "2.0.0",
+  "description": "An idle adventurers guild game",
+  "scripts": {
+    "start": "node serve.js"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

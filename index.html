@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Adventurers Guild</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ── New Game Modal ───────────────────────────────────────────────── -->
+  <div id="modal-new-game" class="modal-overlay">
+    <div class="modal-box new-game-box">
+      <div class="modal-header-art">⚔</div>
+      <h1 class="modal-title">Adventurers Guild</h1>
+      <p class="modal-flavor">"A portal tears open. The guild master looks up from his desk.<br>Another otherworlder, eh? You'll need to register first."</p>
+
+      <div class="form-group">
+        <label for="input-name">Your name, adventurer?</label>
+        <input type="text" id="input-name" placeholder="Enter name…" maxlength="20" autocomplete="off" spellcheck="false">
+      </div>
+
+      <div class="form-group">
+        <label>Choose your class:</label>
+        <div id="class-picker" class="class-grid"></div>
+      </div>
+
+      <button id="btn-start-game" class="btn btn-primary btn-lg" disabled>Register with the Guild</button>
+    </div>
+  </div>
+
+  <!-- ── Quest Results Modal ──────────────────────────────────────────── -->
+  <div id="modal-results" class="modal-overlay hidden">
+    <div class="modal-box results-box">
+      <div id="results-content"></div>
+      <button id="btn-dismiss-results" class="btn btn-primary">Continue</button>
+    </div>
+  </div>
+
+  <!-- ── Main Game ────────────────────────────────────────────────────── -->
+  <div id="game" class="hidden">
+    <header class="game-header">
+      <div class="header-left">
+        <span class="header-icon">⚔</span>
+        <h1 class="game-title">The Adventurers Guild</h1>
+      </div>
+      <div class="header-right">
+        <span class="gold-display"><span class="gold-icon">◈</span><span id="header-gold">0</span>g</span>
+        <span class="rank-badge" id="header-rank">F</span>
+        <button class="btn btn-ghost btn-sm" id="btn-new-game-header">New Game</button>
+      </div>
+    </header>
+
+    <nav class="tab-bar">
+      <button class="tab-btn active" data-tab="hall">🏰 Guild Hall</button>
+      <button class="tab-btn" data-tab="quests">📜 Quest Board</button>
+      <button class="tab-btn" data-tab="party">⚔ Party</button>
+      <button class="tab-btn" data-tab="shop">🛒 Shop</button>
+    </nav>
+
+    <main class="game-main">
+      <div id="tab-hall"   class="tab-content active"></div>
+      <div id="tab-quests" class="tab-content hidden"></div>
+      <div id="tab-party"  class="tab-content hidden"></div>
+      <div id="tab-shop"   class="tab-content hidden"></div>
+    </main>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,894 @@
+import Game from '../game.js';
+import { RANK_ORDER, getQuest, getItem, getClass, rankIndex } from '../data.js';
+import { rankTag, fmtTime, timeAgo, showToast } from './helpers.js';
+import { generateCombatLog, getCombatSnapshot, getQuestPhase, getPhases, resetCombatLog, getSimInfo } from './combatlog.js';
+import { getQuestDifficultyTier, DIFFICULTY_TIERS } from '../questgen.js';
+
+let questRankFilter = 'F';
+let selectedQuestId = null;
+let questView = 'board'; // 'board' | 'active' | 'history' | 'synergy'
+let expandedHistoryIdx = null; // which history entry is expanded
+
+export function getQuestRankFilter() { return questRankFilter; }
+
+export function resetQuestsState() {
+  questRankFilter = 'F';
+  selectedQuestId = null;
+  questView = 'board';
+  expandedHistoryIdx = null;
+  resetCombatLog();
+}
+
+// ── Main Render ─────────────────────────────────────────────────────────
+
+export function renderQuests(setTabCallback) {
+  const s = Game.state;
+  const el = document.getElementById('tab-quests');
+
+  // If there's an active quest, show active view
+  if (s.guild.activeQuest) {
+    questView = 'active';
+  } else if (questView === 'active') {
+    questView = 'board';
+  }
+
+  // Tab sub-navigation
+  const tabs = `
+    <div class="quest-tabs">
+      <button class="quest-tab-btn${questView === 'board' || questView === 'active' ? ' active' : ''}" data-view="board">
+        ${s.guild.activeQuest ? '⚔ Active Quest' : '📋 Quest Board'}
+      </button>
+      <button class="quest-tab-btn${questView === 'history' ? ' active' : ''}" data-view="history">
+        📜 History
+      </button>
+      <button class="quest-tab-btn${questView === 'synergy' ? ' active' : ''}" data-view="synergy">
+        🤝 Party Synergy
+      </button>
+    </div>
+  `;
+
+  let content = '';
+  if (questView === 'active' && s.guild.activeQuest) {
+    content = renderActiveQuestView(s);
+  } else if (questView === 'history') {
+    content = renderQuestHistory(s);
+  } else if (questView === 'synergy') {
+    content = renderPartySynergy(s);
+  } else {
+    content = renderQuestBoard(s);
+  }
+
+  el.innerHTML = tabs + content;
+  bindEvents(el, setTabCallback);
+}
+
+// ── Live quest update (lightweight DOM patches) ─────────────────────────
+
+export function tickUpdateQuests() {
+  const s = Game.state;
+
+  // Active quest — update progress, combat log
+  if (s.guild.activeQuest) {
+    // Ensure event count is set from the sim
+    const aq = s.guild.activeQuest;
+    if (!aq.eventCount) {
+      const simInfo = getSimInfo();
+      if (simInfo) Game.setQuestEventCount(simInfo.eventCount, simInfo.intervalMs);
+    }
+
+    const revealed = Game.questEventsRevealed();
+    const total = aq.eventCount || 1;
+    const timerEl = document.getElementById('aq-timer');
+    if (timerEl) timerEl.textContent = `${Math.min(revealed, total)} / ${total}`;
+
+    const progress = Game.questProgress();
+    const fillEl = document.getElementById('aq-progress-fill');
+    if (fillEl) fillEl.style.width = (progress * 100).toFixed(1) + '%';
+
+    const phase = getQuestPhase(progress);
+    const phaseEl = document.getElementById('aq-phase-label');
+    if (phaseEl) phaseEl.textContent = `${phase.icon} ${phase.label}`;
+
+    const phases = getPhases();
+    phases.forEach(p => {
+      const dot = document.getElementById(`aq-phase-${p.id}`);
+      if (dot) {
+        const isActive = p.id === phase.id;
+        const isPast = phases.indexOf(p) < phases.indexOf(phase);
+        dot.className = `aq-phase-dot${isActive ? ' active' : ''}${isPast ? ' done' : ''}`;
+      }
+    });
+
+    const logContainer = document.getElementById('aq-combat-log');
+    if (logContainer) {
+      const log = generateCombatLog();
+      const existingCount = logContainer.children.length;
+      if (log.length > existingCount) {
+        for (let i = existingCount; i < log.length; i++) {
+          const entry = log[i];
+          const div = document.createElement('div');
+          div.className = `combat-log-entry log-${entry.type}`;
+          div.innerHTML = `<span class="log-icon">${entry.icon}</span><span class="log-text">${entry.text}</span>`;
+          div.style.animation = 'slideUp 0.3s ease-out';
+          logContainer.appendChild(div);
+        }
+        logContainer.scrollTop = logContainer.scrollHeight;
+      }
+    }
+
+    // Update live HP bars from combat snapshot
+    const snap = getCombatSnapshot();
+    if (snap) {
+      // Patch party HP bars (with death indicator)
+      snap.party.forEach(p => {
+        const el = document.querySelector(`.aq-party-member[data-member-id="${p.id}"]`);
+        if (!el) return;
+        const dead = p.hp <= 0;
+        const hpPct = dead ? 0 : Math.round((p.hp / Math.max(1, p.maxHp)) * 100);
+        const hpColor = dead ? 'var(--text-muted)' : hpPct > 60 ? 'var(--green)' : hpPct > 30 ? 'var(--gold)' : 'var(--red)';
+        const fill = el.querySelector('.aq-hp-fill');
+        if (fill) { fill.style.width = hpPct + '%'; fill.style.background = hpColor; }
+        const text = el.querySelector('.aq-hp-text');
+        if (text) text.textContent = dead ? '💀 KO' : `${p.hp}/${p.maxHp}`;
+        el.classList.toggle('aq-member-dead', dead);
+        const sigil = el.querySelector('.aq-party-sigil');
+        if (sigil && dead && sigil.textContent !== '💀') sigil.textContent = '💀';
+      });
+
+      // Patch enemy HP bars (and add new enemies for reinforcements)
+      const enemyStrip = document.querySelector('.aq-enemy-strip');
+      if (enemyStrip) {
+        snap.enemies.forEach(e => {
+          let el = enemyStrip.querySelector(`[data-enemy-id="${e.id}"]`);
+          if (!el) {
+            // New reinforcement — add it
+            el = document.createElement('div');
+            el.className = 'aq-enemy-card reinforcement';
+            el.dataset.enemyId = e.id;
+            el.style.animation = 'slideUp 0.3s ease-out';
+            el.innerHTML = `<div class="aq-enemy-icon">👹</div>
+              <div class="aq-enemy-info">
+                <div class="aq-enemy-name">${e.name} <span class="aq-reinforce-tag">NEW</span></div>
+                <div class="aq-hp-bar enemy"><div class="aq-hp-fill" style="width:100%;background:var(--red)"></div></div>
+                <div class="aq-hp-text">${e.hp}/${e.maxHp}</div>
+              </div>`;
+            enemyStrip.appendChild(el);
+          }
+          const dead = e.hp <= 0 || !e.alive;
+          const hpPct = Math.round((e.hp / Math.max(1, e.maxHp)) * 100);
+          const hpColor = dead ? 'var(--text-muted)' : hpPct > 50 ? 'var(--red)' : hpPct > 25 ? 'var(--orange)' : 'var(--gold)';
+          el.classList.toggle('defeated', dead);
+          const icon = el.querySelector('.aq-enemy-icon');
+          if (icon) icon.textContent = dead ? '💀' : '👹';
+          const fill = el.querySelector('.aq-hp-fill');
+          if (fill) { fill.style.width = (dead ? 0 : hpPct) + '%'; fill.style.background = hpColor; }
+          const text = el.querySelector('.aq-hp-text');
+          if (text) text.textContent = dead ? 'Defeated' : `${e.hp}/${e.maxHp}`;
+        });
+      }
+    }
+
+    return;
+  }
+
+  // Quest board view — update the refresh timer live
+  const refreshEl = document.getElementById('qb-refresh-timer');
+  if (refreshEl) {
+    const refreshMs = Game.questBoardRefreshMs(questRankFilter);
+    if (refreshMs <= 0) {
+      // Board needs refresh — trigger full re-render
+      refreshEl.textContent = 'New quests available!';
+    } else {
+      refreshEl.textContent = `New quests in: ${fmtTime(Math.ceil(refreshMs / 1000))}`;
+    }
+  }
+}
+
+// ── Active Quest View ───────────────────────────────────────────────────
+
+function renderActiveQuestView(s) {
+  const aq = s.guild.activeQuest;
+  const quest = aq.questData || Game.getGeneratedQuest(aq.questId) || getQuest(aq.questId);
+  if (!quest) return '<div class="empty-state">Quest data not found.</div>';
+
+  // Ensure event count is set
+  if (!aq.eventCount) {
+    const simInfo = getSimInfo();
+    if (simInfo) Game.setQuestEventCount(simInfo.eventCount, simInfo.intervalMs);
+  }
+
+  const progress = Game.questProgress();
+  const revealed = Game.questEventsRevealed();
+  const total = aq.eventCount || 1;
+  const phase = getQuestPhase(progress);
+  const pct = (progress * 100).toFixed(1);
+  const env = quest.environment || { name: 'Unknown', icon: '?', mood: 'dungeon' };
+  const phases = getPhases();
+
+  const phaseTracker = phases.map(p => {
+    const isActive = p.id === phase.id;
+    const isPast = phases.indexOf(p) < phases.indexOf(phase);
+    return `<div class="aq-phase-step">
+      <div class="aq-phase-dot${isActive ? ' active' : ''}${isPast ? ' done' : ''}" id="aq-phase-${p.id}"></div>
+      <span class="aq-phase-name${isActive ? ' active' : ''}">${p.label}</span>
+    </div>`;
+  }).join('<div class="aq-phase-line"></div>');
+
+  // Get current combat snapshot for live HP bars
+  const snap = getCombatSnapshot();
+
+  const partyStrip = aq.partySnapshot.map(m => {
+    const cls = getClass(m.class);
+    const pSnap = snap ? snap.party.find(p => p.id === m.id) : null;
+    const hp = pSnap ? pSnap.hp : (m.stats.hp || m.stats.maxHp);
+    const maxHp = pSnap ? pSnap.maxHp : m.stats.maxHp;
+    const dead = hp <= 0;
+    const hpPct = dead ? 0 : Math.round((hp / Math.max(1, maxHp)) * 100);
+    const hpColor = dead ? 'var(--text-muted)' : hpPct > 60 ? 'var(--green)' : hpPct > 30 ? 'var(--gold)' : 'var(--red)';
+    return `<div class="aq-party-member${dead ? ' aq-member-dead' : ''}" data-member-id="${m.id}">
+      <div class="aq-party-sigil">${dead ? '💀' : cls.sigil}</div>
+      <div class="aq-party-name">${m.name.split(' ')[0]}</div>
+      <div class="aq-party-level">Lv.${m.level}</div>
+      <div class="aq-hp-bar"><div class="aq-hp-fill" style="width:${hpPct}%;background:${hpColor}"></div></div>
+      <div class="aq-hp-text">${dead ? '💀 KO' : `${hp}/${maxHp}`}</div>
+    </div>`;
+  }).join('');
+
+  // Enemy cards with HP bars — includes reinforcements from snapshot
+  let enemyList = (quest.enemies || ['Monster']).map((name, i) => ({
+    id: `enemy_${i}`, name, hp: 100, maxHp: 100, alive: true, isReinforcement: false,
+  }));
+  if (snap) {
+    enemyList = snap.enemies;
+  }
+  const enemyCards = enemyList.map(e => {
+    const hpPct = Math.round((e.hp / Math.max(1, e.maxHp)) * 100);
+    const hpColor = e.hp <= 0 ? 'var(--text-muted)' : hpPct > 50 ? 'var(--red)' : hpPct > 25 ? 'var(--orange)' : 'var(--gold)';
+    const dead = e.hp <= 0 || !e.alive;
+    return `<div class="aq-enemy-card${dead ? ' defeated' : ''}${e.isReinforcement ? ' reinforcement' : ''}" data-enemy-id="${e.id}">
+      <div class="aq-enemy-icon">${dead ? '💀' : '👹'}</div>
+      <div class="aq-enemy-info">
+        <div class="aq-enemy-name">${e.name}${e.isReinforcement ? ' <span class="aq-reinforce-tag">NEW</span>' : ''}</div>
+        <div class="aq-hp-bar enemy"><div class="aq-hp-fill" style="width:${dead ? 0 : hpPct}%;background:${hpColor}"></div></div>
+        <div class="aq-hp-text">${dead ? 'Defeated' : `${e.hp}/${e.maxHp}`}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const log = generateCombatLog();
+  const logEntries = log.map(entry =>
+    `<div class="combat-log-entry log-${entry.type}"><span class="log-icon">${entry.icon}</span><span class="log-text">${entry.text}</span></div>`
+  ).join('');
+
+  // Auto-run indicator
+  let autoRunInfo = '';
+  if (s.autoRun && s.autoRun.remaining > 0) {
+    const stratIcons = { safe: '🛡', balanced: '⚖', push: '🔥' };
+    const stratLabels = { safe: 'Play it Safe', balanced: 'Balanced', push: 'Push Limits' };
+    const icon = stratIcons[s.autoRun.strategy] || '⚖';
+    const label = stratLabels[s.autoRun.strategy] || 'Balanced';
+    autoRunInfo = `<div class="aq-auto-run">${icon} Auto-Battle (${label}): ${s.autoRun.remaining} of ${s.autoRun.total} remaining</div>`;
+  }
+
+  return `
+    <div class="aq-scene">
+      <div class="aq-scene-header mood-${env.mood}">
+        <div class="aq-scene-env">
+          <span class="aq-scene-icon">${env.icon}</span>
+          <span class="aq-scene-name">${env.name}</span>
+        </div>
+        <div class="aq-scene-quest">
+          ${rankTag(quest.rank)}
+          <span class="aq-scene-title">${quest.title}</span>
+        </div>
+        ${autoRunInfo}
+      </div>
+
+      <div class="aq-phase-tracker">${phaseTracker}</div>
+
+      <div class="aq-main-content">
+        <div class="aq-left-col">
+          <div class="aq-timer-block">
+            <div class="aq-timer-label">Battle Progress</div>
+            <div class="aq-timer" id="aq-timer">${Math.min(revealed, total)} / ${total}</div>
+            <div class="aq-progress-bar">
+              <div class="aq-progress-fill" id="aq-progress-fill" style="width:${pct}%"></div>
+            </div>
+            <div class="aq-phase-current" id="aq-phase-label">${phase.icon} ${phase.label}</div>
+          </div>
+          <div class="aq-party-strip-section">
+            <div class="aq-section-label">Party</div>
+            <div class="aq-party-strip">${partyStrip}</div>
+          </div>
+          <div class="aq-enemies-section">
+            <div class="aq-section-label">Enemies</div>
+            <div class="aq-enemy-strip">${enemyCards}</div>
+          </div>
+          <div class="aq-rewards-preview">
+            <div class="aq-section-label">Potential Rewards</div>
+            <div class="aq-rewards-row">
+              <span class="aq-reward"><span class="aq-reward-icon">💰</span> ${quest.goldReward.min}–${quest.goldReward.max}g</span>
+              <span class="aq-reward"><span class="aq-reward-icon">✦</span> ${quest.expReward.min}–${quest.expReward.max} exp</span>
+              <span class="aq-reward"><span class="aq-reward-icon">⭐</span> +${quest.rankPointReward} RP</span>
+            </div>
+          </div>
+        </div>
+        <div class="aq-right-col">
+          <div class="aq-combat-log-section">
+            <div class="aq-section-label">Combat Log</div>
+            <div class="aq-combat-log" id="aq-combat-log">${logEntries}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ── Quest Board ─────────────────────────────────────────────────────────
+
+function renderQuestBoard(s) {
+  const filterBtns = RANK_ORDER.map(r => {
+    const unlocked = rankIndex(s.guild.rank) >= rankIndex(r);
+    const active = r === questRankFilter;
+    return `<button class="rank-filter-btn${active ? ' active' : ''}${!unlocked ? ' locked' : ''}" data-rank="${r}">${r}</button>`;
+  }).join('');
+
+  const unlockedRank = rankIndex(s.guild.rank) >= rankIndex(questRankFilter);
+  let questItems = '';
+  let refreshTimer = '';
+
+  if (!unlockedRank) {
+    questItems = `<div class="empty-state">Requires ${questRankFilter} Rank to view these quests.</div>`;
+  } else {
+    const quests = Game.getQuestBoardQuests(questRankFilter);
+    const partyStrength = Game.getPartyStrength();
+
+    if (quests.length === 0) {
+      questItems = `<div class="empty-state">No quests available. Check back soon!</div>`;
+    } else {
+      questItems = quests.map(q => renderQuestCard(s, q, partyStrength)).join('');
+    }
+
+    const refreshMs = Game.questBoardRefreshMs(questRankFilter);
+    if (refreshMs > 0) {
+      refreshTimer = `<div class="qb-refresh-timer" id="qb-refresh-timer">New quests in: ${fmtTime(Math.ceil(refreshMs / 1000))}</div>`;
+    }
+  }
+
+  // Party strength display
+  const partyStr = Game.getPartyStrength();
+
+  // Auto-run strategy picker
+  const maxRun = Game.getMaxAutoRun();
+  const autoRun = s.autoRun;
+  let strategyPicker = '';
+  if (maxRun >= 2) {
+    const runOpts = [2, 5, 10, 20].filter(n => n <= maxRun);
+    const strategies = [
+      { id: 'safe', icon: '🛡', label: 'Play it Safe', desc: 'Easiest quests' },
+      { id: 'balanced', icon: '⚖', label: 'Balanced', desc: 'Moderate difficulty' },
+      { id: 'push', icon: '🔥', label: 'Push Limits', desc: 'Hardest quests' },
+    ];
+
+    if (autoRun && autoRun.remaining > 0) {
+      // Active auto-run — show status + stop button
+      const strat = strategies.find(s => s.id === autoRun.strategy) || strategies[1];
+      strategyPicker = `
+        <div class="ar-picker ar-active">
+          <div class="ar-status">
+            <span class="ar-status-icon">${strat.icon}</span>
+            <span class="ar-status-text">${strat.label}: ${autoRun.remaining} of ${autoRun.total} remaining</span>
+          </div>
+          <button class="btn btn-sm btn-danger btn-ar-stop">⏹ Stop</button>
+        </div>`;
+    } else {
+      // Show strategy picker
+      const stratBtns = strategies.map(st =>
+        `<button class="btn btn-sm btn-ar-strategy" data-strategy="${st.id}" title="${st.desc}">${st.icon} ${st.label}</button>`
+      ).join('');
+      const countBtns = runOpts.map(n =>
+        `<button class="btn btn-sm btn-ar-count${n === 2 ? ' selected' : ''}" data-count="${n}">×${n}</button>`
+      ).join('');
+      strategyPicker = `
+        <div class="ar-picker">
+          <div class="ar-label">Auto-Battle</div>
+          <div class="ar-strategies">${stratBtns}</div>
+          <div class="ar-counts">${countBtns}</div>
+        </div>`;
+    }
+  }
+
+  return `
+    <div class="qb-header">
+      <div class="qb-header-row">
+        <div>
+          <div class="qb-title">Quest Board</div>
+          <div class="qb-subtitle">5 quests per rank — refreshes on quest completion or every 15 min</div>
+        </div>
+        <div class="qb-party-strength">
+          <div class="qb-ps-label">Party Strength</div>
+          <div class="qb-ps-value">${Math.round(partyStr)}</div>
+        </div>
+      </div>
+      ${strategyPicker}
+      ${refreshTimer}
+    </div>
+    <div class="rank-filter">${filterBtns}</div>
+    <div class="quest-list">${questItems}</div>
+  `;
+}
+
+// ── Quest Card ──────────────────────────────────────────────────────────
+
+function renderQuestCard(s, quest, partyStrength) {
+  const check = Game.canTakeQuest(quest.id);
+  const completions = Game.completionCount(quest.id);
+  const expanded = selectedQuestId === quest.id;
+
+  // Difficulty tier based on party strength
+  const questPower = Math.round(quest.difficulty * 20);
+  const tier = getQuestDifficultyTier(questPower, partyStrength);
+
+  const isDone = !quest.isRepeatable && completions > 0;
+  const cardClass = `quest-card${expanded ? ' selected' : ''}${isDone ? ' done' : ''}`;
+  const env = quest.environment || { name: '???', icon: '?', mood: 'dungeon' };
+
+  // Rarity badge
+  const rarity = quest.rarity || 'common';
+  const rarityBadge = rarity !== 'common'
+    ? `<span class="rarity-badge rarity-${rarity}">${rarity}</span>`
+    : '';
+
+  const metaRight = `
+    <span class="qc-stat qc-gold" title="Gold reward">💰 ${quest.goldReward.min}–${quest.goldReward.max}</span>
+    <span class="qc-stat qc-exp" title="EXP reward">✦ ${quest.expReward.min}–${quest.expReward.max}</span>
+    <span class="qc-stat qc-rp" title="Rank points">⭐ ${quest.rankPointReward}</span>
+    <span class="qc-stat qc-rec" title="Recommended power">⚔ ${Math.round(quest.recommendedPower)}</span>
+    <span class="difficulty-badge" style="background:${tier.color}20;color:${tier.color}">${tier.icon} ${tier.label}</span>
+    ${rarityBadge}
+    ${completions > 0 ? `<span class="quest-done-badge">×${completions}</span>` : ''}
+  `;
+
+  let detail = '';
+  if (expanded) {
+    const lootNames = quest.lootTable.map(e => {
+      const item = getItem(e.itemId);
+      return item ? item.name : e.itemId;
+    }).join(', ');
+
+    const powerRatio = partyStrength / Math.max(1, quest.recommendedPower);
+    const powerPct = Math.min(100, powerRatio * 50);
+    const powerBarColor = tier.color;
+
+    const enemies = (quest.enemies || []).join(', ');
+
+    // Synergy bonuses for repeated quests
+    const synergyBonuses = [];
+    const goldXp = Game.getGoldXpBonus(quest.id);
+    if (goldXp > 0) synergyBonuses.push(`💰 +${Math.round(goldXp * 100)}% Gold/XP`);
+    const dmg = Game.getDmgBonus(quest.id);
+    if (dmg > 0) synergyBonuses.push(`⚔ +${Math.round(dmg * 100)}% Damage`);
+    const spd = Game.getAtkSpeedBonus(quest.id);
+    if (spd > 0) synergyBonuses.push(`⚡ +${Math.round(spd * 100)}% ATK Speed`);
+    const dmgRed = Game.getDmgReduction(quest.id);
+    if (dmgRed > 0) synergyBonuses.push(`🛡 −${Math.round(dmgRed * 100)}% Damage Taken`);
+    const heal = Game.getHealBonus(quest.id);
+    if (heal > 0) synergyBonuses.push(`💚 +${Math.round(heal * 100)}% Healing`);
+    const itemF = Game.getItemFind(quest.id);
+    if (itemF > 0) synergyBonuses.push(`🔮 +${Math.round(itemF * 100)}% Item Find`);
+    const rpB = Game.getRpBonus(quest.id);
+    if (rpB > 0) synergyBonuses.push(`📈 +${Math.round(rpB * 100)}% Rank Points`);
+    const synergyInfo = synergyBonuses.length > 0
+      ? `<div class="qd-synergy-bonuses">${synergyBonuses.join(' · ')}</div>`
+      : '';
+
+    // (Auto-run is now a board-level control, not per-quest)
+
+    let actionRow = '';
+    if (!check.ok) {
+      actionRow = `<div class="quest-block-reason">${check.reason}</div>`;
+    } else {
+      actionRow = `<button class="btn btn-success btn-lg btn-send-party" data-quest-id="${quest.id}">⚔ Send Party</button>`;
+    }
+
+    detail = `
+      <div class="quest-detail">
+        <div class="qd-flavor">
+          <span class="qd-env-icon">${env.icon}</span>
+          <div>
+            <div class="qd-env-name">${env.name}</div>
+            <div class="quest-description">"${quest.description}"</div>
+          </div>
+        </div>
+
+        ${enemies ? `<div class="qd-enemies">
+          <span class="qd-enemies-label">Threats:</span>
+          <span class="qd-enemies-list">${enemies}</span>
+        </div>` : ''}
+
+        <div class="qd-rewards-grid">
+          <div class="qd-reward-box">
+            <div class="qd-reward-val text-gold">${quest.goldReward.min}–${quest.goldReward.max}g</div>
+            <div class="qd-reward-label">Gold</div>
+          </div>
+          <div class="qd-reward-box">
+            <div class="qd-reward-val text-cyan">${quest.expReward.min}–${quest.expReward.max}</div>
+            <div class="qd-reward-label">Exp / member</div>
+          </div>
+          <div class="qd-reward-box">
+            <div class="qd-reward-val" style="color:var(--purple)">+${quest.rankPointReward}</div>
+            <div class="qd-reward-label">Rank pts</div>
+          </div>
+        </div>
+
+        <div class="qd-power-section">
+          <div class="qd-power-header">
+            <span>Party Strength: <strong style="color:${powerBarColor}">${Math.round(partyStrength)}</strong></span>
+            <span>Recommended: <strong>${Math.round(quest.recommendedPower)}</strong></span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width:${powerPct}%; background:${powerBarColor}"></div>
+          </div>
+          <div class="qd-tier-label" style="color:${tier.color}">${tier.icon} ${tier.label} Difficulty</div>
+        </div>
+
+        ${synergyInfo}
+
+        <div class="qd-loot">
+          <span class="qd-loot-label">Possible Loot:</span>
+          <span class="qd-loot-list">${lootNames}</span>
+        </div>
+
+        <div class="qd-actions">
+          <span class="qd-repeatable">${quest.isRepeatable ? 'Repeatable' : 'One-time'}</span>
+          ${actionRow}
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="${cardClass}">
+      <div class="quest-header" data-quest-id="${quest.id}">
+        <span class="quest-rank-tag rank-${quest.rank}" style="color:var(--rank-${quest.rank});border-color:var(--rank-${quest.rank})">${quest.rank}</span>
+        <span class="qc-env-icon">${env.icon}</span>
+        <span class="quest-title">${quest.title}</span>
+        <div class="quest-meta">${metaRight}</div>
+      </div>
+      ${detail}
+    </div>
+  `;
+}
+
+// ── Quest History View ──────────────────────────────────────────────────
+
+function renderQuestHistory(s) {
+  const history = s.questHistory || [];
+
+  if (history.length === 0) {
+    return `<div class="empty-state">No quest history yet. Complete your first quest to see results here.</div>`;
+  }
+
+  const entries = history.map((h, i) => {
+    const isExpanded = expandedHistoryIdx === i;
+
+    // Quick stats line (always visible)
+    const quickStats = [
+      h.goldEarned > 0 ? `<span class="qh-stat text-gold">+${h.goldEarned}g</span>` : '',
+      h.expEarned > 0 ? `<span class="qh-stat text-cyan">+${h.expEarned} exp</span>` : '',
+      h.rankPoints > 0 ? `<span class="qh-stat" style="color:var(--purple)">+${h.rankPoints} RP</span>` : '',
+    ].filter(Boolean).join('');
+
+    const lootCount = (h.loot || []).length;
+    const hasSecretBoss = !!h.secretBoss;
+    const chevron = isExpanded ? '▾' : '▸';
+
+    // Collapsed summary hints
+    const hints = [];
+    if (lootCount > 0) hints.push(`${lootCount} item${lootCount > 1 ? 's' : ''}`);
+    if (hasSecretBoss) hints.push('Boss!');
+    if ((h.levelUps || []).length > 0) hints.push('Level up!');
+    const hintText = hints.length > 0 ? `<span class="qh-hints">${hints.join(' · ')}</span>` : '';
+
+    // Expanded detail section
+    let detail = '';
+    if (isExpanded) {
+      // Environment & difficulty
+      const env = h.environment;
+      const envLine = env ? `<div class="qh-detail-row"><span class="qh-detail-label">Location:</span> <span>${env.icon} ${env.name}</span></div>` : '';
+
+      const enemies = (h.enemies || []);
+      const enemiesLine = enemies.length > 0
+        ? `<div class="qh-detail-row"><span class="qh-detail-label">Enemies:</span> <span>${enemies.join(', ')}</span></div>`
+        : '';
+
+      // Difficulty tier (reconstruct from stored data)
+      let tierLine = '';
+      if (h.questPower && h.partyPower) {
+        const tier = getQuestDifficultyTier(h.questPower, h.partyPower);
+        tierLine = `<div class="qh-detail-row"><span class="qh-detail-label">Difficulty:</span> <span style="color:${tier.color}">${tier.icon} ${tier.label}</span> <span class="qh-detail-sub">(Party ${Math.round(h.partyPower)} vs Quest ${Math.round(h.questPower)})</span></div>`;
+      }
+
+      // Rarity
+      const rarityLine = h.rarity && h.rarity !== 'common'
+        ? `<div class="qh-detail-row"><span class="qh-detail-label">Rarity:</span> <span class="rarity-badge rarity-${h.rarity}">${h.rarity}</span></div>`
+        : '';
+
+      // Narrative
+      const narrativeLine = h.narrative ? `<div class="qh-detail-narrative">"${h.narrative}"</div>` : '';
+
+      // Party health summary
+      let partyHealthHtml = '';
+      const party = h.partySummary || [];
+      if (party.length > 0) {
+        const memberRows = party.map(m => {
+          const cls = getClass(m.class);
+          const hpPctBefore = Math.round((m.hpBefore / m.maxHp) * 100);
+          const hpPctAfter = Math.round((m.hpAfter / m.maxHp) * 100);
+          const hpChange = m.hpAfter - m.hpBefore;
+          const hpColor = hpPctAfter > 60 ? 'var(--green)' : hpPctAfter > 30 ? 'var(--gold)' : 'var(--red)';
+          return `<div class="qh-party-member">
+            <span class="qh-pm-sigil">${cls ? cls.sigil : '?'}</span>
+            <span class="qh-pm-name">${m.name.split(' ')[0]}</span>
+            <span class="qh-pm-level">Lv.${m.level}</span>
+            <span class="qh-pm-hp">
+              <span class="qh-hp-bar"><span class="qh-hp-fill" style="width:${hpPctAfter}%;background:${hpColor}"></span></span>
+              <span class="qh-hp-text">${m.hpAfter}/${m.maxHp}</span>
+              ${hpChange < 0 ? `<span class="qh-hp-change" style="color:var(--red)">${hpChange}</span>` : ''}
+            </span>
+          </div>`;
+        }).join('');
+        partyHealthHtml = `
+          <div class="qh-detail-section">
+            <div class="qh-detail-section-title">Party Status (after quest)</div>
+            ${memberRows}
+          </div>`;
+      }
+
+      // Loot detail
+      let lootHtml = '';
+      const loot = h.loot || [];
+      if (loot.length > 0) {
+        const lootItems = loot.map(d => {
+          const item = getItem(d.itemId);
+          const name = item ? item.name : d.itemId;
+          return `<span class="qh-loot-item">${name}${d.quantity > 1 ? ` ×${d.quantity}` : ''}</span>`;
+        }).join('');
+        lootHtml = `<div class="qh-detail-section"><div class="qh-detail-section-title">Loot Obtained</div><div class="qh-loot-grid">${lootItems}</div></div>`;
+      }
+
+      // Skills activated
+      let skillsHtml = '';
+      const skills = h.activatedSkills || [];
+      if (skills.length > 0) {
+        const skillItems = skills.map(a =>
+          `<span class="qh-skill-item">${a.memberName}: <em>${a.skill.name}</em></span>`
+        ).join('');
+        skillsHtml = `<div class="qh-detail-section"><div class="qh-detail-section-title">Skills Activated</div><div class="qh-skills-list">${skillItems}</div></div>`;
+      }
+
+      // Level ups
+      let levelUpsHtml = '';
+      const levelUps = h.levelUps || [];
+      if (levelUps.length > 0) {
+        const luItems = levelUps.map(lu =>
+          `<span class="qh-levelup-item text-gold">${lu.name} → Lv.${lu.level}</span>`
+        ).join('');
+        levelUpsHtml = `<div class="qh-detail-section"><div class="qh-detail-section-title">Level Ups</div><div class="qh-levelup-list">${luItems}</div></div>`;
+      }
+
+      // Secret boss
+      let secretBossHtml = '';
+      if (h.secretBoss) {
+        const sb = h.secretBoss;
+        secretBossHtml = `
+          <div class="qh-detail-section">
+            <div class="qh-secret-boss ${sb.success ? 'success' : 'failure'}">
+              ${sb.boss.icon} <strong>Secret Boss: ${sb.boss.name}</strong> — ${sb.success ? 'Defeated!' : 'Escaped!'}
+              ${sb.success ? `<br>Bonus: +${sb.goldBonus}g, +${sb.expBonus} exp` : ''}
+              ${sb.success && sb.classReward ? `<br>${sb.recipientName} gained <strong>${sb.classReward.name}</strong>` : ''}
+            </div>
+          </div>`;
+      }
+
+      detail = `
+        <div class="qh-detail">
+          ${narrativeLine}
+          <div class="qh-detail-grid">
+            ${envLine}${enemiesLine}${tierLine}${rarityLine}
+          </div>
+          ${partyHealthHtml}
+          ${lootHtml}
+          ${skillsHtml}
+          ${levelUpsHtml}
+          ${secretBossHtml}
+        </div>`;
+    }
+
+    return `
+      <div class="qh-entry ${h.success ? 'success' : 'failure'}${isExpanded ? ' expanded' : ''}" data-history-idx="${i}">
+        <div class="qh-header" data-history-toggle="${i}">
+          <div class="qh-title">
+            <span class="qh-chevron">${chevron}</span>
+            ${rankTag(h.questRank)}
+            <span class="qh-quest-name">${h.questTitle}</span>
+            <span class="qh-outcome ${h.success ? 'success' : 'failure'}">${h.success ? '✓' : '✗'}</span>
+          </div>
+          <div class="qh-header-right">
+            <div class="qh-stats">${quickStats}</div>
+            ${hintText}
+            <span class="qh-time">${timeAgo(h.timestamp)}</span>
+          </div>
+        </div>
+        ${detail}
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="qh-container">
+      <div class="qh-title-bar">
+        <div class="qb-title">Quest History</div>
+        <div class="qb-subtitle">${history.length} recent quests (max 50) · Click to expand</div>
+      </div>
+      <div class="qh-list">${entries}</div>
+    </div>
+  `;
+}
+
+// ── Party Synergy View ──────────────────────────────────────────────────
+
+function renderPartySynergy(s) {
+  const synergy = s.partySynergy || { totalQuestsAsTeam: 0, bonusesUnlocked: [], secretBossesFound: 0 };
+  const thresholds = Game.SYNERGY_THRESHOLDS;
+
+  const bonusList = thresholds.map(t => {
+    const unlocked = synergy.bonusesUnlocked.includes(t.id);
+    const progress = Math.min(100, (synergy.totalQuestsAsTeam / t.quests) * 100);
+    return `
+      <div class="syn-bonus ${unlocked ? 'unlocked' : 'locked'}">
+        <div class="syn-bonus-header">
+          <span class="syn-bonus-name">${unlocked ? '✓' : '🔒'} ${t.label}</span>
+          <span class="syn-bonus-req">${synergy.totalQuestsAsTeam}/${t.quests} quests</span>
+        </div>
+        <div class="syn-bonus-desc">${t.desc}</div>
+        ${!unlocked ? `<div class="progress-bar"><div class="progress-fill" style="width:${progress}%; background:var(--cyan)"></div></div>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  const maxRepeat = Game.getMaxAutoRun();
+  const secretChance = Game.getSecretBossChance();
+
+  return `
+    <div class="syn-container">
+      <div class="qb-header">
+        <div class="qb-title">Party Synergy</div>
+        <div class="qb-subtitle">As your party completes quests together, you unlock permanent bonuses</div>
+      </div>
+
+      <div class="syn-stats-row">
+        <div class="syn-stat-box">
+          <div class="syn-stat-val">${synergy.totalQuestsAsTeam}</div>
+          <div class="syn-stat-label">Quests Together</div>
+        </div>
+        <div class="syn-stat-box">
+          <div class="syn-stat-val">${synergy.secretBossesFound}</div>
+          <div class="syn-stat-label">Secret Bosses Found</div>
+        </div>
+        <div class="syn-stat-box">
+          <div class="syn-stat-val">${maxRepeat > 0 ? '×' + maxRepeat : '—'}</div>
+          <div class="syn-stat-label">Auto-Battle Max</div>
+        </div>
+        <div class="syn-stat-box">
+          <div class="syn-stat-val">${secretChance > 0 ? Math.round(secretChance * 100) + '%' : '—'}</div>
+          <div class="syn-stat-label">Secret Boss Chance</div>
+        </div>
+      </div>
+
+      <div class="syn-bonus-list">${bonusList}</div>
+    </div>
+  `;
+}
+
+// ── Event Binding ───────────────────────────────────────────────────────
+
+function bindEvents(el, setTabCallback) {
+  // Tab sub-navigation
+  el.querySelectorAll('.quest-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const view = btn.dataset.view;
+      if (view === 'board' && Game.state.guild.activeQuest) {
+        questView = 'active';
+      } else {
+        questView = view;
+      }
+      renderQuests(setTabCallback);
+    });
+  });
+
+  // Rank filter
+  el.querySelectorAll('.rank-filter-btn:not(.locked)').forEach(btn => {
+    btn.addEventListener('click', () => {
+      questRankFilter = btn.dataset.rank;
+      selectedQuestId = null;
+      renderQuests(setTabCallback);
+    });
+  });
+
+  // Quest card clicks
+  el.querySelectorAll('.quest-header[data-quest-id]').forEach(header => {
+    header.addEventListener('click', () => {
+      const qid = header.dataset.questId;
+      selectedQuestId = selectedQuestId === qid ? null : qid;
+      renderQuests(setTabCallback);
+    });
+  });
+
+  // Send party buttons
+  el.querySelectorAll('.btn-send-party[data-quest-id]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const result = Game.startQuest(btn.dataset.questId);
+      if (result.ok) {
+        selectedQuestId = null;
+        resetCombatLog();
+        questView = 'active';
+        renderQuests(setTabCallback);
+      } else {
+        showToast(result.reason, 'error');
+      }
+    });
+  });
+
+  // Auto-run strategy picker
+  let selectedArCount = 2; // default
+  el.querySelectorAll('.btn-ar-count').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectedArCount = parseInt(btn.dataset.count, 10);
+      el.querySelectorAll('.btn-ar-count').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+    });
+  });
+  el.querySelectorAll('.btn-ar-strategy').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const strategy = btn.dataset.strategy;
+      // Read count from currently selected count button
+      const countBtn = el.querySelector('.btn-ar-count.selected');
+      const count = countBtn ? parseInt(countBtn.dataset.count, 10) : selectedArCount;
+      const result = Game.startAutoRun(strategy, count, questRankFilter);
+      if (result.ok) {
+        selectedQuestId = null;
+        resetCombatLog();
+        questView = 'active';
+        renderQuests(setTabCallback);
+      } else {
+        showToast(result.reason || 'Cannot start auto-battle', 'error');
+      }
+    });
+  });
+  // Stop auto-run button
+  const stopBtn = el.querySelector('.btn-ar-stop');
+  if (stopBtn) {
+    stopBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      Game.stopAutoRun();
+      renderQuests(setTabCallback);
+    });
+  }
+
+  // History expand/collapse
+  el.querySelectorAll('[data-history-toggle]').forEach(header => {
+    header.addEventListener('click', () => {
+      const idx = parseInt(header.dataset.historyToggle, 10);
+      expandedHistoryIdx = expandedHistoryIdx === idx ? null : idx;
+      renderQuests(setTabCallback);
+    });
+  });
+
+  // Auto-scroll combat log
+  const logEl = document.getElementById('aq-combat-log');
+  if (logEl) logEl.scrollTop = logEl.scrollHeight;
+}
