@@ -55,9 +55,10 @@ export function showResultsModal() {
     `<div class="result-levelup">⭐ ${lu.name} reached Level ${lu.level}!</div>`
   ).join('') : '';
 
-  const skillGainHtml = skillGains && skillGains.length > 0 ? skillGains.map(sg =>
-    `<div class="result-skill-gain">${sg.skillIcon} ${sg.memberName} learned <strong>${sg.skillName}</strong>!</div>`
-  ).join('') : '';
+  const skillGainHtml = skillGains && skillGains.length > 0 ? skillGains.map(sg => {
+    const verb = sg.type === 'mastery' ? 'gained mastery' : 'learned skill';
+    return `<div class="result-skill-gain">${sg.skillIcon} ${sg.memberName} ${verb}: <strong>${sg.skillName}</strong>!</div>`;
+  }).join('') : '';
 
   const synergyHtml = synergyUnlocks && synergyUnlocks.length > 0 ? `
     <div class="result-synergy-unlocks">

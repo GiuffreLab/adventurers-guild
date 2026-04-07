@@ -177,9 +177,10 @@ const Game = (() => {
 
   function addExp(memberId, amount) {
     const member = memberId === 'player' ? state.player : state.party.find(m => m.id === memberId);
-    if (!member) return [];
+    if (!member) return { levelUps: [], skillGains: [] };
     member.exp += amount;
     const levelUps = [];
+    const skillGains = [];
     while (member.exp >= expToNext(member.level)) {
       member.exp -= expToNext(member.level);
       member.level++;
@@ -194,16 +195,18 @@ const Game = (() => {
       if (newSkill && !member.skills.includes(newSkill.id)) {
         member.skills.push(newSkill.id);
         logEvent(`${member.name} learned skill: ${newSkill.name}!`);
+        skillGains.push({ memberName: member.name, skillName: newSkill.name, skillIcon: newSkill.icon || '⚡', type: 'skill' });
       }
       // Check for new mastery unlocks
       const newMastery = getUnlockedClassMasteries(member.class, member.level).find(s => !member.skills.includes(s.id));
       if (newMastery && !member.skills.includes(newMastery.id)) {
         member.skills.push(newMastery.id);
         logEvent(`${member.name} gained mastery: ${newMastery.name}!`);
+        skillGains.push({ memberName: member.name, skillName: newMastery.name, skillIcon: newMastery.icon || '🔶', type: 'mastery' });
       }
       levelUps.push({ name: member.name, level: member.level });
     }
-    return levelUps;
+    return { levelUps, skillGains };
   }
 
   function addToInventory(itemId, qty = 1) {
@@ -1066,9 +1069,11 @@ const Game = (() => {
     const rankUp = addRankPoints(result.rankPoints);
 
     const levelUps = [];
+    const skillGains = [];
     for (const snap of aq.partySnapshot) {
       const gained = addExp(snap.id, result.expEarned + (secretBoss ? secretBoss.expBonus : 0));
-      levelUps.push(...gained);
+      levelUps.push(...gained.levelUps);
+      skillGains.push(...gained.skillGains);
     }
 
     for (const drop of result.loot) addToInventory(drop.itemId, drop.quantity);
@@ -1079,7 +1084,6 @@ const Game = (() => {
     }
 
     let synergyUnlocks = [];
-    const skillGains = [];
     if (result.success) {
       state.guild.completedQuests.push(aq.questId);
       for (const snap of aq.partySnapshot) {
