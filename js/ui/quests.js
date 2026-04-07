@@ -64,56 +64,59 @@ export function renderQuests(setTabCallback) {
 
 // ── Live quest update (lightweight DOM patches) ─────────────────────────
 
-export function tickUpdateQuests() {
+// Fast visual update for combat — called at 250ms from the main loop
+// so event reveals stay smooth regardless of event interval timing.
+export function tickUpdateCombatVisuals() {
   const s = Game.state;
+  if (!s.guild.activeQuest) return;
+  const aq = s.guild.activeQuest;
 
-  // Active quest — update progress, combat log
-  if (s.guild.activeQuest) {
-    // Ensure event count is set from the sim
-    const aq = s.guild.activeQuest;
-    if (!aq.eventCount) {
-      const simInfo = getSimInfo();
-      if (simInfo) Game.setQuestEventCount(simInfo.eventCount, simInfo.intervalMs);
+  // Ensure event count is set from the sim
+  if (!aq.eventCount) {
+    const simInfo = getSimInfo();
+    if (simInfo) Game.setQuestEventCount(simInfo.eventCount, simInfo.intervalMs);
+  }
+
+  // Timer + progress bar
+  const revealed = Game.questEventsRevealed();
+  const total = aq.eventCount || 1;
+  const timerEl = document.getElementById('aq-timer');
+  if (timerEl) timerEl.textContent = `${Math.min(revealed, total)} / ${total}`;
+
+  const progress = Game.questProgress();
+  const fillEl = document.getElementById('aq-progress-fill');
+  if (fillEl) fillEl.style.width = (progress * 100).toFixed(1) + '%';
+
+  // Phase tracker
+  const phase = getQuestPhase(progress);
+  const phaseEl = document.getElementById('aq-phase-label');
+  if (phaseEl) phaseEl.textContent = `${phase.icon} ${phase.label}`;
+
+  const phases = getPhases();
+  phases.forEach(p => {
+    const dot = document.getElementById(`aq-phase-${p.id}`);
+    if (dot) {
+      const isActive = p.id === phase.id;
+      const isPast = phases.indexOf(p) < phases.indexOf(phase);
+      dot.className = `aq-phase-dot${isActive ? ' active' : ''}${isPast ? ' done' : ''}`;
     }
+  });
 
-    const revealed = Game.questEventsRevealed();
-    const total = aq.eventCount || 1;
-    const timerEl = document.getElementById('aq-timer');
-    if (timerEl) timerEl.textContent = `${Math.min(revealed, total)} / ${total}`;
-
-    const progress = Game.questProgress();
-    const fillEl = document.getElementById('aq-progress-fill');
-    if (fillEl) fillEl.style.width = (progress * 100).toFixed(1) + '%';
-
-    const phase = getQuestPhase(progress);
-    const phaseEl = document.getElementById('aq-phase-label');
-    if (phaseEl) phaseEl.textContent = `${phase.icon} ${phase.label}`;
-
-    const phases = getPhases();
-    phases.forEach(p => {
-      const dot = document.getElementById(`aq-phase-${p.id}`);
-      if (dot) {
-        const isActive = p.id === phase.id;
-        const isPast = phases.indexOf(p) < phases.indexOf(phase);
-        dot.className = `aq-phase-dot${isActive ? ' active' : ''}${isPast ? ' done' : ''}`;
+  // Append new combat log entries
+  const logContainer = document.getElementById('aq-combat-log');
+  if (logContainer) {
+    const log = generateCombatLog();
+    const existingCount = logContainer.children.length;
+    if (log.length > existingCount) {
+      for (let i = existingCount; i < log.length; i++) {
+        const entry = log[i];
+        const div = document.createElement('div');
+        div.className = `combat-log-entry log-${entry.type}`;
+        div.innerHTML = `<span class="log-icon">${entry.icon}</span><span class="log-text">${entry.text}</span>`;
+        div.style.animation = 'slideUp 0.3s ease-out';
+        logContainer.appendChild(div);
       }
-    });
-
-    const logContainer = document.getElementById('aq-combat-log');
-    if (logContainer) {
-      const log = generateCombatLog();
-      const existingCount = logContainer.children.length;
-      if (log.length > existingCount) {
-        for (let i = existingCount; i < log.length; i++) {
-          const entry = log[i];
-          const div = document.createElement('div');
-          div.className = `combat-log-entry log-${entry.type}`;
-          div.innerHTML = `<span class="log-icon">${entry.icon}</span><span class="log-text">${entry.text}</span>`;
-          div.style.animation = 'slideUp 0.3s ease-out';
-          logContainer.appendChild(div);
-        }
-        logContainer.scrollTop = logContainer.scrollHeight;
-      }
+      logContainer.scrollTop = logContainer.scrollHeight;
     }
 
     // Update live HP bars from combat snapshot
@@ -204,7 +207,15 @@ export function tickUpdateQuests() {
         });
       }
     }
+  }
+}
 
+export function tickUpdateQuests() {
+  const s = Game.state;
+
+  // Active quest — delegate visuals to the fast updater
+  if (s.guild.activeQuest) {
+    tickUpdateCombatVisuals();
     return;
   }
 

@@ -152,7 +152,7 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .class-card-stats { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
 
 /* ── Game Layout ───────────────────────────────────────────────────────── */
-#game { display: flex; flex-direction: column; height: 100vh; }
+#game { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 
 .game-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -2450,9 +2450,17 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   button, .btn, [role="button"] { min-height: 36px; }
 }
 
-/* ── iOS safe area support ────────────────────────────────────────────── */
+/* ── iOS safe area + viewport fixes ───────────────────────────────────── */
 @supports (padding: env(safe-area-inset-bottom)) {
   .tab-bar { padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
   .game-header { padding-top: env(safe-area-inset-top); }
+  .tab-content { padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
   .modal-overlay { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+}
+
+/* iOS Safari: extra scroll padding so last content isn't hidden behind toolbar */
+@supports (-webkit-touch-callout: none) {
+  .tab-content { padding-bottom: 80px; }
+  .comp-body { padding-bottom: 80px; }
+  .modal-box { padding-bottom: 24px; }
 }

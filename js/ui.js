@@ -1,6 +1,6 @@
 import Game from './game.js';
 import { renderHall, markHallDirty } from './ui/hall.js';
-import { renderQuests, resetQuestsState, tickUpdateQuests, getQuestRankFilter } from './ui/quests.js';
+import { renderQuests, resetQuestsState, tickUpdateQuests, tickUpdateCombatVisuals, getQuestRankFilter } from './ui/quests.js';
 import { renderParty, resetPartyState, tickUpdateParty } from './ui/party.js';
 import { renderShop } from './ui/shop.js';
 import { renderCompendium } from './ui/compendium.js';
@@ -128,15 +128,10 @@ function updateHeader() {
 
 // ── Live timer update (called every 250ms) ─────────────────────────────────
 
+// Called every 250ms — drives smooth combat log reveals + HP bar updates
 export function updateQuestTimer() {
   if (!Game.state.guild.activeQuest) return;
-  const aq = Game.state.guild.activeQuest;
-  const revealed = Game.questEventsRevealed();
-  const total = aq.eventCount || 1;
-  const timerEl = document.getElementById('quest-timer');
-  const fillEl  = document.getElementById('quest-progress-fill');
-  if (timerEl) timerEl.textContent = `${Math.min(revealed, total)} / ${total}`;
-  if (fillEl)  fillEl.style.width = (Game.questProgress() * 100).toFixed(1) + '%';
+  if (currentTab === 'quests') tickUpdateCombatVisuals();
 }
 
 // ── Public ─────────────────────────────────────────────────────────────────
