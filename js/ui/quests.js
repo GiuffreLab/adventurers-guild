@@ -677,34 +677,6 @@ function renderQuestHistory(s) {
       // Narrative
       const narrativeLine = h.narrative ? `<div class="qh-detail-narrative">"${h.narrative}"</div>` : '';
 
-      // Party health summary
-      let partyHealthHtml = '';
-      const party = h.partySummary || [];
-      if (party.length > 0) {
-        const memberRows = party.map(m => {
-          const cls = getClass(m.class);
-          const hpPctBefore = Math.round((m.hpBefore / m.maxHp) * 100);
-          const hpPctAfter = Math.round((m.hpAfter / m.maxHp) * 100);
-          const hpChange = m.hpAfter - m.hpBefore;
-          const hpColor = hpPctAfter > 60 ? 'var(--green)' : hpPctAfter > 30 ? 'var(--gold)' : 'var(--red)';
-          return `<div class="qh-party-member">
-            <span class="qh-pm-sigil">${cls ? cls.sigil : '?'}</span>
-            <span class="qh-pm-name">${m.name.split(' ')[0]}</span>
-            <span class="qh-pm-level">Lv.${m.level}</span>
-            <span class="qh-pm-hp">
-              <span class="qh-hp-bar"><span class="qh-hp-fill" style="width:${hpPctAfter}%;background:${hpColor}"></span></span>
-              <span class="qh-hp-text">${m.hpAfter}/${m.maxHp}</span>
-              ${hpChange < 0 ? `<span class="qh-hp-change" style="color:var(--red)">${hpChange}</span>` : ''}
-            </span>
-          </div>`;
-        }).join('');
-        partyHealthHtml = `
-          <div class="qh-detail-section">
-            <div class="qh-detail-section-title">Party Status (after quest)</div>
-            ${memberRows}
-          </div>`;
-      }
-
       // Combat stats
       let combatStatsHtml = '';
       const cStats = h.combatStats || [];
@@ -714,17 +686,18 @@ function renderQuestHistory(s) {
           const cls = getClass(c.class);
           const sigil = cls ? cls.sigil : '?';
           const dmgPct = Math.round((c.dmgDealt / maxDmg) * 100);
-          const healStr = c.healingDone > 0 ? `<span class="cs-heal">+${c.healingDone}</span>` : '';
-          const takenStr = c.dmgTaken > 0 ? `<span class="cs-taken">${c.dmgTaken}</span>` : '';
+          const healDone = c.healingDone > 0 ? `<span class="cs-heal" title="Healing done">⚕${c.healingDone}</span>` : '';
+          const healRcvd = (c.healingReceived || 0) > 0 ? `<span class="cs-heal-rcvd" title="Healing received">💚${c.healingReceived}</span>` : '';
+          const taken = c.dmgTaken > 0 ? `<span class="cs-taken" title="Damage taken">💔${c.dmgTaken}</span>` : '';
           return `<div class="cs-row">
             <div class="cs-name">${sigil} ${c.name.split(' ')[0]}</div>
             <div class="cs-bar-wrap"><div class="cs-bar" style="width:${dmgPct}%"></div><span class="cs-dmg-val">${c.dmgDealt}</span></div>
-            <div class="cs-extras">${healStr}${takenStr}</div>
+            <div class="cs-extras">${healDone}${healRcvd}${taken}</div>
           </div>`;
         }).join('');
         combatStatsHtml = `<div class="qh-detail-section">
           <div class="qh-detail-section-title">Combat Performance</div>
-          <div class="cs-header"><span>Member</span><span>Damage Dealt</span><span>Heal / Taken</span></div>
+          <div class="cs-header"><span>Member</span><span>Damage Dealt</span><span>⚕ Done · 💚 Rcvd · 💔 Taken</span></div>
           ${csRows}
         </div>`;
       }
@@ -786,7 +759,6 @@ function renderQuestHistory(s) {
           <div class="qh-detail-grid">
             ${envLine}${enemiesLine}${tierLine}${rarityLine}
           </div>
-          ${partyHealthHtml}
           ${combatStatsHtml}
           ${lootHtml}
           ${skillsHtml}

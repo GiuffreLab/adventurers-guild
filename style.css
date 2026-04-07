@@ -597,13 +597,12 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.6);
 }
 .cs-extras {
-  width: 90px; flex-shrink: 0; text-align: right; font-size: 0.72rem;
-  display: flex; gap: 6px; justify-content: flex-end;
+  width: 130px; flex-shrink: 0; text-align: right; font-size: 0.72rem;
+  display: flex; gap: 5px; justify-content: flex-end; flex-wrap: wrap;
 }
-.cs-heal { color: var(--green, #4ecdc4); }
-.cs-heal::before { content: '💚 '; font-size: 0.6rem; }
-.cs-taken { color: var(--red, #e74c3c); opacity: 0.7; }
-.cs-taken::before { content: '💔 '; font-size: 0.6rem; }
+.cs-heal { color: var(--cyan, #4ecdc4); }
+.cs-heal-rcvd { color: var(--green, #2ecc71); }
+.cs-taken { color: var(--red, #e74c3c); opacity: 0.8; }
 
 /* Synergy unlock banner */
 .result-synergy-unlocks {

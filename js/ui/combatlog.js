@@ -320,7 +320,7 @@ function buildSimulation(aq, quest) {
   // ── Per-member combat stats tracking ──
   const combatStats = {};
   for (const m of partyHp) {
-    combatStats[m.id] = { id: m.id, name: m.name, class: m.class, dmgDealt: 0, healingDone: 0, dmgTaken: 0 };
+    combatStats[m.id] = { id: m.id, name: m.name, class: m.class, dmgDealt: 0, healingDone: 0, healingReceived: 0, dmgTaken: 0 };
   }
 
   // ── Phase 1: Travel (2 events) ──
@@ -442,6 +442,7 @@ function buildSimulation(aq, quest) {
         if (actual > 0) {
           anyHealed = true;
           if (regenSourceId && combatStats[regenSourceId]) combatStats[regenSourceId].healingDone += actual;
+          if (combatStats[p.id]) combatStats[p.id].healingReceived += actual;
         }
       });
       if (anyHealed) {
@@ -521,6 +522,7 @@ function buildSimulation(aq, quest) {
         const actual = attacker.hp - before;
         if (actual > 0) {
           if (combatStats[attacker.id]) combatStats[attacker.id].healingDone += actual;
+          if (combatStats[attacker.id]) combatStats[attacker.id].healingReceived += actual;
           events.push({ text, type, icon, phase: 'battle' });
           snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
           text = sPick(T_KI_BARRIER, es + 90)(attacker.name, actual);
@@ -606,6 +608,7 @@ function buildSimulation(aq, quest) {
               const actual = attacker.hp - before;
               if (actual > 0) {
                 if (combatStats[attacker.id]) combatStats[attacker.id].healingDone += actual;
+                if (combatStats[attacker.id]) combatStats[attacker.id].healingReceived += actual;
                 events.push({ text, type, icon, phase: 'battle' });
                 snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
                 text = sPick(T_KI_BARRIER, es + 90)(attacker.name, actual);
@@ -731,6 +734,7 @@ function buildSimulation(aq, quest) {
 
           if (actual > 0) {
             if (combatStats[availableHero.id]) combatStats[availableHero.id].healingDone += actual;
+            if (combatStats[woundedAlly.id]) combatStats[woundedAlly.id].healingReceived += actual;
             events.push({ text, type, icon, phase: 'battle' });
             snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
             text = sPick(T_RALLY_CRY, es + 85)(availableHero.name, woundedAlly.name, actual);
@@ -781,6 +785,7 @@ function buildSimulation(aq, quest) {
           const actual = p.hp - before;
           if (actual > 0) {
             if (combatStats[healer.id]) combatStats[healer.id].healingDone += actual;
+            if (combatStats[p.id]) combatStats[p.id].healingReceived += actual;
             if (p.id !== healer.id) healed.push({ name: p.name, amt: actual });
           }
         });

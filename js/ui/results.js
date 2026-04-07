@@ -41,16 +41,6 @@ export function showResultsModal() {
     `;
   }
 
-  const injuriesHtml = result.injuries.length > 0 ? `
-    <div class="result-section">
-      <div class="result-section-title">Injuries</div>
-      ${result.injuries.map(inj => {
-        const m = Game.getMember(inj.memberId);
-        return `<div class="result-row"><span class="result-row-label">${m ? m.name : inj.memberId}</span><span class="result-row-value result-injury">−${inj.hpLost} HP</span></div>`;
-      }).join('')}
-    </div>
-  ` : '';
-
   const levelUpHtml = levelUps.length > 0 ? levelUps.map(lu =>
     `<div class="result-levelup">⭐ ${lu.name} reached Level ${lu.level}!</div>`
   ).join('') : '';
@@ -87,20 +77,21 @@ export function showResultsModal() {
       const cls = CLASSES[c.class];
       const sigil = cls ? cls.sigil : '?';
       const dmgPct = Math.round((c.dmgDealt / maxDmg) * 100);
-      const healStr = c.healingDone > 0 ? `<span class="cs-heal">+${c.healingDone}</span>` : '';
-      const takenStr = c.dmgTaken > 0 ? `<span class="cs-taken">${c.dmgTaken}</span>` : '';
+      const healDone = c.healingDone > 0 ? `<span class="cs-heal" title="Healing done">⚕${c.healingDone}</span>` : '';
+      const healRcvd = c.healingReceived > 0 ? `<span class="cs-heal-rcvd" title="Healing received">💚${c.healingReceived}</span>` : '';
+      const taken = c.dmgTaken > 0 ? `<span class="cs-taken" title="Damage taken">💔${c.dmgTaken}</span>` : '';
       return `<div class="cs-row">
         <div class="cs-name">${sigil} ${c.name.split(' ')[0]}</div>
         <div class="cs-bar-wrap">
           <div class="cs-bar" style="width:${dmgPct}%"></div>
           <span class="cs-dmg-val">${c.dmgDealt}</span>
         </div>
-        <div class="cs-extras">${healStr}${takenStr}</div>
+        <div class="cs-extras">${healDone}${healRcvd}${taken}</div>
       </div>`;
     }).join('');
     return `<div class="result-section">
       <div class="result-section-title">Combat Performance</div>
-      <div class="cs-header"><span>Member</span><span>Damage Dealt</span><span>Heal / Taken</span></div>
+      <div class="cs-header"><span>Member</span><span>Damage Dealt</span><span>⚕ Done · 💚 Rcvd · 💔 Taken</span></div>
       ${rows}
     </div>`;
   })() : '';
@@ -149,7 +140,6 @@ export function showResultsModal() {
     ${skillActivationHtml}
     ${combatStatsHtml}
     ${rewardsHtml}
-    ${injuriesHtml}
     ${levelUpHtml}
     ${skillGainHtml}
     ${synergyHtml}

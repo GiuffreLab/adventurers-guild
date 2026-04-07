@@ -226,7 +226,7 @@ const Game = (() => {
   }
 
   function healTick(secondsElapsed) {
-    // Don't heal while the results modal is showing — let the player see the injuries
+    // Don't heal while the results modal is showing
     if (state.pendingResults) return;
 
     const onQuestIds = new Set();
@@ -496,21 +496,12 @@ const Game = (() => {
       }
     }
 
-    const injuries = snapshot.map(m => {
-      const maxHp = m.stats.maxHp || 100;
-      const pct = success
-        ? (ratio < 0.8 ? Math.random() * 0.25 : Math.random() * 0.1)
-        : 0.2 + Math.random() * 0.4;
-      const hpLost = Math.floor(maxHp * pct);
-      return hpLost > 0 ? { memberId: m.id, hpLost } : null;
-    }).filter(Boolean);
-
     const baseRp = success ? questDef.rankPointReward : 0;
     const rankPoints = Math.floor(baseRp * rpMult);
     const pool = success ? questDef.narratives.success : questDef.narratives.failure;
     const narrative = pool[Math.floor(Math.random() * pool.length)];
 
-    return { success, partyPower, questPower, ratio, goldEarned, expEarned, rankPoints, loot, injuries, narrative, activatedSkills };
+    return { success, partyPower, questPower, ratio, goldEarned, expEarned, rankPoints, loot, narrative, activatedSkills };
   }
 
   // ── Economy ────────────────────────────────────────────────────────────────
@@ -899,16 +890,12 @@ const Game = (() => {
 
     // Build compact party summary with before/after HP
     const partySummary = (partySnapshot || []).map(snap => {
-      const injury = (result.injuries || []).find(inj => inj.memberId === snap.id);
-      const hpLost = injury ? injury.hpLost : 0;
       return {
         id: snap.id,
         name: snap.name,
         class: snap.class,
         level: snap.level,
-        hpBefore: snap.stats.hp,
         maxHp: snap.stats.maxHp || 100,
-        hpAfter: Math.max(1, (snap.stats.hp || 50) - hpLost),
       };
     });
 
@@ -928,7 +915,6 @@ const Game = (() => {
       expEarned: result.expEarned,
       rankPoints: result.rankPoints,
       loot: result.loot,
-      injuries: result.injuries,
       activatedSkills: result.activatedSkills,
       secretBoss: result.secretBoss || null,
       levelUps,
@@ -1079,11 +1065,6 @@ const Game = (() => {
     }
 
     for (const drop of result.loot) addToInventory(drop.itemId, drop.quantity);
-
-    for (const inj of result.injuries) {
-      const m = getMember(inj.memberId);
-      if (m) m.stats.hp = Math.max(1, m.stats.hp - inj.hpLost);
-    }
 
     let synergyUnlocks = [];
     if (result.success) {
