@@ -147,7 +147,7 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .class-card.selected { border-color: var(--cyan); background: var(--cyan-dim); }
 
 .class-card-name { font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 6px; }
-.class-card-sigil { font-size: 0.75rem; color: var(--cyan); background: rgba(78,205,196,0.1); padding: 1px 5px; border-radius: 3px; }
+.class-card-sigil { font-size: 0.7rem; color: var(--cyan); background: rgba(78,205,196,0.1); padding: 1px 5px; border-radius: 3px; font-family: monospace; letter-spacing: 0.5px; }
 .class-card-desc { font-size: 0.78rem; color: var(--text-dim); }
 .class-card-stats { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
 
@@ -257,7 +257,7 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   gap: 4px; align-items: center;
 }
 .member-name-cls { display: flex; align-items: center; gap: 6px; font-size: 0.875rem; }
-.member-sigil { font-size: 0.7rem; color: var(--cyan); background: rgba(78,205,196,0.1); padding: 1px 5px; border-radius: 3px; }
+.member-sigil { font-size: 0.65rem; color: var(--cyan); background: rgba(78,205,196,0.1); padding: 1px 5px; border-radius: 3px; font-family: monospace; letter-spacing: 0.5px; }
 .member-level { font-size: 0.75rem; color: var(--text-dim); }
 .member-hp-text { font-size: 0.75rem; color: var(--text-dim); text-align: right; white-space: nowrap; }
 
@@ -1545,7 +1545,7 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   display: flex; align-items: center; gap: 8px;
   font-size: 0.82rem; padding: 3px 0;
 }
-.qh-pm-sigil { font-size: 1rem; width: 22px; text-align: center; }
+.qh-pm-sigil { font-size: 0.8rem; width: 36px; text-align: center; font-family: monospace; }
 .qh-pm-name { width: 80px; font-weight: 500; }
 .qh-pm-level { font-size: 0.72rem; color: var(--text-muted); width: 40px; }
 .qh-pm-hp { display: flex; align-items: center; gap: 6px; flex: 1; }

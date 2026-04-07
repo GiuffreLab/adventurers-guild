@@ -1,5 +1,4 @@
 import Game from './game.js';
-import { CLASSES } from './data.js';
 import { renderHall, markHallDirty } from './ui/hall.js';
 import { renderQuests, resetQuestsState, tickUpdateQuests, getQuestRankFilter } from './ui/quests.js';
 import { renderParty, resetPartyState, tickUpdateParty } from './ui/party.js';
@@ -13,42 +12,14 @@ function currentQuestRankFilter() { return getQuestRankFilter(); }
 // ── Boot / New Game ────────────────────────────────────────────────────────
 
 export function initNewGameModal() {
-  const picker = document.getElementById('class-picker');
-  picker.innerHTML = '';
-  const startClasses = ['HERO','KNIGHT','MAGE','ROGUE','CLERIC'];
-  let selectedClass = null;
-
-  for (const classId of startClasses) {
-    const cls = CLASSES[classId];
-    const card = document.createElement('div');
-    card.className = 'class-card';
-    card.dataset.classId = classId;
-    const bs = cls.baseStats;
-    card.innerHTML = `
-      <div class="class-card-name">
-        ${cls.label}
-        <span class="class-card-sigil">${cls.sigil}</span>
-      </div>
-      <div class="class-card-desc">${cls.description}</div>
-      <div class="class-card-stats">HP ${bs.maxHp} · ATK ${bs.atk} · DEF ${bs.def} · SPD ${bs.spd}</div>
-    `;
-    card.addEventListener('click', () => {
-      document.querySelectorAll('.class-card').forEach(c => c.classList.remove('selected'));
-      card.classList.add('selected');
-      selectedClass = classId;
-      document.getElementById('btn-start-game').disabled = !document.getElementById('input-name').value.trim();
-    });
-    picker.appendChild(card);
-  }
-
   document.getElementById('input-name').addEventListener('input', (e) => {
-    document.getElementById('btn-start-game').disabled = !e.target.value.trim() || !selectedClass;
+    document.getElementById('btn-start-game').disabled = !e.target.value.trim();
   });
 
   document.getElementById('btn-start-game').addEventListener('click', () => {
     const name = document.getElementById('input-name').value.trim();
-    if (!name || !selectedClass) return;
-    Game.newGame(name, selectedClass);
+    if (!name) return;
+    Game.newGame(name, 'HERO');
     document.getElementById('modal-new-game').classList.add('hidden');
     document.getElementById('game').classList.remove('hidden');
     setTab('hall');
@@ -61,7 +32,6 @@ export function showNewGameModal() {
   document.getElementById('game').classList.add('hidden');
   document.getElementById('input-name').value = '';
   document.getElementById('btn-start-game').disabled = true;
-  document.querySelectorAll('.class-card').forEach(c => c.classList.remove('selected'));
 }
 
 // ── Tab System ─────────────────────────────────────────────────────────────
