@@ -45,8 +45,8 @@ export const SKILLS = {
   INSPIRING_PRESENCE: {
     id: 'INSPIRING_PRESENCE', name: 'Inspiring Presence', type: 'passive', source: 'class',
     classId: 'HERO', unlockLevel: 14,
-    description: 'The Hero\'s presence inspires all. Party ATK +8%, party SPD +6%, self LCK +15%.',
-    icon: '✨', effects: { partyAtkBonus: 0.08, partySpdBonus: 0.06, lckBonus: 0.15 }, procChance: 1.0,
+    description: 'The Hero\'s presence inspires all. Party ATK +8%, party SPD +6%, self CRIT +8%, DODGE +7%.',
+    icon: '✨', effects: { partyAtkBonus: 0.08, partySpdBonus: 0.06, critBonus: 0.08, dodgeBonus: 0.07 }, procChance: 1.0,
     narrative: null,
   },
   HERO_ULTIMA: {
@@ -82,15 +82,15 @@ export const SKILLS = {
   HERO_M_BATTLE_INSTINCT: {
     id: 'HERO_M_BATTLE_INSTINCT', name: 'Battle Instinct', type: 'passive', source: 'mastery',
     classId: 'HERO', unlockLevel: 16,
-    description: 'ATK +15%, SPD +10%, LCK +10%.',
-    icon: '⚡', effects: { atkBonus: 0.15, spdBonus: 0.10, lckBonus: 0.10 }, procChance: 1.0,
+    description: 'ATK +15%, SPD +10%, CRIT +5%, DODGE +5%.',
+    icon: '⚡', effects: { atkBonus: 0.15, spdBonus: 0.10, critBonus: 0.05, dodgeBonus: 0.05 }, procChance: 1.0,
     narrative: null,
   },
   HERO_M_CHOSEN_ONE: {
     id: 'HERO_M_CHOSEN_ONE', name: 'The Chosen One', type: 'passive', source: 'mastery',
     classId: 'HERO', unlockLevel: 20,
     description: 'EPIC — All stats +12%. The Hero\'s destiny is fulfilled.',
-    icon: '🌠', effects: { atkBonus: 0.12, defBonus: 0.12, spdBonus: 0.12, magBonus: 0.12, lckBonus: 0.12, maxHpBonus: 0.12 }, procChance: 1.0,
+    icon: '🌠', effects: { atkBonus: 0.12, defBonus: 0.12, spdBonus: 0.12, magBonus: 0.12, critBonus: 0.06, dodgeBonus: 0.06, maxHpBonus: 0.12 }, procChance: 1.0,
     narrative: null,
   },
 
@@ -298,8 +298,8 @@ export const SKILLS = {
   ROGUE_M_NIMBLE_FINGERS: {
     id: 'ROGUE_M_NIMBLE_FINGERS', name: 'Nimble Fingers', type: 'passive', source: 'mastery',
     classId: 'ROGUE', unlockLevel: 4,
-    description: 'SPD +8%, LCK +8%.',
-    icon: '🤏', effects: { spdBonus: 0.08, lckBonus: 0.08 }, procChance: 1.0,
+    description: 'SPD +8%, CRIT +5%, DODGE +3%.',
+    icon: '🤏', effects: { spdBonus: 0.08, critBonus: 0.05, dodgeBonus: 0.03 }, procChance: 1.0,
     narrative: null,
   },
   ROGUE_M_CRITICAL_EDGE: {
@@ -312,8 +312,8 @@ export const SKILLS = {
   ROGUE_M_SHADOW_NETWORK: {
     id: 'ROGUE_M_SHADOW_NETWORK', name: 'Shadow Network', type: 'passive', source: 'mastery',
     classId: 'ROGUE', unlockLevel: 12,
-    description: 'PARTY MASTERY — All allies gain +5% SPD and +5% LCK from the Rogue\'s connections.',
-    icon: '🕸', effects: { partySpdBonus: 0.05, partyLckBonus: 0.05 }, procChance: 1.0,
+    description: 'PARTY MASTERY — All allies gain +5% SPD, +3% CRIT and +2% DODGE from the Rogue\'s connections.',
+    icon: '🕸', effects: { partySpdBonus: 0.05, partyCritBonus: 0.03, partyDodgeBonus: 0.02 }, procChance: 1.0,
     narrative: null,
   },
   ROGUE_M_LETHALITY: {
@@ -456,8 +456,8 @@ export const SKILLS = {
   RANGER_M_KEEN_EYE: {
     id: 'RANGER_M_KEEN_EYE', name: 'Keen Eye', type: 'passive', source: 'mastery',
     classId: 'RANGER', unlockLevel: 4,
-    description: 'ATK +8%, LCK +6%.',
-    icon: '👁', effects: { atkBonus: 0.08, lckBonus: 0.06 }, procChance: 1.0,
+    description: 'ATK +8%, CRIT +6%.',
+    icon: '👁', effects: { atkBonus: 0.08, critBonus: 0.06 }, procChance: 1.0,
     narrative: null,
   },
   RANGER_M_WILDERNESS_MASTERY: {
@@ -519,8 +519,8 @@ export const SKILLS = {
   BATTLE_HYMN: {
     id: 'BATTLE_HYMN', name: 'Battle Hymn', type: 'passive', source: 'class',
     classId: 'BARD', unlockLevel: 14,
-    description: 'An ongoing battle hymn. Party ATK +8%, party SPD +6%, LCK +12%.',
-    icon: '🎶', effects: { partyAtkBonus: 0.08, partySpdBonus: 0.06, lckBonus: 0.12 }, procChance: 1.0,
+    description: 'An ongoing battle hymn. Party ATK +8%, party SPD +6%, CRIT +5%, DODGE +7%.',
+    icon: '🎶', effects: { partyAtkBonus: 0.08, partySpdBonus: 0.06, critBonus: 0.05, dodgeBonus: 0.07 }, procChance: 1.0,
     narrative: null,
   },
   SYMPHONY_OF_WAR: {
@@ -535,36 +535,36 @@ export const SKILLS = {
   BARD_M_CHARM: {
     id: 'BARD_M_CHARM', name: 'Charm', type: 'passive', source: 'mastery',
     classId: 'BARD', unlockLevel: 4,
-    description: 'LCK +12%, gold +8%. Natural charisma.',
-    icon: '💝', effects: { lckBonus: 0.12, goldBonus: 0.08 }, procChance: 1.0,
+    description: 'CRIT +5%, DODGE +7%, gold +8%. Natural charisma.',
+    icon: '💝', effects: { critBonus: 0.05, dodgeBonus: 0.07, goldBonus: 0.08 }, procChance: 1.0,
     narrative: null,
   },
   BARD_M_PERFECT_PITCH: {
     id: 'BARD_M_PERFECT_PITCH', name: 'Perfect Pitch', type: 'passive', source: 'mastery',
     classId: 'BARD', unlockLevel: 8,
-    description: 'MAG +10%, LCK +10%, SPD +8%.',
-    icon: '🎤', effects: { magBonus: 0.10, lckBonus: 0.10, spdBonus: 0.08 }, procChance: 1.0,
+    description: 'MAG +10%, CRIT +4%, DODGE +6%, SPD +8%.',
+    icon: '🎤', effects: { magBonus: 0.10, critBonus: 0.04, dodgeBonus: 0.06, spdBonus: 0.08 }, procChance: 1.0,
     narrative: null,
   },
   BARD_M_FORTISSIMO: {
     id: 'BARD_M_FORTISSIMO', name: 'Fortissimo', type: 'passive', source: 'mastery',
     classId: 'BARD', unlockLevel: 12,
-    description: 'PARTY MASTERY — All allies gain +5% ATK, +5% SPD, and +5% LCK from the Bard\'s performance.',
-    icon: '🔊', effects: { partyAtkBonus: 0.05, partySpdBonus: 0.05, partyLckBonus: 0.05 }, procChance: 1.0,
+    description: 'PARTY MASTERY — All allies gain +5% ATK, +5% SPD, +2% CRIT and +3% DODGE from the Bard\'s performance.',
+    icon: '🔊', effects: { partyAtkBonus: 0.05, partySpdBonus: 0.05, partyCritBonus: 0.02, partyDodgeBonus: 0.03 }, procChance: 1.0,
     narrative: null,
   },
   BARD_M_VIRTUOSO: {
     id: 'BARD_M_VIRTUOSO', name: 'Virtuoso', type: 'passive', source: 'mastery',
     classId: 'BARD', unlockLevel: 16,
-    description: 'MAG +15%, LCK +15%, SPD +10%, gold +12%.',
-    icon: '🎹', effects: { magBonus: 0.15, lckBonus: 0.15, spdBonus: 0.10, goldBonus: 0.12 }, procChance: 1.0,
+    description: 'MAG +15%, CRIT +6%, DODGE +9%, SPD +10%, gold +12%.',
+    icon: '🎹', effects: { magBonus: 0.15, critBonus: 0.06, dodgeBonus: 0.09, spdBonus: 0.10, goldBonus: 0.12 }, procChance: 1.0,
     narrative: null,
   },
   BARD_M_LEGEND_OF_SONG: {
     id: 'BARD_M_LEGEND_OF_SONG', name: 'Legend of Song', type: 'passive', source: 'mastery',
     classId: 'BARD', unlockLevel: 20,
-    description: 'EPIC — MAG +20%, LCK +25%, SPD +15%, gold +20%. Songs echo through eternity.',
-    icon: '🏅', effects: { magBonus: 0.20, lckBonus: 0.25, spdBonus: 0.15, goldBonus: 0.20 }, procChance: 1.0,
+    description: 'EPIC — MAG +20%, CRIT +10%, DODGE +15%, SPD +15%, gold +20%. Songs echo through eternity.',
+    icon: '🏅', effects: { magBonus: 0.20, critBonus: 0.10, dodgeBonus: 0.15, spdBonus: 0.15, goldBonus: 0.20 }, procChance: 1.0,
     narrative: null,
   },
 
@@ -592,7 +592,7 @@ export const SKILLS = {
     id: 'INNER_FOCUS', name: 'Inner Focus', type: 'active', source: 'class',
     classId: 'MONK', unlockLevel: 10,
     description: 'CLASS SKILL — Achieves perfect inner focus. 50% proc, all stats +15%, dodge +15%.',
-    icon: '☯', effects: { atkBonus: 0.15, defBonus: 0.15, spdBonus: 0.15, magBonus: 0.15, lckBonus: 0.15, dodgeChance: 0.15 }, procChance: 0.50,
+    icon: '☯', effects: { atkBonus: 0.15, defBonus: 0.15, spdBonus: 0.15, magBonus: 0.15, dodgeBonus: 0.15, dodgeChance: 0.15 }, procChance: 0.50,
     narrative: 'enters a state of perfect Inner Focus — mind, body, and spirit align!',
   },
   COUNTER_STANCE: {
@@ -614,8 +614,8 @@ export const SKILLS = {
   MONK_M_BALANCE: {
     id: 'MONK_M_BALANCE', name: 'Balance', type: 'passive', source: 'mastery',
     classId: 'MONK', unlockLevel: 4,
-    description: 'All core stats +5%. The path to balance begins.',
-    icon: '⚖', effects: { atkBonus: 0.05, defBonus: 0.05, spdBonus: 0.05, magBonus: 0.05, lckBonus: 0.05 }, procChance: 1.0,
+    description: 'ATK +5%, DEF +5%, SPD +5%, MAG +5%, DODGE +5%. The path to balance begins.',
+    icon: '⚖', effects: { atkBonus: 0.05, defBonus: 0.05, spdBonus: 0.05, magBonus: 0.05, dodgeBonus: 0.05 }, procChance: 1.0,
     narrative: null,
   },
   MONK_M_IRON_BODY: {
@@ -635,15 +635,15 @@ export const SKILLS = {
   MONK_M_ENLIGHTENMENT: {
     id: 'MONK_M_ENLIGHTENMENT', name: 'Enlightenment', type: 'passive', source: 'mastery',
     classId: 'MONK', unlockLevel: 16,
-    description: 'All core stats +10%, dodge +10%.',
-    icon: '🪷', effects: { atkBonus: 0.10, defBonus: 0.10, spdBonus: 0.10, magBonus: 0.10, lckBonus: 0.10, dodgeChance: 0.10 }, procChance: 1.0,
+    description: 'ATK +10%, DEF +10%, SPD +10%, MAG +10%, DODGE +10%.',
+    icon: '🪷', effects: { atkBonus: 0.10, defBonus: 0.10, spdBonus: 0.10, magBonus: 0.10, dodgeBonus: 0.10, dodgeChance: 0.10 }, procChance: 1.0,
     narrative: null,
   },
   MONK_M_TRANSCENDENCE: {
     id: 'MONK_M_TRANSCENDENCE', name: 'Transcendence', type: 'passive', source: 'mastery',
     classId: 'MONK', unlockLevel: 20,
     description: 'EPIC — All core stats +15%, dodge +15%. Perfect martial enlightenment.',
-    icon: '🌅', effects: { atkBonus: 0.15, defBonus: 0.15, spdBonus: 0.15, magBonus: 0.15, lckBonus: 0.15, dodgeChance: 0.15 }, procChance: 1.0,
+    icon: '🌅', effects: { atkBonus: 0.15, defBonus: 0.15, spdBonus: 0.15, magBonus: 0.15, dodgeBonus: 0.15, dodgeChance: 0.15 }, procChance: 1.0,
     narrative: null,
   },
 
@@ -824,7 +824,7 @@ export const SKILLS = {
     id: 'SIREN_SONG', name: 'Siren Song', type: 'active', source: 'equipment',
     itemId: 'SIREN_HARP', unlockLevel: null,
     description: 'Plays a mesmerizing Siren Song that enchants and heals.',
-    icon: '🎵', effects: { magBonus: 0.55, healBonus: 0.15, lckBonus: 0.15 }, procChance: 0.50,
+    icon: '🎵', effects: { magBonus: 0.55, healBonus: 0.15, critBonus: 0.06, dodgeBonus: 0.09 }, procChance: 0.50,
     narrative: 'plays a mesmerizing Siren Song!',
   },
   BATTLE_MARCH: {
@@ -987,7 +987,7 @@ export const SKILLS = {
     id: 'ORPHIC_HYMN', name: 'Orphic Hymn', type: 'active', source: 'equipment',
     itemId: 'ORPHEUS_LYRE', unlockLevel: null,
     description: 'Performs the legendary Orphic Hymn with divine power.',
-    icon: '🎼', effects: { magBonus: 0.75, healBonus: 0.30, lckBonus: 0.25 }, procChance: 0.60,
+    icon: '🎼', effects: { magBonus: 0.75, healBonus: 0.30, critBonus: 0.10, dodgeBonus: 0.15 }, procChance: 0.60,
     narrative: 'performs the legendary Orphic Hymn!',
   },
   ETERNAL_RHYTHM: {
@@ -1133,7 +1133,7 @@ export const SKILLS = {
     id: 'CEL_DESTINY_AURA', name: "Destiny's Mantle", type: 'passive', source: 'equipment',
     itemId: 'CEL_CROWN_OF_THE_CHOSEN', unlockLevel: null,
     description: 'The Crown of the Chosen bathes the hero in the light of destiny, elevating all abilities.',
-    icon: '👑', effects: { atkBonus: 0.20, defBonus: 0.20, spdBonus: 0.20, magBonus: 0.15, lckBonus: 0.20, maxHpBonus: 0.15 }, procChance: 1.0,
+    icon: '👑', effects: { atkBonus: 0.20, defBonus: 0.20, spdBonus: 0.20, magBonus: 0.15, critBonus: 0.10, dodgeBonus: 0.10, maxHpBonus: 0.15 }, procChance: 1.0,
     narrative: null,
   },
 
@@ -1186,14 +1186,14 @@ export const SKILLS = {
     id: 'CEL_ARCANUM_RESONANCE', name: 'Arcanum Resonance', type: 'active', source: 'equipment',
     itemId: 'CEL_SINGULARITY_ORB', unlockLevel: null,
     description: 'The Singularity Orb amplifies all magical energy nearby to devastating levels.',
-    icon: '🔮', effects: { partyMagBonus: 0.25, partyLckBonus: 0.10 }, procChance: 0.45,
+    icon: '🔮', effects: { partyMagBonus: 0.25, partyCritBonus: 0.10 }, procChance: 0.45,
     narrative: 'pulses with Arcanum Resonance — the Singularity Orb amplifies all magic nearby!',
   },
   CEL_OMNISCIENCE_AURA: {
     id: 'CEL_OMNISCIENCE_AURA', name: 'Omniscience', type: 'passive', source: 'equipment',
     itemId: 'CEL_DIADEM_OF_OMNISCIENCE', unlockLevel: null,
     description: 'The Diadem reveals all futures. Spells are cast with perfect foresight.',
-    icon: '👁', effects: { magBonus: 0.25, spdBonus: 0.20, critChance: 0.18, lckBonus: 0.15 }, procChance: 1.0,
+    icon: '👁', effects: { magBonus: 0.25, spdBonus: 0.20, critChance: 0.18, critBonus: 0.15 }, procChance: 1.0,
     narrative: null,
   },
 
@@ -1216,14 +1216,14 @@ export const SKILLS = {
     id: 'CEL_VOID_ECHO', name: 'Void Echo', type: 'active', source: 'equipment',
     itemId: 'CEL_NULLBLADE', unlockLevel: null,
     description: 'Nullblade resonates through the void, sharpening every ally\'s senses and reflexes.',
-    icon: '🌑', effects: { partySpdBonus: 0.20, partyLckBonus: 0.15 }, procChance: 0.45,
+    icon: '🌑', effects: { partySpdBonus: 0.20, partyCritBonus: 0.09, partyDodgeBonus: 0.06 }, procChance: 0.45,
     narrative: 'triggers Void Echo — Nullblade\'s resonance sharpens every ally\'s reflexes!',
   },
   CEL_SHADOW_DIMENSION: {
     id: 'CEL_SHADOW_DIMENSION', name: 'Shadow Dimension', type: 'passive', source: 'equipment',
     itemId: 'CEL_ECLIPSE_PENDANT', unlockLevel: null,
     description: 'The Eclipse Pendant anchors the rogue partially in the shadow dimension. Always half-invisible.',
-    icon: '🌘', effects: { spdBonus: 0.25, lckBonus: 0.25, critChance: 0.20, atkBonus: 0.10 }, procChance: 1.0,
+    icon: '🌘', effects: { spdBonus: 0.25, critBonus: 0.15, dodgeBonus: 0.10, critChance: 0.20, atkBonus: 0.10 }, procChance: 1.0,
     narrative: null,
   },
 
@@ -1283,7 +1283,7 @@ export const SKILLS = {
     id: 'CEL_NORTH_STAR_AURA', name: 'North Star', type: 'passive', source: 'equipment',
     itemId: 'CEL_POLARIS_PENDANT', unlockLevel: null,
     description: 'Guided by the North Star. Every shot finds its mark. Every step finds its path.',
-    icon: '⭐', effects: { atkBonus: 0.25, spdBonus: 0.20, lckBonus: 0.20, critChance: 0.15 }, procChance: 1.0,
+    icon: '⭐', effects: { atkBonus: 0.25, spdBonus: 0.20, critBonus: 0.20, critChance: 0.15 }, procChance: 1.0,
     narrative: null,
   },
 
@@ -1292,7 +1292,7 @@ export const SKILLS = {
     id: 'CEL_SONG_OF_CREATION', name: 'Song of Creation', type: 'active', source: 'equipment',
     itemId: 'CEL_LYRE_OF_CREATION', unlockLevel: null,
     description: 'The Lyre plays the melody that created the universe. Reality reshapes at its command.',
-    icon: '🎵', effects: { magBonus: 0.30, lckBonus: 0.25, powerMultiplier: 1.7 }, procChance: 0.55,
+    icon: '🎵', effects: { magBonus: 0.30, critBonus: 0.10, dodgeBonus: 0.15, powerMultiplier: 1.7 }, procChance: 0.55,
     narrative: 'plays the Song of Creation — the melody that birthed the universe reshapes the battlefield!',
   },
   CEL_COSMIC_HARMONY: {
@@ -1313,7 +1313,7 @@ export const SKILLS = {
     id: 'CEL_SYMPHONY_AURA', name: 'Eternal Symphony', type: 'passive', source: 'equipment',
     itemId: 'CEL_MAESTROS_SIGNET', unlockLevel: null,
     description: 'The grand symphony plays eternally. All who hear it are elevated beyond mortal limits.',
-    icon: '🎶', effects: { magBonus: 0.18, lckBonus: 0.22, spdBonus: 0.18, atkBonus: 0.10, defBonus: 0.10, partyLckBonus: 0.12 }, procChance: 1.0,
+    icon: '🎶', effects: { magBonus: 0.18, critBonus: 0.09, dodgeBonus: 0.13, spdBonus: 0.18, atkBonus: 0.10, defBonus: 0.10, partyCritBonus: 0.05, partyDodgeBonus: 0.07 }, procChance: 1.0,
     narrative: null,
   },
 
@@ -1440,7 +1440,7 @@ export function applyPassiveSkills(stats, member, party) {
       if (key === 'powerMultiplier') continue;
       // Map effect key → stat key
       const statKey = key.replace(/Bonus$/, '').replace(/Chance$/, '');
-      if (['atk', 'def', 'spd', 'mag', 'lck'].includes(statKey)) {
+      if (['atk', 'def', 'spd', 'mag', 'crit', 'dodge'].includes(statKey)) {
         stats[statKey] = Math.floor((stats[statKey] || 0) * (1 + value));
       } else if (statKey === 'maxHp') {
         stats.maxHp = Math.floor((stats.maxHp || 100) * (1 + value));

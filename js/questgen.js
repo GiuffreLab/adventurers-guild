@@ -33,7 +33,8 @@ export function calculateMemberStrength(member, effectiveStatsFn) {
     + (stats.spd || 0) * 1.2
     + (stats.mag || 0) * 1.8
     + Math.floor((stats.maxHp || 50) / 8)
-    + (stats.lck || 0) * 0.8;
+    + (stats.crit || 0) * 0.8
+    + (stats.dodge || 0) * 0.5;
 
   // Level bonus (exponential scaling)
   const levelBonus = Math.pow(member.level, 1.3) * 2;

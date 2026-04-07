@@ -296,8 +296,63 @@ function buildSimulation(aq, quest) {
       maxHp: eff.maxHp || m.stats.maxHp || 100,
       hp: eff.hp || eff.maxHp || m.stats.hp || 100,
       level: m.level, power: m.power || 20,
+      // Combat stats — used for damage calc, action weight, crit/dodge
+      atk: eff.atk || m.stats.atk || 10,
+      mag: eff.mag || m.stats.mag || 1,
+      def: eff.def || m.stats.def || 5,
+      spd: eff.spd || m.stats.spd || 10,
+      crit: eff.crit || m.stats.crit || 0,
+      dodge: eff.dodge || m.stats.dodge || 0,
     };
   });
+
+  // ── SPD-weighted random pick helper ──
+  // Higher SPD → more likely to be chosen to act
+  function sPickWeighted(arr, seed) {
+    if (arr.length === 0) return null;
+    if (arr.length === 1) return arr[0];
+    // Weight = spd + 5 (floor so even 0 SPD gets a chance)
+    const weights = arr.map(m => (m.spd || 10) + 5);
+    const total = weights.reduce((s, w) => s + w, 0);
+    let roll = sRand(seed) * total;
+    for (let i = 0; i < arr.length; i++) {
+      roll -= weights[i];
+      if (roll <= 0) return arr[i];
+    }
+    return arr[arr.length - 1];
+  }
+
+  // ── Stat-based damage helper ──
+  // Physical classes scale off ATK, magic classes scale off MAG
+  function calcPartyDmg(attacker, seed, bonus) {
+    const isMagic = isMagicClass(attacker.class);
+    const stat = isMagic ? (attacker.mag || 1) : (attacker.atk || 10);
+    // Base damage: stat * (1.8 to 2.8 random multiplier), scaled by synergy bonus
+    const multiplier = 1.8 + sRand(seed) * 1.0;
+    return Math.max(2, Math.floor(stat * multiplier * bonus));
+  }
+
+  // ── DEF-based damage reduction ──
+  // Reduces incoming damage: reduction = def / (def + 60)  →  ~14% at 10 DEF, ~33% at 30 DEF
+  function applyDef(rawDmg, defender) {
+    const def = defender.def || 0;
+    const reduction = def / (def + 60);
+    return Math.max(1, Math.floor(rawDmg * (1 - reduction)));
+  }
+
+  // ── CRIT chance from stat ──
+  // crit / (crit + 100)  →  ~9% at 10, ~17% at 20, ~33% at 50
+  function critChance(attacker) {
+    const c = attacker.crit || 0;
+    return c / (c + 100);
+  }
+
+  // ── DODGE chance from stat ──
+  // dodge / (dodge + 80)  →  ~11% at 10, ~20% at 20, ~33% at 40
+  function dodgeChance(defender) {
+    const d = defender.dodge || 0;
+    return d / (d + 80);
+  }
 
   // Scale enemy count with party size — larger parties face more foes
   // Base 3 enemies for 4 members, +1 per extra member (up to 6 for a party of 7)
@@ -505,16 +560,14 @@ function buildSimulation(aq, quest) {
 
     if (roll < 0.35) {
       // ── Party member attacks enemy ──
-      const attacker = sPick(livingParty, es + 10);
+      const attacker = sPickWeighted(livingParty, es + 10);
       const target = sPick(livingEnemies, es + 11);
-      const cls = getClass(attacker.class);
-      const avgEnemyHp = enemies.reduce((s, e) => s + e.maxHp, 0) / Math.max(1, enemies.length);
-      let baseDmg = Math.max(2, Math.floor(avgEnemyHp * (0.15 + sRand(es + 12) * 0.20) * dmgBonus));
+      let baseDmg = calcPartyDmg(attacker, es + 12, dmgBonus);
       // Mage Spell Echo amplification
       if (spellEchoRounds[attacker.id] > 0) baseDmg = Math.floor(baseDmg * 1.50);
       // Mark for Death amplification
       if (markedEnemies[target.id]) baseDmg = Math.floor(baseDmg * 1.20);
-      const isCrit = sRand(es + 13) < 0.15;
+      const isCrit = sRand(es + 13) < critChance(attacker);
       const dmg = isCrit ? Math.floor(baseDmg * 1.5) : baseDmg;
       target.hp = Math.max(0, target.hp - dmg);
       if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += dmg;
@@ -567,7 +620,7 @@ function buildSimulation(aq, quest) {
 
     } else if (roll < 0.50) {
       // ── Party skill usage ──
-      const attacker = sPick(livingParty, es + 20);
+      const attacker = sPickWeighted(livingParty, es + 20);
       const target = sPick(livingEnemies, es + 21);
       const memberData = Game.getMember(attacker.id);
       const skills = memberData ? memberData.skills : [];
@@ -577,8 +630,8 @@ function buildSimulation(aq, quest) {
         if (skill) {
           // ── Ranger Volley: AoE all enemies ──
           if (skillId === 'VOLLEY' && rangersWithVolley.has(attacker.id)) {
-            const avgEHp = enemies.reduce((s, e) => s + e.maxHp, 0) / Math.max(1, enemies.length);
-            const perTargetDmg = Math.max(2, Math.floor(avgEHp * (0.12 + sRand(es + 23) * 0.15) * dmgBonus * 0.60));
+            // Volley: AoE at 60% of normal attack damage per target
+            const perTargetDmg = Math.max(2, Math.floor(calcPartyDmg(attacker, es + 23, dmgBonus) * 0.60));
             const currentLiving = enemies.filter(e => e.alive);
             let volleyTotalDmg = 0;
             currentLiving.forEach(e => {
@@ -607,9 +660,8 @@ function buildSimulation(aq, quest) {
               icon = '💥'; type = 'defeat';
             }
           } else {
-            // Standard skill attack
-            const avgEHp = enemies.reduce((s, e) => s + e.maxHp, 0) / Math.max(1, enemies.length);
-            let baseDmg = Math.max(3, Math.floor(avgEHp * (0.20 + sRand(es + 23) * 0.25) * dmgBonus));
+            // Standard skill attack — 25% stronger than basic attack
+            let baseDmg = Math.max(3, Math.floor(calcPartyDmg(attacker, es + 23, dmgBonus) * 1.25));
             // Mage Spell Echo amplification on skill damage
             if (spellEchoRounds[attacker.id] > 0) baseDmg = Math.floor(baseDmg * 1.50);
             if (markedEnemies[target.id]) baseDmg = Math.floor(baseDmg * 1.20);
@@ -664,16 +716,14 @@ function buildSimulation(aq, quest) {
             }
           }
         } else {
-          const avgEHp2 = enemies.reduce((s, e) => s + e.maxHp, 0) / Math.max(1, enemies.length);
-          const baseDmg = Math.max(2, Math.floor(avgEHp2 * (0.15 + sRand(es + 24) * 0.20) * dmgBonus));
+          const baseDmg = calcPartyDmg(attacker, es + 24, dmgBonus);
           target.hp = Math.max(0, target.hp - baseDmg);
           if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += baseDmg;
           text = sPick(T_ATTACK, es)(attacker.name, target.name, baseDmg);
           icon = '⚔'; type = 'attack';
         }
       } else {
-        const avgEHp3 = enemies.reduce((s, e) => s + e.maxHp, 0) / Math.max(1, enemies.length);
-        const baseDmg = Math.max(2, Math.floor(avgEHp3 * (0.15 + sRand(es + 25) * 0.20) * dmgBonus));
+        const baseDmg = calcPartyDmg(attacker, es + 25, dmgBonus);
         target.hp = Math.max(0, target.hp - baseDmg);
         if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += baseDmg;
         text = sPick(T_ATTACK, es)(attacker.name, target.name, baseDmg);
@@ -684,18 +734,21 @@ function buildSimulation(aq, quest) {
       // ── Enemy attacks party member ──
       const attacker = sPick(livingEnemies, es + 30);
       const target = sPick(livingParty, es + 31);
-      const rawDmg = Math.max(1, Math.floor(attacker.atk * (0.5 + sRand(es + 32) * 0.7)));
-      // Divine Shield party damage reduction
-      const shieldReduction = divineShieldRounds > 0 ? 0.15 : 0;
-      const baseDmg = Math.max(1, Math.floor(rawDmg * (1 - dmgReduction) * (1 - shieldReduction)));
-      // Ranger Camouflage — chance to dodge entirely
-      if (camoRounds[target.id] > 0 && sRand(es + 97) < 0.40) {
-        text = `${target.name} is camouflaged — the attack misses!`;
-        icon = '🍃'; type = 'dodge';
+      // DODGE check — stat-based chance to avoid the attack entirely
+      const totalDodge = dodgeChance(target) + (camoRounds[target.id] > 0 ? 0.40 : 0);
+      if (sRand(es + 97) < totalDodge) {
+        const dodgeReason = camoRounds[target.id] > 0 ? 'is camouflaged' : 'deftly sidesteps';
+        text = `${target.name} ${dodgeReason} — the attack misses!`;
+        icon = camoRounds[target.id] > 0 ? '🍃' : '💨'; type = 'dodge';
         events.push({ text, type, icon, phase: 'battle' });
         snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
         continue;
       }
+      const rawDmg = Math.max(1, Math.floor(attacker.atk * (0.5 + sRand(es + 32) * 0.7)));
+      // Apply DEF reduction, synergy reduction, and Divine Shield
+      const shieldReduction = divineShieldRounds > 0 ? 0.15 : 0;
+      const afterDef = applyDef(rawDmg, target);
+      const baseDmg = Math.max(1, Math.floor(afterDef * (1 - dmgReduction) * (1 - shieldReduction)));
       const isSkill = sRand(es + 33) < 0.30;
 
       if (isSkill) {
@@ -756,7 +809,8 @@ function buildSimulation(aq, quest) {
           p.hp > 0 && heroesWithRally.has(p.id) && rallyCooldowns[p.id] === 0
         );
         if (availableHero) {
-          const rallyHeal = Math.max(1, Math.floor(woundedAlly.maxHp * 0.15));
+          const heroMag = availableHero.mag || 5;
+          const rallyHeal = Math.max(1, Math.floor(woundedAlly.maxHp * 0.10 + heroMag * 0.8));
           const before = woundedAlly.hp;
           woundedAlly.hp = Math.min(woundedAlly.maxHp, woundedAlly.hp + rallyHeal);
           const actual = woundedAlly.hp - before;
@@ -774,10 +828,13 @@ function buildSimulation(aq, quest) {
       }
 
     } else if (roll < 0.82) {
-      // ── Party defend / block ──
+      // ── Party defend / block — DEF stat reduces damage further ──
       const defender = sPick(livingParty, es + 40);
       const attacker = sPick(livingEnemies, es + 41);
-      const reducedDmg = Math.max(1, Math.floor(attacker.atk * 0.3 * sRand(es + 42) * (1 - dmgReduction)));
+      const rawDmg = Math.max(1, Math.floor(attacker.atk * 0.3 * sRand(es + 42)));
+      // Blocking already reduces, then DEF reduces further, then synergy
+      const afterDef = applyDef(rawDmg, defender);
+      const reducedDmg = Math.max(1, Math.floor(afterDef * (1 - dmgReduction)));
       defender.hp = Math.max(0, defender.hp - reducedDmg);
       if (combatStats[defender.id]) combatStats[defender.id].dmgTaken += reducedDmg;
       text = sPick(T_DEFEND, es)(defender.name, attacker.name, reducedDmg);
@@ -790,10 +847,9 @@ function buildSimulation(aq, quest) {
 
       if (clerics.length === 0 && bards.length === 0) {
         // No healer alive — fall back to a party attack
-        const attacker = sPick(livingParty, es + 60);
+        const attacker = sPickWeighted(livingParty, es + 60);
         const target = sPick(livingEnemies, es + 61);
-        const avgEHp = enemies.reduce((s, e) => s + e.maxHp, 0) / Math.max(1, enemies.length);
-        const fallbackDmg = Math.max(2, Math.floor(avgEHp * (0.15 + sRand(es + 62) * 0.20) * dmgBonus));
+        const fallbackDmg = calcPartyDmg(attacker, es + 62, dmgBonus);
         target.hp = Math.max(0, target.hp - fallbackDmg);
         if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += fallbackDmg;
         const classId = attacker.class || 'HERO';
@@ -802,9 +858,10 @@ function buildSimulation(aq, quest) {
         else { icon = '⚔'; type = 'attack'; }
         if (target.hp <= 0) { target.alive = false; }
       } else if (clerics.length > 0 && (bards.length === 0 || sRand(es + 44) < 0.6)) {
-        // ── Cleric: direct group heal ──
+        // ── Cleric: direct group heal — scales off MAG ──
         const healer = sPick(clerics, es + 45);
-        const baseHeal = Math.max(3, Math.floor(healer.maxHp * (0.08 + sRand(es + 46) * 0.12)));
+        const magStat = healer.mag || 10;
+        const baseHeal = Math.max(3, Math.floor(magStat * (1.5 + sRand(es + 46) * 1.0)));
         const healAmt = Math.floor(baseHeal * healBonus);
         const perMemberHeal = Math.floor(healAmt * 0.5);
 
@@ -844,9 +901,10 @@ function buildSimulation(aq, quest) {
         }
         continue;
       } else {
-        // ── Bard: regen buff (stacks/refreshes) ──
+        // ── Bard: regen buff — scales off MAG ──
         const bard = sPick(bards, es + 45);
-        const baseRegen = Math.max(1, Math.floor(bard.maxHp * (0.03 + sRand(es + 47) * 0.04)));
+        const bardMag = bard.mag || 5;
+        const baseRegen = Math.max(1, Math.floor(bardMag * (0.4 + sRand(es + 47) * 0.3)));
         const regenAmt = Math.max(1, Math.floor(baseRegen * healBonus));
         regenPerTick = regenAmt; // refreshes the regen value each time bard casts
         regenSource = bard.name;
@@ -877,10 +935,9 @@ function buildSimulation(aq, quest) {
         icon = '📢'; type = 'reinforce';
       } else {
         // fallback — party attack
-        const attacker = sPick(livingParty, es + 60);
+        const attacker = sPickWeighted(livingParty, es + 60);
         const target = sPick(livingEnemies, es + 61);
-        const avgEHp4 = enemies.reduce((s, e) => s + e.maxHp, 0) / Math.max(1, enemies.length);
-        const baseDmg = Math.max(2, Math.floor(avgEHp4 * (0.15 + sRand(es + 62) * 0.20) * dmgBonus));
+        const baseDmg = calcPartyDmg(attacker, es + 62, dmgBonus);
         target.hp = Math.max(0, target.hp - baseDmg);
         if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += baseDmg;
         text = sPick(T_ATTACK, es)(attacker.name, target.name, baseDmg);

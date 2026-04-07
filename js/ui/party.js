@@ -1,5 +1,5 @@
 import Game from '../game.js';
-import { getClass, getItem, getAvailableClasses, EQUIPMENT, canClassEquip, getItemRarity, CLASSES } from '../data.js';
+import { getClass, getItem, getAvailableClasses, getRecruitCost, EQUIPMENT, canClassEquip, getItemRarity, CLASSES } from '../data.js';
 import {
   getSkill, getClassSkills, getUnlockedClassSkills, getNextClassSkill,
   getClassMasteries, getUnlockedClassMasteries, getNextClassMastery,
@@ -418,7 +418,8 @@ function renderStatsPanel(base, eff) {
     { key: 'def',   label: 'DEF' },
     { key: 'spd',   label: 'SPD' },
     { key: 'mag',   label: 'MAG' },
-    { key: 'lck',   label: 'LCK' },
+    { key: 'crit',  label: 'CRT' },
+    { key: 'dodge', label: 'DDG' },
   ];
 
   const rows = statDefs.map(({ key, label }) => {
@@ -600,9 +601,10 @@ function bindCharSheetEvents(el, s, m) {
 
 function renderRecruit(el, s) {
   const available = getAvailableClasses(s.guild.rank);
+  const cost = getRecruitCost(s.party.length);
   const rows = available.map(cls => {
-    const canAfford = s.gold >= cls.recruitCost;
-    const full = s.party.length >= 12;
+    const canAfford = s.gold >= cost;
+    const full = s.party.length >= 8;
     const disabled = !canAfford || full;
     return `
       <div class="recruit-row${disabled ? ' cant-afford' : ''}" data-class-id="${cls.id}">
@@ -613,7 +615,7 @@ function renderRecruit(el, s) {
             HP ${cls.baseStats.maxHp} · ATK ${cls.baseStats.atk} · DEF ${cls.baseStats.def} · SPD ${cls.baseStats.spd} · MAG ${cls.baseStats.mag}
           </div>
         </div>
-        <span class="recruit-cost${!canAfford ? ' too-pricey' : ''}">${cls.recruitCost}g</span>
+        <span class="recruit-cost${!canAfford ? ' too-pricey' : ''}">${cost}g</span>
       </div>
     `;
   }).join('');
@@ -624,8 +626,8 @@ function renderRecruit(el, s) {
         <div class="card-title" style="margin:0">Recruit Adventurer</div>
         <button class="btn btn-sm btn-ghost" id="btn-back-roster">← Back</button>
       </div>
-      <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:12px">Gold: <strong style="color:var(--gold)">${s.gold}g</strong> · Roster: ${s.party.length}/8</div>
-      <div class="recruit-list">${rows || '<div class="empty-state">No classes available yet.</div>'}</div>
+      <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:12px">Gold: <strong style="color:var(--gold)">${s.gold}g</strong> · Roster: ${s.party.length}/8 · Next recruit: <strong style="color:var(--gold)">${cost}g</strong></div>
+      <div class="recruit-list">${rows || '<div class="empty-state">No classes available.</div>'}</div>
     </div>
   `;
 

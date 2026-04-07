@@ -1,7 +1,7 @@
 import {
   RANK_ORDER, CLASSES, NAMES, EQUIPMENT, LOOT_ITEMS, QUESTS,
   getItem, getClass, getQuest, computeBaseStats, randomName, getAvailableClasses,
-  rankIndex, randInt, canClassEquip
+  getRecruitCost, rankIndex, randInt, canClassEquip
 } from './data.js';
 import {
   getSkill, getUnlockedClassSkills, getUnlockedClassMasteries,
@@ -114,7 +114,7 @@ const Game = (() => {
 
   function memberPower(member) {
     const s = effectiveStats(member);
-    return (s.atk * 2) + s.def + s.spd + Math.floor((s.maxHp || 50) / 10) + (s.mag * 1.5) + Math.floor((s.lck || 0) * 0.5);
+    return (s.atk * 2) + s.def + s.spd + Math.floor((s.maxHp || 50) / 10) + (s.mag * 1.5) + (s.crit || 0) + Math.floor((s.dodge || 0) * 0.5);
   }
 
   function expToNext(level) {
@@ -253,12 +253,11 @@ const Game = (() => {
   function recruitMember(classId) {
     const cls = getClass(classId);
     if (!cls.recruitCost) return { ok:false, reason:'Cannot recruit this class' };
-    const available = getAvailableClasses(state.guild.rank);
-    if (!available.find(c => c.id === classId)) return { ok:false, reason:`${cls.label} not yet unlocked` };
-    if (state.gold < cls.recruitCost) return { ok:false, reason:`Need ${cls.recruitCost}g (have ${state.gold}g)` };
-    if (state.party.length >= 12) return { ok:false, reason:'Roster full (max 12 members)' };
+    if (state.party.length >= 8) return { ok:false, reason:'Roster full (max 8 members)' };
+    const cost = getRecruitCost(state.party.length);
+    if (state.gold < cost) return { ok:false, reason:`Need ${cost}g (have ${state.gold}g)` };
 
-    state.gold -= cls.recruitCost;
+    state.gold -= cost;
     const stats = computeStats(classId, 1);
     // +/- 10% variance on stats
     for (const k of Object.keys(stats)) {
@@ -465,8 +464,8 @@ const Game = (() => {
     const ratio = partyPower / Math.max(1, questPower);
     const successChance = Math.min(0.97, Math.max(0.05, ratio * 0.45 + 0.45));
     const success = Math.random() < successChance;
-    const avgLck = snapshot.reduce((s, m) => s + (m.stats.lck || 0), 0) / Math.max(1, snapshot.length);
-    const luckBonus = avgLck / 100;
+    // Loot bonus from party synergy skills only (LCK stat removed)
+    const luckBonus = 0;
 
     const baseGold = randInt(questDef.goldReward.min, questDef.goldReward.max);
     const baseExp  = randInt(questDef.expReward.min, questDef.expReward.max);
@@ -842,10 +841,10 @@ const Game = (() => {
     HERO:   { skillId: null, statBoost: { atk: 3, def: 2 }, name: 'Hero\'s Resolve' },
     KNIGHT: { skillId: null, statBoost: { def: 5, maxHp: 15 }, name: 'Iron Will' },
     MAGE:   { skillId: null, statBoost: { mag: 5, spd: 1 }, name: 'Arcane Insight' },
-    ROGUE:  { skillId: null, statBoost: { spd: 4, lck: 3 }, name: 'Shadow\'s Favor' },
+    ROGUE:  { skillId: null, statBoost: { spd: 4, crit: 3 }, name: 'Shadow\'s Favor' },
     CLERIC: { skillId: null, statBoost: { mag: 3, def: 2, maxHp: 10 }, name: 'Divine Grace' },
-    RANGER: { skillId: null, statBoost: { atk: 3, spd: 2, lck: 2 }, name: 'Predator\'s Mark' },
-    BARD:   { skillId: null, statBoost: { lck: 5, spd: 2 }, name: 'Muse\'s Kiss' },
+    RANGER: { skillId: null, statBoost: { atk: 3, spd: 2, crit: 2 }, name: 'Predator\'s Mark' },
+    BARD:   { skillId: null, statBoost: { dodge: 3, crit: 2, spd: 2 }, name: 'Muse\'s Kiss' },
     MONK:   { skillId: null, statBoost: { atk: 2, def: 2, spd: 2, mag: 1 }, name: 'Inner Peace' },
   };
 
