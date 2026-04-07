@@ -1270,6 +1270,7 @@ export const EQUIPMENT = {
     sellPrice: 870,
     buyPrice: 2180,
     shopMinRank: 'B',
+    grantedSkill: 'MYTHRIL_REFLEX',
     desc: 'Mythril chain — silent as the night, tough as steel.'
   },
 
@@ -1528,6 +1529,7 @@ export const EQUIPMENT = {
     sellPrice: 910,
     buyPrice: 2280,
     shopMinRank: 'B',
+    grantedSkill: 'TEMPORAL_FLUX',
     desc: 'Robes that have existed since time itself.'
   },
 
@@ -1917,6 +1919,7 @@ export const EQUIPMENT = {
     sellPrice: 910,
     buyPrice: 2280,
     shopMinRank: 'B',
+    grantedSkill: 'ETERNAL_GUARD',
     desc: 'A shield that has guarded for ages untold.'
   },
 
@@ -2040,6 +2043,7 @@ export const EQUIPMENT = {
     sellPrice: 885,
     buyPrice: 2210,
     shopMinRank: 'B',
+    grantedSkill: 'GENESIS_WARD',
     desc: 'An orb that channels the power of creation.'
   },
 

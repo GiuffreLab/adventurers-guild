@@ -1060,6 +1060,20 @@ export const SKILLS = {
     icon: '🔰', effects: { defBonus: 0.65, maxHpBonus: 0.20 }, procChance: 0.55,
     narrative: 'raises the Eternal Guard — nothing gets through!',
   },
+  TEMPORAL_FLUX: {
+    id: 'TEMPORAL_FLUX', name: 'Temporal Flux', type: 'active', source: 'equipment',
+    itemId: 'ROBES_OF_ETERNITY', unlockLevel: null,
+    description: 'The Robes of Eternity distort time itself, accelerating spellcasting and amplifying magic.',
+    icon: '⏳', effects: { magBonus: 0.40, spdBonus: 0.25, critChance: 0.15 }, procChance: 0.55,
+    narrative: 'warps the flow of time — spells arrive before they are cast!',
+  },
+  MYTHRIL_REFLEX: {
+    id: 'MYTHRIL_REFLEX', name: 'Mythril Reflex', type: 'active', source: 'equipment',
+    itemId: 'MYTHRIL_CHAIN', unlockLevel: null,
+    description: 'The Mythril Chain reacts to danger, hardening on impact and boosting evasion.',
+    icon: '⚡', effects: { dodgeChance: 0.30, defBonus: 0.25, spdBonus: 0.15 }, procChance: 0.55,
+    narrative: 'triggers Mythril Reflex — the armor shimmers and hardens on impact!',
+  },
   GENESIS_WARD: {
     id: 'GENESIS_WARD', name: 'Genesis Ward', type: 'active', source: 'equipment',
     itemId: 'ORB_OF_CREATION', unlockLevel: null,
