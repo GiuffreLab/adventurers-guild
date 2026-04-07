@@ -317,6 +317,12 @@ function buildSimulation(aq, quest) {
   let nextEnemyId = enemies.length;
   let battleOutcome = null; // 'victory' or 'defeat'
 
+  // ── Per-member combat stats tracking ──
+  const combatStats = {};
+  for (const m of partyHp) {
+    combatStats[m.id] = { id: m.id, name: m.name, class: m.class, dmgDealt: 0, healingDone: 0, dmgTaken: 0 };
+  }
+
   // ── Phase 1: Travel (2 events) ──
   for (let t = 0; t < 2; t++) {
     const es = seed + t * 3571;
@@ -343,6 +349,7 @@ function buildSimulation(aq, quest) {
   const maxReinforcements = Math.min(3 + extraEnemies, fullEnemyNames.length);
   let regenPerTick = 0; // Bard regen — HP per member per round
   let regenSource = null; // Name of the bard who cast regen
+  let regenSourceId = null; // ID of the bard for stat tracking
 
   // Knight Bulwark — track cooldown per knight (keyed by party member id)
   const coverCooldowns = {}; // { memberId: roundsRemaining }
@@ -431,7 +438,11 @@ function buildSimulation(aq, quest) {
       livingParty.forEach(p => {
         const before = p.hp;
         p.hp = Math.min(p.maxHp, p.hp + regenPerTick);
-        if (p.hp > before) anyHealed = true;
+        const actual = p.hp - before;
+        if (actual > 0) {
+          anyHealed = true;
+          if (regenSourceId && combatStats[regenSourceId]) combatStats[regenSourceId].healingDone += actual;
+        }
       });
       if (anyHealed) {
         const regenText = sPick(T_REGEN_TICK, seed + i * 1111)(regenPerTick);
@@ -491,6 +502,7 @@ function buildSimulation(aq, quest) {
       const isCrit = sRand(es + 13) < 0.15;
       const dmg = isCrit ? Math.floor(baseDmg * 1.5) : baseDmg;
       target.hp = Math.max(0, target.hp - dmg);
+      if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += dmg;
 
       const dmgStr = isCrit ? `${dmg} CRIT` : `${dmg}`;
       const classId = attacker.class || 'HERO';
@@ -508,6 +520,7 @@ function buildSimulation(aq, quest) {
         attacker.hp = Math.min(attacker.maxHp, attacker.hp + lifeSteal);
         const actual = attacker.hp - before;
         if (actual > 0) {
+          if (combatStats[attacker.id]) combatStats[attacker.id].healingDone += actual;
           events.push({ text, type, icon, phase: 'battle' });
           snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
           text = sPick(T_KI_BARRIER, es + 90)(attacker.name, actual);
@@ -547,11 +560,14 @@ function buildSimulation(aq, quest) {
             const avgEHp = enemies.reduce((s, e) => s + e.maxHp, 0) / Math.max(1, enemies.length);
             const perTargetDmg = Math.max(2, Math.floor(avgEHp * (0.12 + sRand(es + 23) * 0.15) * dmgBonus * 0.60));
             const currentLiving = enemies.filter(e => e.alive);
+            let volleyTotalDmg = 0;
             currentLiving.forEach(e => {
               const ampDmg = markedEnemies[e.id] ? Math.floor(perTargetDmg * 1.20) : perTargetDmg;
               e.hp = Math.max(0, e.hp - ampDmg);
+              volleyTotalDmg += ampDmg;
               if (e.hp <= 0) e.alive = false;
             });
+            if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += volleyTotalDmg;
             text = sPick(T_VOLLEY, es)(attacker.name, currentLiving.length, perTargetDmg);
             icon = '🏹'; type = 'skill';
             // Ranger Camouflage — activate after Volley
@@ -578,6 +594,7 @@ function buildSimulation(aq, quest) {
             if (spellEchoRounds[attacker.id] > 0) baseDmg = Math.floor(baseDmg * 1.50);
             if (markedEnemies[target.id]) baseDmg = Math.floor(baseDmg * 1.20);
             target.hp = Math.max(0, target.hp - baseDmg);
+            if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += baseDmg;
             text = sPick(T_SKILL, es)(attacker.name, skill.name, target.name, baseDmg);
             icon = skill.icon || '⚡'; type = 'skill';
 
@@ -588,6 +605,7 @@ function buildSimulation(aq, quest) {
               attacker.hp = Math.min(attacker.maxHp, attacker.hp + lifeSteal);
               const actual = attacker.hp - before;
               if (actual > 0) {
+                if (combatStats[attacker.id]) combatStats[attacker.id].healingDone += actual;
                 events.push({ text, type, icon, phase: 'battle' });
                 snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
                 text = sPick(T_KI_BARRIER, es + 90)(attacker.name, actual);
@@ -616,6 +634,7 @@ function buildSimulation(aq, quest) {
           const avgEHp2 = enemies.reduce((s, e) => s + e.maxHp, 0) / Math.max(1, enemies.length);
           const baseDmg = Math.max(2, Math.floor(avgEHp2 * (0.15 + sRand(es + 24) * 0.20) * dmgBonus));
           target.hp = Math.max(0, target.hp - baseDmg);
+          if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += baseDmg;
           text = sPick(T_ATTACK, es)(attacker.name, target.name, baseDmg);
           icon = '⚔'; type = 'attack';
         }
@@ -623,6 +642,7 @@ function buildSimulation(aq, quest) {
         const avgEHp3 = enemies.reduce((s, e) => s + e.maxHp, 0) / Math.max(1, enemies.length);
         const baseDmg = Math.max(2, Math.floor(avgEHp3 * (0.15 + sRand(es + 25) * 0.20) * dmgBonus));
         target.hp = Math.max(0, target.hp - baseDmg);
+        if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += baseDmg;
         text = sPick(T_ATTACK, es)(attacker.name, target.name, baseDmg);
         icon = '⚔'; type = 'attack';
       }
@@ -649,10 +669,12 @@ function buildSimulation(aq, quest) {
         const skillName = sPick(MONSTER_SKILLS, es + 34);
         const dmg = Math.floor(baseDmg * 1.3);
         target.hp = Math.max(0, target.hp - dmg);
+        if (combatStats[target.id]) combatStats[target.id].dmgTaken += dmg;
         text = sPick(T_ENEMY_SKILL, es)(attacker.name, skillName, target.name, dmg);
         icon = '🔥'; type = 'enemy';
       } else {
         target.hp = Math.max(0, target.hp - baseDmg);
+        if (combatStats[target.id]) combatStats[target.id].dmgTaken += baseDmg;
         text = sPick(T_ENEMY_ATK, es)(attacker.name, target.name, baseDmg);
         icon = '💀'; type = 'enemy';
       }
@@ -664,9 +686,11 @@ function buildSimulation(aq, quest) {
       );
       if (availableBulwark.length > 0) {
         const knight = sPick(availableBulwark, es + 80);
-        // Undo damage to target, redirect to knight
+        // Undo damage to target, redirect to knight — fix stat tracking
+        if (combatStats[target.id]) combatStats[target.id].dmgTaken -= dmgTaken;
         target.hp = Math.min(target.hp + dmgTaken, target.maxHp); // restore target
         knight.hp = Math.max(0, knight.hp - dmgTaken); // knight absorbs it
+        if (combatStats[knight.id]) combatStats[knight.id].dmgTaken += dmgTaken;
         coverCooldowns[knight.id] = 3; // 3-round cooldown
 
         // Push the original attack event first
@@ -706,6 +730,7 @@ function buildSimulation(aq, quest) {
           rallyCooldowns[availableHero.id] = 4;
 
           if (actual > 0) {
+            if (combatStats[availableHero.id]) combatStats[availableHero.id].healingDone += actual;
             events.push({ text, type, icon, phase: 'battle' });
             snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
             text = sPick(T_RALLY_CRY, es + 85)(availableHero.name, woundedAlly.name, actual);
@@ -720,6 +745,7 @@ function buildSimulation(aq, quest) {
       const attacker = sPick(livingEnemies, es + 41);
       const reducedDmg = Math.max(1, Math.floor(attacker.atk * 0.3 * sRand(es + 42) * (1 - dmgReduction)));
       defender.hp = Math.max(0, defender.hp - reducedDmg);
+      if (combatStats[defender.id]) combatStats[defender.id].dmgTaken += reducedDmg;
       text = sPick(T_DEFEND, es)(defender.name, attacker.name, reducedDmg);
       icon = '🛡'; type = 'defend';
 
@@ -735,6 +761,7 @@ function buildSimulation(aq, quest) {
         const avgEHp = enemies.reduce((s, e) => s + e.maxHp, 0) / Math.max(1, enemies.length);
         const fallbackDmg = Math.max(2, Math.floor(avgEHp * (0.15 + sRand(es + 62) * 0.20) * dmgBonus));
         target.hp = Math.max(0, target.hp - fallbackDmg);
+        if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += fallbackDmg;
         const classId = attacker.class || 'HERO';
         text = getAttackTemplate(classId, es)(attacker.name, target.name, fallbackDmg);
         if (isMagicClass(classId)) { icon = '✨'; type = 'magic'; }
@@ -752,7 +779,10 @@ function buildSimulation(aq, quest) {
           const before = p.hp;
           p.hp = Math.min(p.maxHp, p.hp + perMemberHeal);
           const actual = p.hp - before;
-          if (actual > 0 && p.id !== healer.id) healed.push({ name: p.name, amt: actual });
+          if (actual > 0) {
+            if (combatStats[healer.id]) combatStats[healer.id].healingDone += actual;
+            if (p.id !== healer.id) healed.push({ name: p.name, amt: actual });
+          }
         });
 
         text = getHealTemplate(es)(healer.name, healAmt);
@@ -785,6 +815,7 @@ function buildSimulation(aq, quest) {
         const regenAmt = Math.max(1, Math.floor(baseRegen * healBonus));
         regenPerTick = regenAmt; // refreshes the regen value each time bard casts
         regenSource = bard.name;
+        regenSourceId = bard.id;
 
         text = sPick(T_BARD_REGEN, es)(bard.name, regenAmt);
         icon = '🎵'; type = 'buff';
@@ -816,6 +847,7 @@ function buildSimulation(aq, quest) {
         const avgEHp4 = enemies.reduce((s, e) => s + e.maxHp, 0) / Math.max(1, enemies.length);
         const baseDmg = Math.max(2, Math.floor(avgEHp4 * (0.15 + sRand(es + 62) * 0.20) * dmgBonus));
         target.hp = Math.max(0, target.hp - baseDmg);
+        if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += baseDmg;
         text = sPick(T_ATTACK, es)(attacker.name, target.name, baseDmg);
         icon = '⚔'; type = 'attack';
         if (target.hp <= 0) { target.alive = false; }
@@ -844,7 +876,7 @@ function buildSimulation(aq, quest) {
   }
 
   const totalEvents = events.length;
-  return { events, snapshots, partyHp, enemies, totalEvents, battleOutcome, effectiveInterval };
+  return { events, snapshots, partyHp, enemies, totalEvents, battleOutcome, effectiveInterval, combatStats };
 }
 
 function makeSnapshot(party, enemies, buffs) {
@@ -962,6 +994,13 @@ export function getSimInfo() {
   const sim = ensureSim();
   if (!sim) return null;
   return { eventCount: sim.totalEvents, intervalMs: sim.effectiveInterval * 1000 };
+}
+
+// Get per-member combat stats from the simulation
+export function getCombatStats() {
+  const sim = ensureSim();
+  if (!sim || !sim.combatStats) return null;
+  return Object.values(sim.combatStats);
 }
 
 export function resetCombatLog() {

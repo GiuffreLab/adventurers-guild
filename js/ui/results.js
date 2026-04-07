@@ -16,7 +16,7 @@ function formatLootEntry(d) {
 export function showResultsModal() {
   const pr = Game.state.pendingResults;
   if (!pr) return;
-  const { quest, result, levelUps, rankUp, synergyUnlocks, skillGains } = pr;
+  const { quest, result, levelUps, rankUp, synergyUnlocks, skillGains, combatStats } = pr;
   const s = Game.state;
 
   let rewardsHtml = '';
@@ -80,6 +80,31 @@ export function showResultsModal() {
       </div>`
     : '';
 
+  // Combat stats section
+  const combatStatsHtml = combatStats && combatStats.length > 0 ? (() => {
+    const maxDmg = Math.max(1, ...combatStats.map(c => c.dmgDealt));
+    const rows = combatStats.map(c => {
+      const cls = CLASSES[c.class];
+      const sigil = cls ? cls.sigil : '?';
+      const dmgPct = Math.round((c.dmgDealt / maxDmg) * 100);
+      const healStr = c.healingDone > 0 ? `<span class="cs-heal">+${c.healingDone}</span>` : '';
+      const takenStr = c.dmgTaken > 0 ? `<span class="cs-taken">${c.dmgTaken}</span>` : '';
+      return `<div class="cs-row">
+        <div class="cs-name">${sigil} ${c.name.split(' ')[0]}</div>
+        <div class="cs-bar-wrap">
+          <div class="cs-bar" style="width:${dmgPct}%"></div>
+          <span class="cs-dmg-val">${c.dmgDealt}</span>
+        </div>
+        <div class="cs-extras">${healStr}${takenStr}</div>
+      </div>`;
+    }).join('');
+    return `<div class="result-section">
+      <div class="result-section-title">Combat Performance</div>
+      <div class="cs-header"><span>Member</span><span>Damage Dealt</span><span>Heal / Taken</span></div>
+      ${rows}
+    </div>`;
+  })() : '';
+
   // Secret boss section
   const secretBossHtml = result.secretBoss ? `
     <div class="result-section">
@@ -122,6 +147,7 @@ export function showResultsModal() {
     </div>
     ${secretBossHtml}
     ${skillActivationHtml}
+    ${combatStatsHtml}
     ${rewardsHtml}
     ${injuriesHtml}
     ${levelUpHtml}

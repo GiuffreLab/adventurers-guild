@@ -11,6 +11,7 @@ import {
   calculatePartyStrength, generateQuestBoard, shouldRefreshBoard,
   getQuestDifficultyTier, BOARD_REFRESH_MS
 } from './questgen.js';
+import { getCombatStats } from './ui/combatlog.js';
 
 const Game = (() => {
 
@@ -893,7 +894,7 @@ const Game = (() => {
 
   // ── Quest History ─────────────────────────────────────────────────────────
 
-  function addToHistory(questDef, result, levelUps, partySnapshot) {
+  function addToHistory(questDef, result, levelUps, partySnapshot, combatStatsData) {
     if (!state.questHistory) state.questHistory = [];
 
     // Build compact party summary with before/after HP
@@ -933,6 +934,7 @@ const Game = (() => {
       levelUps,
       narrative: result.narrative,
       partySummary,
+      combatStats: combatStatsData || [],
       timestamp: Date.now(),
     });
     // Keep last 50
@@ -1098,10 +1100,13 @@ const Game = (() => {
 
     logEvent(result.success ? `Quest complete: ${quest.title} (+${result.goldEarned}g)` : `Quest failed: ${quest.title}`);
 
-    // Add to quest history
-    addToHistory(quest, result, levelUps, aq.partySnapshot);
+    // Grab combat stats from the simulation before it resets
+    const combatStatsData = getCombatStats() || [];
 
-    state.pendingResults = { quest, result, levelUps, rankUp, synergyUnlocks, skillGains, resolvedAt: Date.now() };
+    // Add to quest history
+    addToHistory(quest, result, levelUps, aq.partySnapshot, combatStatsData);
+
+    state.pendingResults = { quest, result, levelUps, rankUp, synergyUnlocks, skillGains, combatStats: combatStatsData, resolvedAt: Date.now() };
     state.guild.activeQuest = null;
 
     // Refresh quest board for this rank on completion

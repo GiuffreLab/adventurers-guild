@@ -567,6 +567,44 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   animation: fadeSlideIn 0.5s ease-out;
 }
 
+/* Combat stats section */
+.cs-header {
+  display: flex; justify-content: space-between; font-size: 0.65rem;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim);
+  padding: 0 2px 4px; border-bottom: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 4px;
+}
+.cs-row {
+  display: flex; align-items: center; gap: 6px; padding: 3px 2px;
+  font-size: 0.78rem;
+}
+.cs-name {
+  width: 80px; flex-shrink: 0; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; font-weight: 600;
+}
+.cs-bar-wrap {
+  flex: 1; position: relative; height: 16px; background: rgba(255,255,255,0.04);
+  border-radius: 3px; overflow: hidden;
+}
+.cs-bar {
+  position: absolute; top: 0; left: 0; height: 100%;
+  background: linear-gradient(90deg, var(--red, #e74c3c), var(--orange, #e0a050));
+  border-radius: 3px; min-width: 2px; transition: width 0.3s ease;
+}
+.cs-dmg-val {
+  position: absolute; right: 4px; top: 0; height: 100%;
+  display: flex; align-items: center; font-size: 0.7rem; font-weight: 700;
+  color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+}
+.cs-extras {
+  width: 90px; flex-shrink: 0; text-align: right; font-size: 0.72rem;
+  display: flex; gap: 6px; justify-content: flex-end;
+}
+.cs-heal { color: var(--green, #4ecdc4); }
+.cs-heal::before { content: '💚 '; font-size: 0.6rem; }
+.cs-taken { color: var(--red, #e74c3c); opacity: 0.7; }
+.cs-taken::before { content: '💔 '; font-size: 0.6rem; }
+
 /* Synergy unlock banner */
 .result-synergy-unlocks {
   margin-top: 8px; padding: 12px; border-radius: var(--radius-sm);

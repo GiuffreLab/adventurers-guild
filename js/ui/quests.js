@@ -705,6 +705,30 @@ function renderQuestHistory(s) {
           </div>`;
       }
 
+      // Combat stats
+      let combatStatsHtml = '';
+      const cStats = h.combatStats || [];
+      if (cStats.length > 0) {
+        const maxDmg = Math.max(1, ...cStats.map(c => c.dmgDealt));
+        const csRows = cStats.map(c => {
+          const cls = getClass(c.class);
+          const sigil = cls ? cls.sigil : '?';
+          const dmgPct = Math.round((c.dmgDealt / maxDmg) * 100);
+          const healStr = c.healingDone > 0 ? `<span class="cs-heal">+${c.healingDone}</span>` : '';
+          const takenStr = c.dmgTaken > 0 ? `<span class="cs-taken">${c.dmgTaken}</span>` : '';
+          return `<div class="cs-row">
+            <div class="cs-name">${sigil} ${c.name.split(' ')[0]}</div>
+            <div class="cs-bar-wrap"><div class="cs-bar" style="width:${dmgPct}%"></div><span class="cs-dmg-val">${c.dmgDealt}</span></div>
+            <div class="cs-extras">${healStr}${takenStr}</div>
+          </div>`;
+        }).join('');
+        combatStatsHtml = `<div class="qh-detail-section">
+          <div class="qh-detail-section-title">Combat Performance</div>
+          <div class="cs-header"><span>Member</span><span>Damage Dealt</span><span>Heal / Taken</span></div>
+          ${csRows}
+        </div>`;
+      }
+
       // Loot detail
       let lootHtml = '';
       const loot = h.loot || [];
@@ -763,6 +787,7 @@ function renderQuestHistory(s) {
             ${envLine}${enemiesLine}${tierLine}${rarityLine}
           </div>
           ${partyHealthHtml}
+          ${combatStatsHtml}
           ${lootHtml}
           ${skillsHtml}
           ${levelUpsHtml}
