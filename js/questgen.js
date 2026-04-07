@@ -360,19 +360,6 @@ export function generateQuestInstance(rank, templateIndex, seed, partyStrength) 
   const baseRecPow = seededRandInt(scale.recPow[0], scale.recPow[1], seed + 8);
   const recPow = Math.floor(baseRecPow * pScale);
 
-  // Build loot table (3-5 entries from the rank's loot pool)
-  const lootPool = RANK_LOOT_POOLS[rank] || [];
-  const lootCount = seededRandInt(2, Math.min(5, lootPool.length), seed + 9);
-  const shuffled = [...lootPool].sort((a, b) => seededRand(seed + 10 + lootPool.indexOf(a)) - 0.5);
-  const lootTable = shuffled.slice(0, lootCount).map((itemId, i) => {
-    const isEquip = !!EQUIPMENT[itemId];
-    return {
-      itemId,
-      chance: isEquip ? 0.08 + seededRand(seed + 20 + i) * 0.15 : 0.30 + seededRand(seed + 30 + i) * 0.50,
-      quantity: isEquip ? [1, 1] : [1, seededRandInt(1, 4, seed + 40 + i)],
-    };
-  });
-
   // Determine rarity — stronger parties see more rare/legendary quests
   // Base: ~40% common, ~30% uncommon, ~20% rare, ~10% legendary
   // Scaled: common shrinks, rare/legendary grow as pScale increases
@@ -385,6 +372,27 @@ export function generateQuestInstance(rank, templateIndex, seed, partyStrength) 
 
   // Rarity multiplier for rewards and difficulty
   const rarityMult = rarity === 'legendary' ? 1.5 : rarity === 'rare' ? 1.25 : rarity === 'uncommon' ? 1.1 : 1.0;
+
+  // Build loot table — rarer quests get more entries and better base drop chances
+  const lootPool = RANK_LOOT_POOLS[rank] || [];
+  const rarityLootBonus = rarity === 'legendary' ? 3 : rarity === 'rare' ? 2 : rarity === 'uncommon' ? 1 : 0;
+  const lootCountMin = 2 + Math.floor(rarityLootBonus / 2);
+  const lootCountMax = Math.min(4 + rarityLootBonus, lootPool.length);
+  const lootCount = seededRandInt(lootCountMin, Math.max(lootCountMin, lootCountMax), seed + 9);
+  const shuffled = [...lootPool].sort((a, b) => seededRand(seed + 10 + lootPool.indexOf(a)) - seededRand(seed + 10 + lootPool.indexOf(b)));
+  const lootTable = shuffled.slice(0, lootCount).map((itemId, i) => {
+    const isEquip = !!EQUIPMENT[itemId];
+    // Rarer quests boost equipment drop chances significantly
+    const rarityDropMult = rarity === 'legendary' ? 2.0 : rarity === 'rare' ? 1.5 : rarity === 'uncommon' ? 1.2 : 1.0;
+    const baseChance = isEquip
+      ? (0.08 + seededRand(seed + 20 + i) * 0.15) * rarityDropMult
+      : 0.30 + seededRand(seed + 30 + i) * 0.50;
+    return {
+      itemId,
+      chance: Math.min(0.90, baseChance),
+      quantity: isEquip ? [1, 1] : [1, seededRandInt(1, 4, seed + 40 + i)],
+    };
+  });
 
   const id = `${rank}_GEN_${templateIndex}_${seed}`;
   const description = t.desc.replace('{env}', envName);

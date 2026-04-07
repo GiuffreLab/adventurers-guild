@@ -465,12 +465,17 @@ const Game = (() => {
     const goldEarned = success ? Math.floor(baseGold * (0.8 + cappedRatio * 0.4) * goldXpMult) : 0;
     const expEarned  = Math.floor(baseExp * (success ? 1 : 0.2) * goldXpMult);
 
+    // Quest rarity boosts loot drop chance at resolution time
+    const questRarityMult = questDef.rarity === 'legendary' ? 1.4
+      : questDef.rarity === 'rare' ? 1.2
+      : questDef.rarity === 'uncommon' ? 1.1 : 1.0;
+
     const loot = [];
     if (success) {
       for (const entry of questDef.lootTable) {
         const lootRatio = Math.min(ratio, 3.0);
         const baseChance = entry.chance * (0.7 + lootRatio * 0.3) + luckBonus * 0.02;
-        const chance = Math.min(0.95, baseChance * (1 + itemFindBonus));
+        const chance = Math.min(0.95, baseChance * (1 + itemFindBonus) * questRarityMult);
         if (Math.random() < chance) {
           loot.push({ itemId: entry.itemId, quantity: randInt(entry.quantity[0], entry.quantity[1]) });
         }

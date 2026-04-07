@@ -266,13 +266,25 @@ function buildSimulation(aq, quest) {
     };
   });
 
+  // Scale enemy count with party size — larger parties face more foes
+  // Base 3 enemies for 4 members, +1 per extra member (up to 6 for a party of 7)
+  const partyCount = partyHp.length;
+  const extraEnemies = Math.max(0, partyCount - 4);
+  const targetEnemyCount = enemyNames.length + extraEnemies;
+
+  // Build the full enemy name list, cycling through template names for extras
+  const fullEnemyNames = [];
+  for (let i = 0; i < targetEnemyCount; i++) {
+    fullEnemyNames.push(enemyNames[i % enemyNames.length]);
+  }
+
   // Initialize enemies with HP proportional to party HP
   const totalPartyHp = partyHp.reduce((s, p) => s + p.maxHp, 0);
   const avgMemberHp = totalPartyHp / Math.max(1, partyHp.length);
   const totalEnemyHpPool = Math.max(60, Math.floor(totalPartyHp * 1.2));
-  const perEnemyBaseHp = Math.floor(totalEnemyHpPool / Math.max(1, enemyNames.length));
+  const perEnemyBaseHp = Math.floor(totalEnemyHpPool / Math.max(1, fullEnemyNames.length));
 
-  let enemies = enemyNames.map((name, i) => ({
+  let enemies = fullEnemyNames.map((name, i) => ({
     id: `enemy_${i}`, name,
     maxHp: Math.max(10, Math.floor(perEnemyBaseHp * (0.7 + sRand(seed + 500 + i) * 0.6))),
     hp: 0,
@@ -305,10 +317,11 @@ function buildSimulation(aq, quest) {
     snapshots.push(makeSnapshot(partyHp, enemies));
   }
 
-  // ── Phase 3: Battle (loop until one side dies, capped at 40 rounds) ──
-  const MAX_BATTLE_EVENTS = 40;
+  // ── Phase 3: Battle (loop until one side dies) ──
+  // Scale battle length and reinforcement cap with party size
+  const MAX_BATTLE_EVENTS = 40 + extraEnemies * 5; // +5 events per extra enemy
   let reinforceCount = 0;
-  const maxReinforcements = Math.min(3, enemyNames.length);
+  const maxReinforcements = Math.min(3 + extraEnemies, fullEnemyNames.length);
   let regenPerTick = 0; // Bard regen — HP per member per round
   let regenSource = null; // Name of the bard who cast regen
 
