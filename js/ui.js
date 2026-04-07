@@ -90,6 +90,30 @@ export function tickUpdate() {
   // Check if a quest just finished (structural change → full render)
   if (Game.state.pendingResults) {
     markHallDirty();
+
+    // Auto-run: skip the results modal and immediately queue next quest
+    if (Game.state.autoRun && Game.state.autoRun.remaining > 0) {
+      Game.state.pendingResults = null;
+      document.getElementById('modal-results').classList.add('hidden');
+
+      const nextQuest = Game.pickQuestByStrategy(Game.state.autoRun.rank, Game.state.autoRun.strategy);
+      if (nextQuest) {
+        const result = Game.startQuest(nextQuest.id);
+        if (!result.ok) {
+          Game.state.autoRun = null;
+        } else {
+          Game.state.autoRun.remaining--;
+        }
+      } else {
+        Game.state.autoRun = null;
+      }
+      render();
+      return;
+    } else if (Game.state.autoRun) {
+      // Auto-run finished (remaining hit 0) — clear it and show final results
+      Game.state.autoRun = null;
+    }
+
     render();
   }
 }

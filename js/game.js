@@ -1099,20 +1099,18 @@ const Game = (() => {
     refreshQuestBoard(quest.rank, true);
 
     // Handle auto-run (strategy-based)
-    if (state.autoRun && state.autoRun.remaining > 0 && result.success) {
-      // Check if party can still quest (not too injured)
+    // The actual decrement + next-quest start happens in ui.js when the user
+    // dismisses the results modal.  Here we only cancel on failure / injury.
+    if (state.autoRun && result.success) {
       const allAlive = [state.player, ...getActiveMembers()].every(m =>
         m.stats.hp > effectiveStats(m).maxHp * 0.15
       );
-      if (allAlive) {
-        // Decrement — actual auto-start happens after results modal dismiss
-        state.autoRun.remaining--;
-      } else {
+      if (!allAlive) {
         logEvent('Auto-run cancelled: party too injured.');
         state.autoRun = null;
       }
-    } else if (state.autoRun && (!result.success || state.autoRun.remaining <= 0)) {
-      if (!result.success) logEvent('Auto-run cancelled: quest failed.');
+    } else if (state.autoRun && !result.success) {
+      logEvent('Auto-run cancelled: quest failed.');
       state.autoRun = null;
     }
 
