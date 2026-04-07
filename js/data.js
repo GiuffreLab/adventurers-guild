@@ -6,8 +6,8 @@ export const CLASSES = {
   HERO: {
     id: 'HERO', label: 'Hero', sigil: 'HRO',
     description: 'Balanced warrior. High versatility, great all-rounder.',
-    baseStats: { maxHp: 120, atk: 12, def: 8, spd: 8, mag: 2, crit: 4, dodge: 3 },
-    growthRates: { maxHp: 18, atk: 2.5, def: 1.5, spd: 1.2, mag: 0.3, crit: 0.5, dodge: 0.3 },
+    baseStats: { maxHp: 120, atk: 12, def: 8, spd: 10, mag: 2, crit: 4, dodge: 3 },
+    growthRates: { maxHp: 18, atk: 2.5, def: 1.5, spd: 1.5, mag: 0.3, crit: 0.5, dodge: 0.3 },
     recruitCost: null, unlockRank: null,
   },
   KNIGHT: {

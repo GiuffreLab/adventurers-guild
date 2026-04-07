@@ -19,40 +19,45 @@ const SECTIONS = [
 // ── Main Render ───────────────────────────────────────────────────────────
 export function renderCompendium() {
   const el = document.getElementById('tab-compendium');
-  if (!el) return;
+  if (!el) { console.warn('Compendium: #tab-compendium not found'); return; }
 
-  const nav = SECTIONS.map(s =>
-    `<button class="comp-nav-btn${_currentSection === s.id ? ' active' : ''}" data-section="${s.id}">${s.icon} ${s.label}</button>`
-  ).join('');
+  try {
+    const nav = SECTIONS.map(s =>
+      `<button class="comp-nav-btn${_currentSection === s.id ? ' active' : ''}" data-section="${s.id}">${s.icon} ${s.label}</button>`
+    ).join('');
 
-  el.innerHTML = `
-    <div class="compendium-layout">
-      <nav class="comp-sidebar">
-        <div class="comp-sidebar-title">📜 Compendium</div>
-        ${nav}
-      </nav>
-      <div class="comp-body" id="comp-body"></div>
-    </div>
-  `;
+    el.innerHTML = `
+      <div class="compendium-layout">
+        <nav class="comp-sidebar">
+          <div class="comp-sidebar-title">📜 Compendium</div>
+          ${nav}
+        </nav>
+        <div class="comp-body" id="comp-body"></div>
+      </div>
+    `;
 
-  // Wire nav buttons
-  el.querySelectorAll('.comp-nav-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _currentSection = btn.dataset.section;
-      renderCompendium();
+    // Wire nav buttons
+    el.querySelectorAll('.comp-nav-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _currentSection = btn.dataset.section;
+        renderCompendium();
+      });
     });
-  });
 
-  // Render active section
-  const body = document.getElementById('comp-body');
-  switch (_currentSection) {
-    case 'overview':  body.innerHTML = renderOverview(); break;
-    case 'stats':     body.innerHTML = renderStats(); break;
-    case 'classes':   body.innerHTML = renderClasses(); break;
-    case 'equipment': body.innerHTML = renderEquipment(); break;
-    case 'combat':    body.innerHTML = renderCombat(); break;
-    case 'synergy':   body.innerHTML = renderSynergy(); break;
-    case 'ranks':     body.innerHTML = renderRanks(); break;
+    // Render active section
+    const body = document.getElementById('comp-body');
+    switch (_currentSection) {
+      case 'overview':  body.innerHTML = renderOverview(); break;
+      case 'stats':     body.innerHTML = renderStats(); break;
+      case 'classes':   body.innerHTML = renderClasses(); break;
+      case 'equipment': body.innerHTML = renderEquipment(); break;
+      case 'combat':    body.innerHTML = renderCombat(); break;
+      case 'synergy':   body.innerHTML = renderSynergy(); break;
+      case 'ranks':     body.innerHTML = renderRanks(); break;
+    }
+  } catch (err) {
+    console.error('Compendium render error:', err);
+    el.innerHTML = `<div style="padding:20px;color:#e74c3c;">Compendium failed to render: ${err.message}</div>`;
   }
 }
 
