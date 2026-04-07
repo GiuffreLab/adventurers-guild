@@ -18,6 +18,8 @@ You start by creating your character — a Hero — and registering with the gui
 
 **Shop** — Buy and sell equipment. The shop restocks periodically with gear appropriate to your rank. Higher rarity items appear less frequently but offer stronger stat bonuses.
 
+**Compendium** — The in-game encyclopedia. If you want to understand how anything works — stats, classes, skills, equipment procs, combat formulas, party synergy, or the ranking system — the Compendium has it all. It pulls live data from the game, so class stats, skill descriptions, item proc tables, and your current synergy progress are always up to date. Start here if you're new, and come back whenever you need to plan your next build or understand a mechanic.
+
 ## Core Systems
 
 ### Combat Simulation
