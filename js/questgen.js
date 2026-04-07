@@ -129,6 +129,18 @@ const QUEST_TEMPLATES = {
     tmpl('Pest Control', 'Strange insects are swarming at {env}. Deal with the source.', 'pastoral', ['Giant Ant', 'Wasp Queen', 'Beetle Swarm']),
     tmpl('Graveyard Watch', 'Something is disturbing graves near {env}. Stand guard.', 'haunted', ['Zombie', 'Skeletal Hand', 'Grave Imp']),
     tmpl('Firewood Run', 'Gather firewood from {env} — but the forest fights back.', 'wilderness', ['Thorn Vine', 'Angry Stump', 'Forest Sprite']),
+    // ── Additional normal quests ──
+    tmpl('Chicken Wrangler', 'Enchanted chickens escaped from {env}. Round them up before they multiply.', 'pastoral', ['Enchanted Hen', 'Rooster Fiend', 'Chicken Swarm']),
+    tmpl('Ditch Digger', 'The village near {env} needs irrigation ditches — and something keeps filling them back in.', 'pastoral', ['Mud Golem', 'Burrow Worm', 'Dirt Sprite']),
+    tmpl('Beehive Retrieval', 'A prized beehive was knocked into {env}. Retrieve it without getting stung to death.', 'wilderness', ['Giant Bee', 'Bee Swarm', 'Queen Hornet']),
+    tmpl('Broken Signposts', 'Something keeps destroying road signs near {env}. Investigate.', 'wilderness', ['Prankster Imp', 'Wild Goat', 'Road Gremlin']),
+    tmpl('Laundry Day', 'A gust carried the guild laundry into {env}. Yes, this is a real quest.', 'pastoral', ['Clothesline Bat', 'Wind Sprite', 'Sock Mimic']),
+    // ── Gem Mining quests (F-rank: Rough Quartz) ──
+    tmpl('Shallow Quartz Dig', 'A vein of rough quartz has been spotted at {env}. Mine it before monsters overrun the site. Bring back every crystal you can carry — quartz fetches good coin!', 'dungeon', ['Cave Beetle', 'Rock Mite', 'Crystal Slime'], { gemMining: true, gemItemId: 'GEM_ROUGH_QUARTZ' }),
+    tmpl('Quartz Rush', 'Prospectors found raw quartz at {env} but fled when monsters appeared. Secure the quartz vein and haul out the gems!', 'dungeon', ['Mine Bat', 'Rubble Golem', 'Tunnel Rat'], { gemMining: true, gemItemId: 'GEM_ROUGH_QUARTZ' }),
+    tmpl('Crystal Cavern Sweep', 'A cavern at {env} glitters with rough quartz formations. Clear the creatures and fill your bags with crystals!', 'dungeon', ['Quartz Crab', 'Glow Worm', 'Stalactite Lurker'], { gemMining: true, gemItemId: 'GEM_ROUGH_QUARTZ' }),
+    tmpl('Quartz Escort', 'A mining crew at {env} struck quartz but needs protection while they extract it. Guard them and earn a share of the haul!', 'pastoral', ['Goblin Scavenger', 'Rock Snake', 'Dig Beetle'], { gemMining: true, gemItemId: 'GEM_ROUGH_QUARTZ' }),
+    tmpl('Riverside Quartz Panning', 'Raw quartz washes downstream from {env}. Pan the riverbed — but watch for river creatures guarding the deposit!', 'wilderness', ['River Crab', 'Water Rat', 'Brook Troll'], { gemMining: true, gemItemId: 'GEM_ROUGH_QUARTZ' }),
   ],
   E: [
     tmpl('Goblin Cave Clearance', 'A goblin tribe has claimed {env}. Clear them out.', 'dungeon', ['Goblin Warrior', 'Goblin Shaman', 'Goblin Chieftain']),
@@ -151,6 +163,18 @@ const QUEST_TEMPLATES = {
     tmpl('Wyvern Nest Raid', 'Raid the wyvern nesting ground at {env} for eggs.', 'mountain', ['Wyvern Hatchling', 'Wyvern Nestguard', 'Cliff Raptor']),
     tmpl('Arena Challenge', 'Prove your worth in the combat arena at {env}.', 'fortress', ['Arena Gladiator', 'Arena Champion', 'Beast Master']),
     tmpl('Blight Cleansing', 'A dark blight is spreading from {env}. Burn it out.', 'wilderness', ['Blighted Wolf', 'Corrupted Treant', 'Blight Core']),
+    // ── Additional normal quests ──
+    tmpl('Haunted Mill', 'The old windmill at {env} grinds flour on its own at midnight. Something isn\'t right.', 'haunted', ['Phantom Miller', 'Grain Golem', 'Flour Wraith']),
+    tmpl('Tax Collector Escort', 'The crown\'s tax collector needs safe passage through {env}. Nobody likes him, including the monsters.', 'wilderness', ['Highway Thug', 'Bandit Sniper', 'Toll Troll']),
+    tmpl('Ant Hill Assault', 'Giant ant colonies at {env} are eating crops and livestock. Destroy the queen.', 'wilderness', ['Giant Soldier Ant', 'Acid Spitter Ant', 'Ant Queen']),
+    tmpl('Flooded Basement', 'Something dammed the river and flooded {env}. Fix it and clear the aquatic pests.', 'dungeon', ['Water Slime', 'Dam Beaver', 'Flood Elemental']),
+    tmpl('Library Return', 'Overdue library books were last seen in {env}. The librarian is scarier than the monsters.', 'dungeon', ['Book Mimic', 'Ink Shade', 'Paper Golem']),
+    // ── Gem Mining quests (E-rank: Amethysts) ──
+    tmpl('Amethyst Mine Reclamation', 'An amethyst mine at {env} was overrun by monsters. Reclaim the mine and extract the precious purple crystals — each one worth a fortune!', 'dungeon', ['Cave Troll', 'Crystal Bat', 'Mine Golem'], { gemMining: true, gemItemId: 'GEM_AMETHYST' }),
+    tmpl('Deep Amethyst Vein', 'Miners struck a deep amethyst vein at {env} but something guards it fiercely. Defeat the guardians and bring back the amethysts!', 'dungeon', ['Gem Guardian', 'Tunnel Crawler', 'Amethyst Elemental'], { gemMining: true, gemItemId: 'GEM_AMETHYST' }),
+    tmpl('Amethyst Geode Hunt', 'Giant amethyst geodes have been spotted in {env}. Crack them open and collect the gems — but watch for creatures drawn to the crystals\' energy!', 'dungeon', ['Geode Crab', 'Crystal Spider', 'Stone Lurker'], { gemMining: true, gemItemId: 'GEM_AMETHYST' }),
+    tmpl('Purple Vein Expedition', 'An expedition to {env} needs muscle. The amethyst veins there are legendary — and so are the monsters. Bring back the gems!', 'dungeon', ['Deep Worm', 'Ore Golem', 'Tunnel Serpent'], { gemMining: true, gemItemId: 'GEM_AMETHYST' }),
+    tmpl('Amethyst Smuggler Raid', 'Smugglers are extracting amethysts from {env} illegally. Shut them down and confiscate the gems for the guild!', 'fortress', ['Smuggler Miner', 'Gem Guard', 'Smuggler Boss'], { gemMining: true, gemItemId: 'GEM_AMETHYST' }),
   ],
   D: [
     tmpl('Iron Tomb Dungeon', 'Explore and clear the dungeon at {env}.', 'dungeon', ['Skeleton Knight', 'Iron Golem', 'Ancient Lich']),
@@ -173,6 +197,18 @@ const QUEST_TEMPLATES = {
     tmpl('Gladiator Tournament', 'Win the grand tournament at {env}.', 'fortress', ['Champion Fighter', 'Battle Mage', 'Grand Champion']),
     tmpl('Golem Workshop', 'Runaway golems from {env} threaten the region.', 'dungeon', ['Clay Golem', 'Stone Golem', 'Mithril Golem']),
     tmpl('Harpy\'s Roost', 'Harpies nesting at {env} are abducting travelers.', 'mountain', ['Harpy Scout', 'Harpy Matriarch', 'Storm Harpy']),
+    // ── Additional normal quests ──
+    tmpl('Lighthouse Keeper', 'The lighthouse at {env} went dark. Relight it and deal with whatever snuffed it out.', 'wilderness', ['Storm Imp', 'Sea Wraith', 'Fog Beast']),
+    tmpl('Arena Warmup', 'Compete in the preliminary bouts at {env}. Nothing too deadly... probably.', 'fortress', ['Arena Novice', 'Pit Fighter', 'Arena Beast']),
+    tmpl('Cursed Well', 'Villagers near {env} are getting sick from the well. Something foul lurks below.', 'haunted', ['Well Spirit', 'Plague Leech', 'Cursed Water Elemental']),
+    tmpl('Caravan Guard', 'A luxury caravan needs escort through {env}. Highwaymen and worse are expected.', 'wilderness', ['Road Agent', 'Highway Mage', 'Caravan Raider']),
+    tmpl('Sewer Expedition', 'The city sewers beneath {env} are breeding something horrible. Flush it out.', 'dungeon', ['Sewer Rat King', 'Toxic Ooze', 'Sewer Gator']),
+    // ── Gem Mining quests (D-rank: Sapphires) ──
+    tmpl('Sapphire Deep Mine', 'The deep mines at {env} hold sapphire deposits of extraordinary quality. Fight through the guardians and extract the brilliant blue gems!', 'dungeon', ['Iron Golem', 'Crystal Wyrm', 'Mine Shade'], { gemMining: true, gemItemId: 'GEM_SAPPHIRE' }),
+    tmpl('Sapphire Grotto', 'An underground grotto at {env} sparkles with raw sapphires embedded in the walls. Harvest them — if the cave creatures let you!', 'dungeon', ['Grotto Guardian', 'Blue Slime', 'Sapphire Construct'], { gemMining: true, gemItemId: 'GEM_SAPPHIRE' }),
+    tmpl('Blue Vein Strike', 'A massive sapphire vein was discovered in {env}. The guild wants a cut — literally. Mine the gems and bring them home!', 'dungeon', ['Vein Parasite', 'Rock Titan', 'Crystal Sentinel'], { gemMining: true, gemItemId: 'GEM_SAPPHIRE' }),
+    tmpl('Sapphire Cavern Defense', 'Hold {env} while miners extract a sapphire deposit. Monsters want the gems as badly as you do!', 'dungeon', ['Cave Drake', 'Gem Thief', 'Cavern Beast'], { gemMining: true, gemItemId: 'GEM_SAPPHIRE' }),
+    tmpl('Sunken Sapphire Reef', 'Sapphires grow naturally on the reef near {env}. Dive in and collect them before the sea creatures swarm!', 'wilderness', ['Reef Serpent', 'Coral Golem', 'Deep Sea Horror'], { gemMining: true, gemItemId: 'GEM_SAPPHIRE' }),
   ],
   C: [
     tmpl('Troll Bridge Menace', 'Stone trolls blockade {env}. Remove them.', 'wilderness', ['Stone Troll', 'Elder Stone Troll']),
@@ -195,6 +231,18 @@ const QUEST_TEMPLATES = {
     tmpl('War Hydra', 'A massive hydra lairs at {env}. Cut it down.', 'wilderness', ['Hydra Head', 'Swamp Hydra', 'King Hydra']),
     tmpl('Underdark Breach', 'Creatures from the Underdark pour from {env}.', 'dungeon', ['Drider', 'Mind Flayer', 'Underdark Abomination']),
     tmpl('Frost Wyrm', 'A frost wyrm has frozen {env} solid.', 'mountain', ['Ice Elemental', 'Frost Drake', 'Frost Wyrm']),
+    // ── Additional normal quests ──
+    tmpl('Prison Break', 'Dangerous prisoners escaped from {env}. Recapture them before they reach the dark lands.', 'fortress', ['Escaped Berserker', 'Rogue Mage', 'Prison Lord']),
+    tmpl('Corrupted Shrine', 'A holy shrine at {env} has been corrupted. Cleanse it and defeat the source.', 'haunted', ['Corrupted Priest', 'Shadow Acolyte', 'Defiled Guardian']),
+    tmpl('Airship Escort', 'Escort the trade airship through the skies above {env}. Sky pirates are expected.', 'mountain', ['Sky Pirate', 'Wind Raider', 'Pirate Captain']),
+    tmpl('Colosseum Championship', 'Fight your way through the colosseum bracket at {env}. Glory awaits the victor.', 'fortress', ['Gladiator Champion', 'Beast Tamer', 'Arena Legend']),
+    tmpl('Moonlit Hunt', 'A rare beast stalks {env} under the full moon. Track and subdue it.', 'wilderness', ['Moonbeast', 'Lunar Wolf', 'Night Stalker']),
+    // ── Gem Mining quests (C-rank: Emeralds) ──
+    tmpl('Emerald Jungle Mine', 'Deep in the jungle at {env} lies a rich emerald deposit. Cut through the overgrowth and the guardians to claim the precious green gems!', 'wilderness', ['Jungle Golem', 'Vine Strangler', 'Emerald Serpent'], { gemMining: true, gemItemId: 'GEM_EMERALD' }),
+    tmpl('Emerald Fault Line', 'Tectonic activity at {env} exposed a massive emerald vein. Extract the gems before the fault collapses!', 'dungeon', ['Earth Elemental', 'Fault Crawler', 'Magma Wyrm'], { gemMining: true, gemItemId: 'GEM_EMERALD' }),
+    tmpl('Ancient Emerald Vault', 'A sealed vault at {env} holds emeralds from a lost civilization. Break the seals, defeat the guardians, and claim the trove!', 'dungeon', ['Vault Sentinel', 'Ancient Construct', 'Emerald Golem'], { gemMining: true, gemItemId: 'GEM_EMERALD' }),
+    tmpl('Emerald Dragon\'s Stash', 'A young dragon hoards emeralds at {env}. Defeat it and loot the gem stash!', 'mountain', ['Drake Scout', 'Emerald Drake', 'Young Green Dragon'], { gemMining: true, gemItemId: 'GEM_EMERALD' }),
+    tmpl('Emerald River Dredge', 'The river at {env} carries raw emeralds downstream from an unknown source. Dredge the riverbed and fight off anything that surfaces!', 'wilderness', ['River Leviathan', 'Water Elemental', 'Gem Crab'], { gemMining: true, gemItemId: 'GEM_EMERALD' }),
   ],
   B: [
     tmpl('Dragon\'s Foothold', 'A young wyvern claims {env}. Slay it.', 'mountain', ['Mountain Drake', 'Wyvern Hatchling', 'Young Wyvern']),
@@ -217,6 +265,18 @@ const QUEST_TEMPLATES = {
     tmpl('Celestial Gate', 'Fallen celestials guard {env}.', 'mountain', ['Fallen Angel', 'Corrupted Seraph', 'Dark Celestial']),
     tmpl('Leviathan\'s Wake', 'A leviathan surfaces near {env}.', 'wilderness', ['Leviathan Spawn', 'Sea Titan', 'The Leviathan']),
     tmpl('Doom Fortress', 'Storm the fortress of doom at {env}.', 'fortress', ['Doom Knight', 'Infernal War Engine', 'Lord of Doom']),
+    // ── Additional normal quests ──
+    tmpl('Arcane Library', 'A forbidden library at {env} has unleashed sentient spells. Contain them.', 'dungeon', ['Living Spell', 'Arcane Phantom', 'Tome Guardian']),
+    tmpl('Dragon Egg Heist', 'A dragon egg at {env} needs relocating before it hatches. The mother is furious.', 'mountain', ['Fire Drake', 'Dragon Hatchling', 'Enraged Mother Dragon']),
+    tmpl('Astral Incursion', 'Astral beings pour through a rift at {env}. Seal it from this side.', 'demonic', ['Astral Stalker', 'Phase Beast', 'Astral Titan']),
+    tmpl('Floating Fortress', 'A fortress floating above {env} is raining monsters below. Board it.', 'fortress', ['Sky Golem', 'Cloud Giant', 'Fortress Commander']),
+    tmpl('The Colossus Stirs', 'An ancient colossus at {env} is reactivating. Disable it before it reaches the cities.', 'mountain', ['Colossus Shard', 'Mech Drone', 'The Awakening Colossus']),
+    // ── Gem Mining quests (B-rank: Rubies) ──
+    tmpl('Ruby Caldera Mine', 'A volcanic caldera at {env} holds rubies forged in magma. Brave the heat and fight the fire guardians — those blood-red rubies are worth a dragon\'s ransom!', 'mountain', ['Magma Golem', 'Fire Elemental', 'Volcanic Drake'], { gemMining: true, gemItemId: 'GEM_RUBY' }),
+    tmpl('Ruby Rift Extraction', 'A dimensional rift at {env} has exposed a seam of rubies from another plane. Mine the otherworldly gems before the rift closes!', 'demonic', ['Rift Guardian', 'Phase Spider', 'Ruby Sentinel'], { gemMining: true, gemItemId: 'GEM_RUBY' }),
+    tmpl('Crimson Caverns', 'The Crimson Caverns at {env} glow red with embedded rubies. Fight through the crystalline beasts and fill your bags with the fiery gems!', 'dungeon', ['Crystal Beast', 'Ruby Golem', 'Crimson Wyrm'], { gemMining: true, gemItemId: 'GEM_RUBY' }),
+    tmpl('Ruby Titan\'s Hoard', 'A defeated titan\'s hoard at {env} contains rubies the size of fists. But the titan\'s guardians still stand watch!', 'fortress', ['Titan Sentinel', 'Stone Guardian', 'Ruby Titan Fragment'], { gemMining: true, gemItemId: 'GEM_RUBY' }),
+    tmpl('Volcanic Ruby Rush', 'Mount {env} is erupting — and the lava reveals ruby deposits. Mine fast, fight faster, and get out before the mountain blows!', 'mountain', ['Lava Elemental', 'Volcanic Worm', 'Ember Dragon'], { gemMining: true, gemItemId: 'GEM_RUBY' }),
   ],
   A: [
     tmpl('Demon Gate Incursion', 'A dimensional rift has opened at {env}. Seal it.', 'demonic', ['Lesser Demon', 'Hellfire Imp', 'Demon Commander']),
@@ -239,6 +299,18 @@ const QUEST_TEMPLATES = {
     tmpl('Plague of Ages', 'An ancient plague deity stirs at {env}.', 'haunted', ['Plague Herald', 'Pestilence Lord', 'Plague God Avatar']),
     tmpl('Storm Titan', 'A storm titan rages across {env}.', 'mountain', ['Thunder Elemental', 'Storm Herald', 'Storm Titan']),
     tmpl('Blood Moon', 'The blood moon empowers dark forces at {env}.', 'haunted', ['Blood Golem', 'Crimson Knight', 'Blood Moon Avatar']),
+    // ── Additional normal quests ──
+    tmpl('Reality Fracture', 'Reality itself cracks at {env}. Fragments of other worlds bleed through.', 'demonic', ['Reality Shard', 'Dimensional Wraith', 'Fracture Entity']),
+    tmpl('Fallen Star', 'A celestial body crashed at {env}. Secure the impact site from opportunistic horrors.', 'mountain', ['Cosmic Parasite', 'Star Golem', 'Celestial Predator']),
+    tmpl('War of the Gods', 'Two minor deities wage war at {env}. Survive the crossfire and broker peace — or end them.', 'mountain', ['Divine Champion', 'Holy Berserker', 'War God\'s Avatar']),
+    tmpl('Planar Convergence', 'Multiple planes converge at {env}. The resulting chaos breeds nightmares.', 'demonic', ['Planar Aberration', 'Convergence Horror', 'Reality Eater']),
+    tmpl('The Sealed One', 'The ancient seal at {env} is failing. Reinforce it before the entity beneath breaks free.', 'haunted', ['Seal Breaker', 'Ancient Horror', 'The Unbinding']),
+    // ── Gem Mining quests (A-rank: Star Diamonds) ──
+    tmpl('Star Diamond Excavation', 'Crystallized starlight — star diamonds — lie deep beneath {env}. Battle through the astral guardians and extract these priceless gems!', 'dungeon', ['Astral Golem', 'Star Construct', 'Diamond Sentinel'], { gemMining: true, gemItemId: 'GEM_STAR_DIAMOND' }),
+    tmpl('Celestial Mine Shaft', 'A mine shaft at {env} has broken into a celestial gem pocket. Star diamonds glitter in the walls — but celestial guardians defend them fiercely!', 'mountain', ['Celestial Warden', 'Starlight Golem', 'Astral Dragon'], { gemMining: true, gemItemId: 'GEM_STAR_DIAMOND' }),
+    tmpl('Fallen Star Harvest', 'A fallen star embedded in {env} has crystallized into pure star diamonds. Harvest the gems from the impact crater while fighting off cosmic predators!', 'mountain', ['Cosmic Worm', 'Star Fragment', 'Meteor Beast'], { gemMining: true, gemItemId: 'GEM_STAR_DIAMOND' }),
+    tmpl('Diamond Dimension Breach', 'A breach to the diamond plane has opened at {env}. Star diamonds spill through — along with their guardians. Grab what you can!', 'demonic', ['Diamond Elemental', 'Prismatic Guardian', 'Plane Warden'], { gemMining: true, gemItemId: 'GEM_STAR_DIAMOND' }),
+    tmpl('Star Diamond Dragon\'s Lair', 'An ancient dragon at {env} hoards star diamonds by the hundreds. Defeat it and claim the most valuable gem haul of a lifetime!', 'mountain', ['Diamond Drake', 'Star Dragon', 'Ancient Diamond Dragon'], { gemMining: true, gemItemId: 'GEM_STAR_DIAMOND' }),
   ],
   S: [
     tmpl('The Demon King', 'The Demon King stirs at {env}. Legends are made here.', 'demonic', ['Demon Elite Guard', 'Arch-Demon', 'The Demon King']),
@@ -261,6 +333,18 @@ const QUEST_TEMPLATES = {
     tmpl('The Last Quest', 'There is only one quest left. It awaits at {env}.', 'demonic', ['Memory of Heroes Past', 'The Final Guardian', 'Destiny Itself']),
     tmpl('Elemental Apocalypse', 'All elements converge at {env} in catastrophe.', 'wilderness', ['Primal Fire', 'Primal Storm', 'Elemental Apocalypse']),
     tmpl('The Final Trial', 'The world demands a final trial at {env}.', 'demonic', ['Trial Champion', 'World Spirit', 'The Summoner']),
+    // ── Additional normal quests ──
+    tmpl('Multiverse Collapse', 'Every version of {env} across infinite realities is collapsing into one. Survive the convergence.', 'demonic', ['Mirror Self', 'Reality Doppelganger', 'The Convergence']),
+    tmpl('Creator\'s Workshop', 'The workshop where the world was forged exists at {env}. Its tools have become weapons.', 'dungeon', ['Forge Eternal', 'Hammer of Creation', 'The Worldsmith']),
+    tmpl('Memory of the World', 'The world itself remembers every death at {env}. Those memories have taken form.', 'haunted', ['Memory of Heroes', 'Echo of Despair', 'World Memory']),
+    tmpl('Singularity', 'All magic, all power, all existence converges at {env}. Stand at the center of everything.', 'demonic', ['Pure Magic', 'Essence of Power', 'The Singularity']),
+    tmpl('Beyond the Stars', 'Something beyond comprehension beckons from {env}. Answer the call — if you dare.', 'demonic', ['Star Horror', 'Outer God Fragment', 'The Beyond']),
+    // ── Gem Mining quests (S-rank: Celestial Opals) ──
+    tmpl('Celestial Opal Genesis', 'At the heart of {env}, where reality meets the divine, celestial opals are born from pure creation energy. Mine these impossible gems — each one worth more than a kingdom!', 'demonic', ['Genesis Guardian', 'Creation Elemental', 'Primordial Sentinel'], { gemMining: true, gemItemId: 'GEM_CELESTIAL_OPAL' }),
+    tmpl('Opal of the Gods', 'The gods themselves coveted the celestial opals at {env}. Defeat their divine guardians and claim gems that shift through colors that shouldn\'t exist!', 'mountain', ['Divine Warden', 'God\'s Hand', 'Celestial Dragon'], { gemMining: true, gemItemId: 'GEM_CELESTIAL_OPAL' }),
+    tmpl('The Opal Dimension', 'An entire dimension of celestial opals exists beyond {env}. Enter, mine, and escape before the dimension seals forever!', 'demonic', ['Opal Titan', 'Prismatic Wyrm', 'Dimension Core'], { gemMining: true, gemItemId: 'GEM_CELESTIAL_OPAL' }),
+    tmpl('Primordial Opal Vein', 'The primordial opal vein at {env} predates the world itself. The gems here are the most valuable objects in existence — if you can survive the extraction!', 'dungeon', ['Primordial Golem', 'Time Wyrm', 'Ancient Opal Guardian'], { gemMining: true, gemItemId: 'GEM_CELESTIAL_OPAL' }),
+    tmpl('World\'s End Mine', 'At the edge of existence, {env} holds the last celestial opal deposit. Mine it all — there won\'t be another chance. These opals are worth more than kingdoms!', 'demonic', ['End Walker', 'Void Miner', 'The Final Guardian'], { gemMining: true, gemItemId: 'GEM_CELESTIAL_OPAL' }),
   ],
 };
 
@@ -280,13 +364,30 @@ const RANK_SCALES = {
 
 // Loot table definitions per rank
 const RANK_LOOT_POOLS = {
-  F: ['SLIME_JELLY', 'WOLF_PELT', 'GOBLIN_EAR', 'WORN_SWORD', 'RUSTY_BROADSWORD', 'BLUNT_SHIV', 'RUSTY_FLAIL', 'WOODEN_MACE', 'RUSTY_DAGGER', 'WRAPPED_FIST', 'BAMBOO_STAFF', 'SHORT_BOW', 'WILLOW_WAND', 'WORN_LUTE', 'CRACKED_DRUM', 'RUSTY_MAIL', 'LIGHT_CHAIN', 'THIN_VEST', 'ROUGH_TUNIC', 'TATTERED_ROBES', 'WOOL_ROBES', 'WOODEN_BUCKLER', 'GLASS_ORB', 'WOODEN_ORB', 'LEATHER_BAND', 'WOODEN_CHARM', 'CRYSTAL_SHARD', 'BLESSED_TOKEN'],
-  E: ['GOBLIN_EAR', 'WOLF_PELT', 'SKELETON_BONE', 'IRON_SWORD', 'IRON_BROADSWORD', 'IRON_GREATSWORD', 'IRON_FLAIL', 'IRON_MACE', 'STEEL_DAGGER', 'IRON_CLAW', 'OAK_STAFF', 'HUNTING_BOW', 'APPRENTICE_STAFF', 'BLESSED_STAFF', 'SILVER_LUTE', 'IRON_DRUM', 'HEAVY_MAIL', 'PADDED_CHAIN', 'LEATHER_VEST', 'CLOTH_ROBES', 'BLESSED_ROBES', 'MONKS_ROBE', 'WOODEN_SHIELD', 'IRON_BUCKLER', 'FOCUS_ORB', 'BLESSED_ORB', 'LUCKY_CHARM', 'SWIFT_RING', 'POWER_RING', 'MANA_RING', 'WARD_RING', 'IRON_AMULET', 'VITALITY_PENDANT'],
-  D: ['SKELETON_BONE', 'BANDIT_MASK', 'MANA_CRYSTAL', 'STEEL_SWORD', 'STEEL_BROADSWORD', 'STEEL_GREATSWORD', 'STEEL_FLAIL', 'STEEL_MACE', 'VENOM_FANG', 'STEEL_CLAW', 'HARDWOOD_BO', 'COMPOSITE_BOW', 'MAGE_STAFF', 'CRYSTAL_STAFF', 'ENCHANTED_LUTE', 'WAR_DRUM', 'IRON_PLATE', 'FORTRESS_PLATE', 'CHAINMAIL', 'REINFORCED_CHAIN', 'HARDENED_LEATHER', 'MAGE_ROBES', 'WARD_ROBES', 'IRON_SHIELD', 'TOWER_SHIELD', 'CRYSTAL_ORB', 'HOLY_ORB', 'VITALITY_AMULET', 'POWER_STONE', 'WARRIOR_PENDANT', 'ARCANE_PENDANT', 'HOLY_PENDANT'],
-  C: ['OGRE_TOOTH', 'MANA_CRYSTAL', 'MYTHRIL_BLADE', 'GUARDIAN_BLADE', 'FLAMBERGE', 'TEMPLARS_FLAIL', 'BLESSED_MACE', 'SHADOW_EDGE', 'DRAGON_CLAW', 'CELESTIAL_BO', 'STORMREND_BOW', 'ARCHMAGE_STAFF', 'DIVINE_STAFF', 'SIREN_HARP', 'THUNDERDRUM', 'TEMPLAR_PLATE', 'STEEL_PLATE', 'SHADOW_CHAIN', 'STEEL_CHAIN', 'ADAMANT_CHAIN', 'TIGER_HIDE', 'STONE_SKIN_VEST', 'ARCANE_VESTMENTS', 'SANCTIFIED_VESTMENTS', 'TOWER_SHIELD', 'SPIKED_SHIELD', 'VOID_ORB'],
-  B: ['DRAGON_SCALE', 'MANA_CRYSTAL', 'EXCALIBUR', 'OATHKEEPER', 'RAGNAROK', 'JUDGEMENT', 'SANCTUM_HAMMER', 'DEATHS_WHISPER', 'ASURA_CLAW', 'RUYI_JINGU', 'ARTEMIS_BOW', 'STAFF_OF_AGES', 'STAFF_OF_DAWN', 'ORPHEUS_LYRE', 'DRUMS_OF_ETERNITY', 'MYTHRIL_PLATE', 'ADAMANTINE_PLATE', 'DRAGON_PLATE', 'PHANTOM_CHAIN', 'CELESTIAL_CHAIN', 'MYTHRIL_CHAIN', 'DRAGON_GI', 'NIRVANA_SHROUD', 'CELESTIAL_ROBES', 'ROBES_OF_ETERNITY', 'MYTHRIL_SHIELD', 'AEGIS', 'WALL_OF_AGES', 'ORB_OF_ETERNITY', 'ORB_OF_CREATION', 'AMULET_OF_FURY', 'AMULET_OF_AGES', 'AMULET_OF_ARCANA', 'AMULET_OF_GRACE'],
-  A: ['DRAGON_SCALE', 'MANA_CRYSTAL', 'EXCALIBUR', 'OATHKEEPER', 'DEATHS_WHISPER', 'RAGNAROK', 'ARTEMIS_BOW', 'STAFF_OF_AGES', 'ORPHEUS_LYRE', 'DRAGON_PLATE', 'ADAMANTINE_PLATE', 'PHANTOM_CHAIN', 'DRAGON_GI', 'CELESTIAL_ROBES', 'AEGIS', 'ORB_OF_ETERNITY', 'AMULET_OF_FURY', 'AMULET_OF_ARCANA'],
-  S: ['DRAGON_SCALE', 'MANA_CRYSTAL'],
+  F: ['WORN_SWORD', 'RUSTY_BROADSWORD', 'BLUNT_SHIV', 'RUSTY_FLAIL', 'WOODEN_MACE', 'RUSTY_DAGGER', 'WRAPPED_FIST', 'BAMBOO_STAFF', 'SHORT_BOW', 'WILLOW_WAND', 'WORN_LUTE', 'CRACKED_DRUM', 'RUSTY_MAIL', 'LIGHT_CHAIN', 'THIN_VEST', 'ROUGH_TUNIC', 'TATTERED_ROBES', 'WOOL_ROBES', 'WOODEN_BUCKLER', 'GLASS_ORB', 'WOODEN_ORB', 'LEATHER_BAND', 'WOODEN_CHARM', 'CRYSTAL_SHARD', 'BLESSED_TOKEN'],
+  E: ['IRON_SWORD', 'IRON_BROADSWORD', 'IRON_GREATSWORD', 'IRON_FLAIL', 'IRON_MACE', 'STEEL_DAGGER', 'IRON_CLAW', 'OAK_STAFF', 'HUNTING_BOW', 'APPRENTICE_STAFF', 'BLESSED_STAFF', 'SILVER_LUTE', 'IRON_DRUM', 'HEAVY_MAIL', 'PADDED_CHAIN', 'LEATHER_VEST', 'CLOTH_ROBES', 'BLESSED_ROBES', 'MONKS_ROBE', 'WOODEN_SHIELD', 'IRON_BUCKLER', 'FOCUS_ORB', 'BLESSED_ORB', 'LUCKY_CHARM', 'SWIFT_RING', 'POWER_RING', 'MANA_RING', 'WARD_RING', 'IRON_AMULET', 'VITALITY_PENDANT'],
+  D: ['STEEL_SWORD', 'STEEL_BROADSWORD', 'STEEL_GREATSWORD', 'STEEL_FLAIL', 'STEEL_MACE', 'VENOM_FANG', 'STEEL_CLAW', 'HARDWOOD_BO', 'COMPOSITE_BOW', 'MAGE_STAFF', 'CRYSTAL_STAFF', 'ENCHANTED_LUTE', 'WAR_DRUM', 'IRON_PLATE', 'FORTRESS_PLATE', 'CHAINMAIL', 'REINFORCED_CHAIN', 'HARDENED_LEATHER', 'MAGE_ROBES', 'WARD_ROBES', 'IRON_SHIELD', 'TOWER_SHIELD', 'CRYSTAL_ORB', 'HOLY_ORB', 'VITALITY_AMULET', 'POWER_STONE', 'WARRIOR_PENDANT', 'ARCANE_PENDANT', 'HOLY_PENDANT'],
+  C: ['MYTHRIL_BLADE', 'GUARDIAN_BLADE', 'FLAMBERGE', 'TEMPLARS_FLAIL', 'BLESSED_MACE', 'SHADOW_EDGE', 'DRAGON_CLAW', 'CELESTIAL_BO', 'STORMREND_BOW', 'ARCHMAGE_STAFF', 'DIVINE_STAFF', 'SIREN_HARP', 'THUNDERDRUM', 'TEMPLAR_PLATE', 'STEEL_PLATE', 'SHADOW_CHAIN', 'STEEL_CHAIN', 'ADAMANT_CHAIN', 'TIGER_HIDE', 'STONE_SKIN_VEST', 'ARCANE_VESTMENTS', 'SANCTIFIED_VESTMENTS', 'TOWER_SHIELD', 'SPIKED_SHIELD', 'VOID_ORB'],
+  B: ['EXCALIBUR', 'OATHKEEPER', 'RAGNAROK', 'JUDGEMENT', 'SANCTUM_HAMMER', 'DEATHS_WHISPER', 'ASURA_CLAW', 'RUYI_JINGU', 'ARTEMIS_BOW', 'STAFF_OF_AGES', 'STAFF_OF_DAWN', 'ORPHEUS_LYRE', 'DRUMS_OF_ETERNITY', 'MYTHRIL_PLATE', 'ADAMANTINE_PLATE', 'DRAGON_PLATE', 'PHANTOM_CHAIN', 'CELESTIAL_CHAIN', 'MYTHRIL_CHAIN', 'DRAGON_GI', 'NIRVANA_SHROUD', 'CELESTIAL_ROBES', 'ROBES_OF_ETERNITY', 'MYTHRIL_SHIELD', 'AEGIS', 'WALL_OF_AGES', 'ORB_OF_ETERNITY', 'ORB_OF_CREATION', 'AMULET_OF_FURY', 'AMULET_OF_AGES', 'AMULET_OF_ARCANA', 'AMULET_OF_GRACE'],
+  A: ['EXCALIBUR', 'OATHKEEPER', 'DEATHS_WHISPER', 'RAGNAROK', 'ARTEMIS_BOW', 'STAFF_OF_AGES', 'ORPHEUS_LYRE', 'DRAGON_PLATE', 'ADAMANTINE_PLATE', 'PHANTOM_CHAIN', 'DRAGON_GI', 'CELESTIAL_ROBES', 'AEGIS', 'ORB_OF_ETERNITY', 'AMULET_OF_FURY', 'AMULET_OF_ARCANA'],
+  S: [
+    // High-tier legendary equipment
+    'EXCALIBUR', 'OATHKEEPER', 'DEATHS_WHISPER', 'RAGNAROK', 'ARTEMIS_BOW', 'STAFF_OF_AGES',
+    'ORPHEUS_LYRE', 'DRAGON_PLATE', 'ADAMANTINE_PLATE', 'PHANTOM_CHAIN', 'DRAGON_GI',
+    'CELESTIAL_ROBES', 'AEGIS', 'ORB_OF_ETERNITY', 'AMULET_OF_FURY', 'AMULET_OF_ARCANA',
+    'STAFF_OF_DAWN', 'DRUMS_OF_ETERNITY', 'ROBES_OF_ETERNITY', 'WALL_OF_AGES',
+    'ORB_OF_CREATION', 'AMULET_OF_AGES', 'AMULET_OF_GRACE', 'MYTHRIL_SHIELD',
+    'CELESTIAL_CHAIN', 'MYTHRIL_CHAIN', 'NIRVANA_SHROUD', 'MYTHRIL_PLATE',
+    // Celestial equipment (ultra-rare drops)
+    'CEL_DAWNBREAKER', 'CEL_ASCENDANT_PLATE', 'CEL_ASCENDANT_WARD', 'CEL_CROWN_OF_THE_CHOSEN',
+    'CEL_OATHSWORN', 'CEL_ETERNAL_BASTION', 'CEL_INFINITUM_SHIELD', 'CEL_SENTINELS_ETERNITY',
+    'CEL_INFINITY_STAFF', 'CEL_ROBES_OF_THE_VOID', 'CEL_SINGULARITY_ORB', 'CEL_DIADEM_OF_OMNISCIENCE',
+    'CEL_VOIDFANG', 'CEL_WRAITHWEAVE', 'CEL_NULLBLADE', 'CEL_ECLIPSE_PENDANT',
+    'CEL_SCEPTER_OF_DAWN', 'CEL_VESTMENTS_OF_GRACE', 'CEL_TOME_OF_MIRACLES', 'CEL_HALO_OF_THE_BLESSED',
+    'CEL_STARFALL_BOW', 'CEL_STARHIDE_MANTLE', 'CEL_CONSTELLATION_QUIVER', 'CEL_POLARIS_PENDANT',
+    'CEL_LYRE_OF_CREATION', 'CEL_VESTMENTS_OF_COSMOS', 'CEL_DRUM_OF_ETERNITY', 'CEL_MAESTROS_SIGNET',
+    'CEL_FISTS_OF_NIRVANA', 'CEL_GI_OF_THE_ABSOLUTE', 'CEL_PALM_OF_THE_INFINITE', 'CEL_CHAKRA_OF_ENLIGHTENMENT',
+  ],
 };
 
 const SUCCESS_NARRATIVES = [
@@ -373,26 +474,51 @@ export function generateQuestInstance(rank, templateIndex, seed, partyStrength) 
   // Rarity multiplier for rewards and difficulty
   const rarityMult = rarity === 'legendary' ? 1.5 : rarity === 'rare' ? 1.25 : rarity === 'uncommon' ? 1.1 : 1.0;
 
-  // Build loot table — rarer quests get more entries and better base drop chances
-  const lootPool = RANK_LOOT_POOLS[rank] || [];
-  const rarityLootBonus = rarity === 'legendary' ? 3 : rarity === 'rare' ? 2 : rarity === 'uncommon' ? 1 : 0;
-  const lootCountMin = 2 + Math.floor(rarityLootBonus / 2);
-  const lootCountMax = Math.min(4 + rarityLootBonus, lootPool.length);
-  const lootCount = seededRandInt(lootCountMin, Math.max(lootCountMin, lootCountMax), seed + 9);
-  const shuffled = [...lootPool].sort((a, b) => seededRand(seed + 10 + lootPool.indexOf(a)) - seededRand(seed + 10 + lootPool.indexOf(b)));
-  const lootTable = shuffled.slice(0, lootCount).map((itemId, i) => {
-    const isEquip = !!EQUIPMENT[itemId];
-    // Rarer quests boost equipment drop chances significantly
-    const rarityDropMult = rarity === 'legendary' ? 2.0 : rarity === 'rare' ? 1.5 : rarity === 'uncommon' ? 1.2 : 1.0;
-    const baseChance = isEquip
-      ? (0.08 + seededRand(seed + 20 + i) * 0.15) * rarityDropMult
-      : 0.30 + seededRand(seed + 30 + i) * 0.50;
-    return {
+  // Build loot table — gem mining quests get guaranteed gem drop + junk only (no equipment)
+  // Normal quests get the standard loot pool with rarity scaling
+  const isGemMining = !!t.gemMining;
+  let lootTable;
+
+  if (isGemMining) {
+    // Gem mining quests: guaranteed gem drop + a few junk loot items (NO equipment)
+    const gemEntry = { itemId: t.gemItemId, chance: 1.0, quantity: [1, 1] };
+    const junkPool = (RANK_LOOT_POOLS[rank] || []).filter(id => !EQUIPMENT[id] && !!LOOT_ITEMS[id]);
+    const junkShuffled = [...junkPool].sort((a, b) => seededRand(seed + 10 + junkPool.indexOf(a)) - seededRand(seed + 10 + junkPool.indexOf(b)));
+    const junkCount = seededRandInt(1, Math.min(3, junkShuffled.length), seed + 9);
+    const junkEntries = junkShuffled.slice(0, junkCount).map((itemId, i) => ({
       itemId,
-      chance: Math.min(0.90, baseChance),
-      quantity: isEquip ? [1, 1] : [1, seededRandInt(1, 4, seed + 40 + i)],
-    };
-  });
+      chance: 0.30 + seededRand(seed + 30 + i) * 0.40,
+      quantity: [1, seededRandInt(1, 3, seed + 40 + i)],
+    }));
+    lootTable = [gemEntry, ...junkEntries];
+  } else {
+    const lootPool = RANK_LOOT_POOLS[rank] || [];
+    const rarityLootBonus = rarity === 'legendary' ? 3 : rarity === 'rare' ? 2 : rarity === 'uncommon' ? 1 : 0;
+    const lootCountMin = 2 + Math.floor(rarityLootBonus / 2);
+    const lootCountMax = Math.min(4 + rarityLootBonus, lootPool.length);
+    const lootCount = seededRandInt(lootCountMin, Math.max(lootCountMin, lootCountMax), seed + 9);
+    const shuffled = [...lootPool].sort((a, b) => seededRand(seed + 10 + lootPool.indexOf(a)) - seededRand(seed + 10 + lootPool.indexOf(b)));
+    lootTable = shuffled.slice(0, lootCount).map((itemId, i) => {
+      const isEquip = !!EQUIPMENT[itemId];
+      const isCelestial = isEquip && EQUIPMENT[itemId].rarity === 'celestial';
+      // Rarer quests boost equipment drop chances significantly
+      const rarityDropMult = rarity === 'legendary' ? 2.0 : rarity === 'rare' ? 1.5 : rarity === 'uncommon' ? 1.2 : 1.0;
+      let baseChance;
+      if (isCelestial) {
+        // Celestial items: ultra-rare base chance (~1-3%), slightly boosted by quest rarity
+        baseChance = (0.008 + seededRand(seed + 20 + i) * 0.012) * Math.min(rarityDropMult, 1.5);
+      } else if (isEquip) {
+        baseChance = (0.08 + seededRand(seed + 20 + i) * 0.15) * rarityDropMult;
+      } else {
+        baseChance = 0.30 + seededRand(seed + 30 + i) * 0.50;
+      }
+      return {
+        itemId,
+        chance: Math.min(isCelestial ? 0.05 : 0.90, baseChance), // Celestial capped at 5%
+        quantity: isEquip ? [1, 1] : [1, seededRandInt(1, 4, seed + 40 + i)],
+      };
+    });
+  }
 
   const id = `${rank}_GEN_${templateIndex}_${seed}`;
   const description = t.desc.replace('{env}', envName);
@@ -414,6 +540,8 @@ export function generateQuestInstance(rank, templateIndex, seed, partyStrength) 
     requiredGuildRank: rank,
     isRepeatable: true,
     rarity,
+    gemMining: isGemMining || false,
+    gemItemId: isGemMining ? t.gemItemId : null,
     templateIndex,
     narratives: {
       success: SUCCESS_NARRATIVES,

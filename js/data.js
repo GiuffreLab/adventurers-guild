@@ -66,10 +66,12 @@ export const NAMES = {
   first: ['Kael','Mira','Torben','Yuki','Aldric','Seraphine','Daxon','Lyra','Gareth','Nessa',
           'Bram','Isolde','Caden','Vex','Oryn','Thea','Ravik','Sable','Fenrick','Aela',
           'Zori','Hadley','Meryn','Colt','Tavish','Wren','Edric','Calyx','Petra','Oswin',
-          'Brynn','Lucan','Sylva','Dorin','Kerris','Ash','Tomas','Ilwen','Corvus','Sona'],
+          'Brynn','Lucan','Sylva','Dorin','Kerris','Ash','Tomas','Ilwen','Corvus','Sona',
+          'Riven','Elara','Jorik','Fiora','Thane','Lina','Bastien','Neve','Caelum','Suri'],
   last:  ['Ironwood','Ashvale','Stormborn','Coldwell','Brightblade','Duskwood','Fernholt',
           'Greymoor','Holloway','Ironclad','Lightfoot','Mossgrove','Nighthollow','Oakhearth',
-          'Quicksilver','Ravenwood','Swiftarrow','Thornwall','Underhill','Westmark'],
+          'Quicksilver','Ravenwood','Swiftarrow','Thornwall','Underhill','Westmark',
+          'Cindervane','Frosthelm','Dawnstrider','Stonecroft','Wolfsbane','Emberglow','Mistwalker','Silverbark','Blackthorn','Dunehallow'],
 };
 
 // ── Item Rarity ──────────────────────────────────────────────────────────────
@@ -80,6 +82,7 @@ export const ITEM_RARITIES = {
   rare:      { id: 'rare',      label: 'Rare',      color: '#f0c060' },
   epic:      { id: 'epic',      label: 'Epic',      color: '#9b59b6' },
   legendary: { id: 'legendary', label: 'Legendary', color: '#e74c3c' },
+  celestial: { id: 'celestial', label: 'Celestial', color: '#ffd700' },
 };
 
 // ── Equipment ─────────────────────────────────────────────────────────────────
@@ -2034,6 +2037,288 @@ export const EQUIPMENT = {
     shopMinRank: 'B',
     desc: 'An orb that channels the power of creation.'
   },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ██ CELESTIAL EQUIPMENT — God-tier class-locked sets (S-rank drop only) ██
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // ── HERO: "Ascendant" Set ───────────────────────────────────────────────
+  CEL_DAWNBREAKER: {
+    id: 'CEL_DAWNBREAKER', name: 'Dawnbreaker', slot: 'weapon', tier: 6,
+    rarity: 'celestial', classReq: ['HERO'],
+    statBonus: { atk: 62, spd: 22, lck: 18, crit: 15 },
+    grantedSkill: 'CEL_ASCENDANT_WRATH',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'The blade that ended the Long Night. It burns with the light of the first dawn, and its edge has never dulled.'
+  },
+  CEL_ASCENDANT_PLATE: {
+    id: 'CEL_ASCENDANT_PLATE', name: 'Ascendant Plate', slot: 'armor', tier: 6,
+    rarity: 'celestial', classReq: ['HERO'],
+    statBonus: { def: 55, maxHp: 180, spd: 10, atk: 12 },
+    grantedSkill: 'CEL_ASCENDANT_AEGIS',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'Forged from the heart of a dying star. Each plate is a solidified prayer, each rivet a hymn of protection.'
+  },
+  CEL_ASCENDANT_WARD: {
+    id: 'CEL_ASCENDANT_WARD', name: 'Ascendant Ward', slot: 'offhand', tier: 6,
+    rarity: 'celestial', classReq: ['HERO'],
+    statBonus: { def: 38, maxHp: 80, atk: 15, lck: 10 },
+    grantedSkill: 'CEL_ASCENDANT_RALLY',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'A shield that protects not just the wielder but everyone who fights beside them. It hums with the voice of a thousand heroes past.'
+  },
+  CEL_CROWN_OF_THE_CHOSEN: {
+    id: 'CEL_CROWN_OF_THE_CHOSEN', name: 'Crown of the Chosen', slot: 'accessory', tier: 6,
+    rarity: 'celestial', classReq: ['HERO'],
+    statBonus: { atk: 25, def: 20, spd: 20, mag: 15, lck: 20, maxHp: 60 },
+    grantedSkill: 'CEL_DESTINY_AURA',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'The crown appears only for those chosen by fate. It weighs nothing, yet carries the hopes of the world.'
+  },
+
+  // ── KNIGHT: "Eternal Bastion" Set ───────────────────────────────────────
+  CEL_OATHSWORN: {
+    id: 'CEL_OATHSWORN', name: 'Oathsworn', slot: 'weapon', tier: 6,
+    rarity: 'celestial', classReq: ['KNIGHT'],
+    statBonus: { atk: 48, def: 30, maxHp: 60 },
+    grantedSkill: 'CEL_BASTION_SMITE',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'A blade bound by an oath older than nations. It cannot be broken because it was forged from an unbreakable vow.'
+  },
+  CEL_ETERNAL_BASTION: {
+    id: 'CEL_ETERNAL_BASTION', name: 'Eternal Bastion', slot: 'armor', tier: 6,
+    rarity: 'celestial', classReq: ['KNIGHT'],
+    statBonus: { def: 72, maxHp: 250, spd: -5 },
+    grantedSkill: 'CEL_BASTION_FORTRESS',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'This armor has survived the end of three civilizations. Its wearer has never fallen in battle. Not once. Not ever.'
+  },
+  CEL_INFINITUM_SHIELD: {
+    id: 'CEL_INFINITUM_SHIELD', name: 'Infinitum Shield', slot: 'offhand', tier: 6,
+    rarity: 'celestial', classReq: ['KNIGHT'],
+    statBonus: { def: 50, maxHp: 120, mag: 10 },
+    grantedSkill: 'CEL_BASTION_WARD',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'The shield expands to cover all allies in divine protection. Its surface shows the reflection of a world without suffering.'
+  },
+  CEL_SENTINELS_ETERNITY: {
+    id: 'CEL_SENTINELS_ETERNITY', name: "Sentinel's Eternity", slot: 'accessory', tier: 6,
+    rarity: 'celestial', classReq: ['KNIGHT'],
+    statBonus: { def: 35, maxHp: 150, atk: 10, lck: 8 },
+    grantedSkill: 'CEL_IMMOVABLE_AURA',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'A ring forged in the heart of a mountain that has never moved. The wearer becomes equally immovable.'
+  },
+
+  // ── MAGE: "Arcanum Infinitum" Set ──────────────────────────────────────
+  CEL_INFINITY_STAFF: {
+    id: 'CEL_INFINITY_STAFF', name: 'Infinity Staff', slot: 'weapon', tier: 6,
+    rarity: 'celestial', classReq: ['MAGE'],
+    statBonus: { mag: 68, spd: 15, crit: 12, lck: 10 },
+    grantedSkill: 'CEL_ARCANUM_CATACLYSM',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    twoHanded: true,
+    desc: 'The staff channels magic from every plane simultaneously. Reality bends like paper in its presence.'
+  },
+  CEL_ROBES_OF_THE_VOID: {
+    id: 'CEL_ROBES_OF_THE_VOID', name: 'Robes of the Void', slot: 'armor', tier: 6,
+    rarity: 'celestial', classReq: ['MAGE'],
+    statBonus: { mag: 25, def: 40, maxHp: 100, spd: 12 },
+    grantedSkill: 'CEL_VOID_BARRIER',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'Woven from the fabric between dimensions. Attacks pass through the wearer and into the void itself.'
+  },
+  CEL_SINGULARITY_ORB: {
+    id: 'CEL_SINGULARITY_ORB', name: 'Singularity Orb', slot: 'offhand', tier: 6,
+    rarity: 'celestial', classReq: ['MAGE'],
+    statBonus: { mag: 45, spd: 10, crit: 10, maxHp: 40 },
+    grantedSkill: 'CEL_ARCANUM_RESONANCE',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'A point of infinite density suspended in crystal. All magical energy within a league bends toward it.'
+  },
+  CEL_DIADEM_OF_OMNISCIENCE: {
+    id: 'CEL_DIADEM_OF_OMNISCIENCE', name: 'Diadem of Omniscience', slot: 'accessory', tier: 6,
+    rarity: 'celestial', classReq: ['MAGE'],
+    statBonus: { mag: 35, spd: 20, lck: 15, crit: 18 },
+    grantedSkill: 'CEL_OMNISCIENCE_AURA',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'The wearer sees every possible future simultaneously. Spells land before they are cast.'
+  },
+
+  // ── ROGUE: "Voidwalker" Set ────────────────────────────────────────────
+  CEL_VOIDFANG: {
+    id: 'CEL_VOIDFANG', name: 'Voidfang', slot: 'weapon', tier: 6,
+    rarity: 'celestial', classReq: ['ROGUE'],
+    dagger: true,
+    statBonus: { atk: 55, spd: 28, crit: 22, lck: 15 },
+    grantedSkill: 'CEL_VOIDWALKER_STRIKE',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'A dagger forged in the space between heartbeats. Its blade exists only at the moment of the kill.'
+  },
+  CEL_WRAITHWEAVE: {
+    id: 'CEL_WRAITHWEAVE', name: 'Wraithweave', slot: 'armor', tier: 6,
+    rarity: 'celestial', classReq: ['ROGUE'],
+    statBonus: { spd: 40, def: 35, lck: 20, maxHp: 60 },
+    grantedSkill: 'CEL_PHASE_SHIFT',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'Armor stitched from captured shadows. The wearer flickers between this world and the next.'
+  },
+  CEL_NULLBLADE: {
+    id: 'CEL_NULLBLADE', name: 'Nullblade', slot: 'offhand', tier: 6,
+    rarity: 'celestial', classReq: ['ROGUE'],
+    dagger: true,
+    statBonus: { atk: 40, spd: 25, crit: 18, lck: 12 },
+    grantedSkill: 'CEL_VOID_ECHO',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'The twin of Voidfang. Where one cuts flesh, the other cuts fate. Together, they sever destiny itself.'
+  },
+  CEL_ECLIPSE_PENDANT: {
+    id: 'CEL_ECLIPSE_PENDANT', name: 'Eclipse Pendant', slot: 'accessory', tier: 6,
+    rarity: 'celestial', classReq: ['ROGUE'],
+    statBonus: { spd: 30, lck: 28, crit: 20, atk: 15 },
+    grantedSkill: 'CEL_SHADOW_DIMENSION',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'Contains a perpetual eclipse. The wearer exists in twilight — visible only when they choose to be.'
+  },
+
+  // ── CLERIC: "Divine Radiance" Set ──────────────────────────────────────
+  CEL_SCEPTER_OF_DAWN: {
+    id: 'CEL_SCEPTER_OF_DAWN', name: 'Scepter of Dawn', slot: 'weapon', tier: 6,
+    rarity: 'celestial', classReq: ['CLERIC'],
+    statBonus: { mag: 52, atk: 20, def: 10, lck: 12 },
+    grantedSkill: 'CEL_DIVINE_JUDGEMENT',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'The first light that ever shone is trapped within this scepter. Its radiance purges all darkness.'
+  },
+  CEL_VESTMENTS_OF_GRACE: {
+    id: 'CEL_VESTMENTS_OF_GRACE', name: 'Vestments of Grace', slot: 'armor', tier: 6,
+    rarity: 'celestial', classReq: ['CLERIC'],
+    statBonus: { def: 45, maxHp: 160, mag: 18, lck: 12 },
+    grantedSkill: 'CEL_DIVINE_SHIELD',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'Woven by angels who wept with joy. Every thread is a prayer answered, every fold a miracle preserved.'
+  },
+  CEL_TOME_OF_MIRACLES: {
+    id: 'CEL_TOME_OF_MIRACLES', name: 'Tome of Miracles', slot: 'offhand', tier: 6,
+    rarity: 'celestial', classReq: ['CLERIC'],
+    statBonus: { mag: 38, def: 20, maxHp: 60, lck: 15 },
+    grantedSkill: 'CEL_MIRACULOUS_BLESSING',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'Every miracle ever performed is recorded within. The pages write themselves as new miracles occur.'
+  },
+  CEL_HALO_OF_THE_BLESSED: {
+    id: 'CEL_HALO_OF_THE_BLESSED', name: 'Halo of the Blessed', slot: 'accessory', tier: 6,
+    rarity: 'celestial', classReq: ['CLERIC'],
+    statBonus: { mag: 30, def: 22, maxHp: 80, lck: 18 },
+    grantedSkill: 'CEL_RESURRECTION_AURA',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'A visible halo crowns the wearer. The merely wounded are healed by proximity. The fallen stir again.'
+  },
+
+  // ── RANGER: "Starfall" Set ─────────────────────────────────────────────
+  CEL_STARFALL_BOW: {
+    id: 'CEL_STARFALL_BOW', name: 'Starfall Bow', slot: 'weapon', tier: 6,
+    rarity: 'celestial', classReq: ['RANGER'],
+    statBonus: { atk: 58, spd: 25, lck: 15, crit: 18 },
+    grantedSkill: 'CEL_CELESTIAL_BARRAGE',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    twoHanded: true,
+    desc: 'Strung with a strand of starlight. Each arrow is a falling star — beautiful, brief, and absolutely devastating.'
+  },
+  CEL_STARHIDE_MANTLE: {
+    id: 'CEL_STARHIDE_MANTLE', name: 'Starhide Mantle', slot: 'armor', tier: 6,
+    rarity: 'celestial', classReq: ['RANGER'],
+    statBonus: { def: 42, spd: 30, maxHp: 80, lck: 15 },
+    grantedSkill: 'CEL_STELLAR_CLOAK',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'Cured from the hide of a celestial beast. It shimmers with the light of distant constellations.'
+  },
+  CEL_CONSTELLATION_QUIVER: {
+    id: 'CEL_CONSTELLATION_QUIVER', name: 'Constellation Quiver', slot: 'offhand', tier: 6,
+    rarity: 'celestial', classReq: ['RANGER'],
+    statBonus: { atk: 30, spd: 20, lck: 18, crit: 12 },
+    grantedSkill: 'CEL_STARFIRE_VOLLEY',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'The quiver holds twelve arrows — one for each constellation. They regenerate at midnight, and each carries the power of its star sign.'
+  },
+  CEL_POLARIS_PENDANT: {
+    id: 'CEL_POLARIS_PENDANT', name: 'Polaris Pendant', slot: 'accessory', tier: 6,
+    rarity: 'celestial', classReq: ['RANGER'],
+    statBonus: { atk: 28, spd: 25, lck: 22, crit: 15 },
+    grantedSkill: 'CEL_NORTH_STAR_AURA',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'The North Star itself, compressed into a gem. The wearer never misses, never gets lost, and never hesitates.'
+  },
+
+  // ── BARD: "Harmony of Spheres" Set ─────────────────────────────────────
+  CEL_LYRE_OF_CREATION: {
+    id: 'CEL_LYRE_OF_CREATION', name: 'Lyre of Creation', slot: 'weapon', tier: 6,
+    rarity: 'celestial', classReq: ['BARD'],
+    statBonus: { mag: 45, lck: 30, spd: 18, crit: 10 },
+    grantedSkill: 'CEL_SONG_OF_CREATION',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'The instrument that played the melody of creation. Each note reshapes reality. Each chord rewrites the laws of physics.'
+  },
+  CEL_VESTMENTS_OF_COSMOS: {
+    id: 'CEL_VESTMENTS_OF_COSMOS', name: 'Vestments of the Cosmos', slot: 'armor', tier: 6,
+    rarity: 'celestial', classReq: ['BARD'],
+    statBonus: { def: 38, mag: 28, maxHp: 90, lck: 20 },
+    grantedSkill: 'CEL_COSMIC_HARMONY',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'The fabric shows a living star map. Constellations dance across it, harmonizing with the wearer\'s music.'
+  },
+  CEL_DRUM_OF_ETERNITY: {
+    id: 'CEL_DRUM_OF_ETERNITY', name: 'Drum of Eternity', slot: 'offhand', tier: 6,
+    rarity: 'celestial', classReq: ['BARD'],
+    statBonus: { mag: 30, lck: 25, spd: 15, def: 12 },
+    grantedSkill: 'CEL_RHYTHM_OF_WORLDS',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'The drum beats with the heartbeat of the universe. Each strike synchronizes the rhythm of every living thing nearby.'
+  },
+  CEL_MAESTROS_SIGNET: {
+    id: 'CEL_MAESTROS_SIGNET', name: "Maestro's Signet", slot: 'accessory', tier: 6,
+    rarity: 'celestial', classReq: ['BARD'],
+    statBonus: { lck: 32, mag: 25, spd: 20, atk: 12, def: 12 },
+    grantedSkill: 'CEL_SYMPHONY_AURA',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'The ring of the Grand Maestro who conducted the symphony of creation. Music flows from the wearer like breathing.'
+  },
+
+  // ── MONK: "Transcendence" Set ──────────────────────────────────────────
+  CEL_FISTS_OF_NIRVANA: {
+    id: 'CEL_FISTS_OF_NIRVANA', name: 'Fists of Nirvana', slot: 'weapon', tier: 6,
+    rarity: 'celestial', classReq: ['MONK'],
+    claw: true,
+    statBonus: { atk: 55, spd: 30, def: 15, crit: 15 },
+    grantedSkill: 'CEL_TRANSCENDENT_STRIKE',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'Gauntlets forged from condensed enlightenment. Each strike carries the weight of ten thousand years of meditation.'
+  },
+  CEL_GI_OF_THE_ABSOLUTE: {
+    id: 'CEL_GI_OF_THE_ABSOLUTE', name: 'Gi of the Absolute', slot: 'armor', tier: 6,
+    rarity: 'celestial', classReq: ['MONK'],
+    statBonus: { def: 45, spd: 35, maxHp: 100, atk: 15 },
+    grantedSkill: 'CEL_ABSOLUTE_FLOW',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'The robes of the monk who achieved perfect balance. The wearer flows like water and strikes like lightning.'
+  },
+  CEL_PALM_OF_THE_INFINITE: {
+    id: 'CEL_PALM_OF_THE_INFINITE', name: 'Palm of the Infinite', slot: 'offhand', tier: 6,
+    rarity: 'celestial', classReq: ['MONK'],
+    claw: true,
+    statBonus: { atk: 42, spd: 28, def: 12, lck: 12 },
+    grantedSkill: 'CEL_INFINITE_PALM',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'The open palm that caught a god\'s fist. Its chi resonance strengthens everyone within a hundred paces.'
+  },
+  CEL_CHAKRA_OF_ENLIGHTENMENT: {
+    id: 'CEL_CHAKRA_OF_ENLIGHTENMENT', name: 'Chakra of Enlightenment', slot: 'accessory', tier: 6,
+    rarity: 'celestial', classReq: ['MONK'],
+    statBonus: { atk: 22, def: 22, spd: 22, maxHp: 80, lck: 15 },
+    grantedSkill: 'CEL_NIRVANA_AURA',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'A meditation bead containing the secret of nirvana. True balance achieved — body, mind, and spirit in absolute harmony.'
+  },
 };
 
 // Loot-only items (drop from quests, sell for gold)
@@ -2046,6 +2331,15 @@ export const LOOT_ITEMS = {
   OGRE_TOOTH:    { id:'OGRE_TOOTH',    name:"Ogre's Tooth",     sellPrice:25,  desc:'A fang the size of your forearm.' },
   MANA_CRYSTAL:  { id:'MANA_CRYSTAL',  name:'Mana Crystal',     sellPrice:40,  desc:'A small crystal dense with magical potential.' },
   DRAGON_SCALE:  { id:'DRAGON_SCALE',  name:'Dragon Scale',     sellPrice:200, desc:'An iridescent scale harder than steel.' },
+
+  // ── Gem Mining Rewards (jackpot loot — one per rank) ──────────────────
+  GEM_ROUGH_QUARTZ:    { id:'GEM_ROUGH_QUARTZ',    name:'Bag of Rough Quartz',     sellPrice:10000,   desc:'A heavy sack of raw quartz crystals pulled from a shallow vein. Worth a small fortune to the right buyer.' },
+  GEM_AMETHYST:        { id:'GEM_AMETHYST',        name:'Pouch of Amethysts',      sellPrice:18000,   desc:'Deep-violet amethyst clusters, still warm from the earth. Jewelers will pay handsomely for these.' },
+  GEM_SAPPHIRE:        { id:'GEM_SAPPHIRE',        name:'Sapphire Cache',          sellPrice:30000,   desc:'A velvet-lined case of brilliant blue sapphires. Each one could buy a house.' },
+  GEM_EMERALD:         { id:'GEM_EMERALD',         name:'Emerald Trove',           sellPrice:50000,   desc:'Flawless emeralds the color of deep forest canopy. Nobility would kill for these.' },
+  GEM_RUBY:            { id:'GEM_RUBY',            name:'Ruby Hoard',              sellPrice:75000,   desc:'Blood-red rubies that seem to pulse with inner fire. A dragon\'s ransom.' },
+  GEM_STAR_DIAMOND:    { id:'GEM_STAR_DIAMOND',    name:'Pouch of Star Diamonds',  sellPrice:120000,  desc:'Diamonds that refract light into tiny stars. Said to be crystallized starlight from a fallen celestial.' },
+  GEM_CELESTIAL_OPAL:  { id:'GEM_CELESTIAL_OPAL',  name:'Celestial Opals',         sellPrice:250000,  desc:'Opals that shift through impossible colors — hues that don\'t exist in nature. Worth more than most kingdoms.' },
 };
 
 // ── Quests ────────────────────────────────────────────────────────────────────
@@ -2058,7 +2352,6 @@ export const QUESTS = {
     duration:15, difficulty:0.5, recommendedPower:15,
     goldReward:{min:10,max:25}, expReward:{min:12,max:20}, rankPointReward:25,
     lootTable:[
-      {itemId:'SLIME_JELLY',   chance:0.70, quantity:[1,3]},
       {itemId:'WORN_SWORD',    chance:0.12, quantity:[1,1]},
       {itemId:'LUCKY_CHARM',   chance:0.08, quantity:[1,1]},
     ],
@@ -2095,7 +2388,6 @@ export const QUESTS = {
     duration:20, difficulty:0.8, recommendedPower:25,
     goldReward:{min:30,max:50}, expReward:{min:20,max:35}, rankPointReward:50,
     lootTable:[
-      {itemId:'GOBLIN_EAR',  chance:0.40, quantity:[1,3]},
       {itemId:'IRON_SWORD',  chance:0.08, quantity:[1,1]},
       {itemId:'WOODEN_SHIELD',chance:0.10, quantity:[1,1]},
     ],
@@ -2114,7 +2406,6 @@ export const QUESTS = {
     duration:22, difficulty:1.2, recommendedPower:45,
     goldReward:{min:50,max:90}, expReward:{min:35,max:55}, rankPointReward:90,
     lootTable:[
-      {itemId:'GOBLIN_EAR',  chance:0.80, quantity:[3,8]},
       {itemId:'IRON_SWORD',  chance:0.20, quantity:[1,1]},
       {itemId:'IRON_PLATE',  chance:0.20, quantity:[1,1]},
       {itemId:'STEEL_DAGGER',chance:0.10, quantity:[1,1]},
@@ -2134,7 +2425,6 @@ export const QUESTS = {
     duration:25, difficulty:1.4, recommendedPower:55,
     goldReward:{min:70,max:120}, expReward:{min:40,max:65}, rankPointReward:110,
     lootTable:[
-      {itemId:'WOLF_PELT',   chance:0.90, quantity:[2,5]},
       {itemId:'CHAINMAIL',   chance:0.15, quantity:[1,1]},
       {itemId:'RUSTY_DAGGER',chance:0.12, quantity:[1,1]},
     ],
@@ -2153,7 +2443,6 @@ export const QUESTS = {
     duration:28, difficulty:1.6, recommendedPower:65,
     goldReward:{min:90,max:140}, expReward:{min:50,max:80}, rankPointReward:140,
     lootTable:[
-      {itemId:'SKELETON_BONE',chance:0.70, quantity:[2,5]},
       {itemId:'MAGE_ROBES',   chance:0.12, quantity:[1,1]},
       {itemId:'APPRENTICE_STAFF',chance:0.15,quantity:[1,1]},
       {itemId:'VITALITY_AMULET',chance:0.10,quantity:[1,1]},
@@ -2173,11 +2462,9 @@ export const QUESTS = {
     duration:30, difficulty:2.2, recommendedPower:120,
     goldReward:{min:200,max:350}, expReward:{min:100,max:160}, rankPointReward:275,
     lootTable:[
-      {itemId:'SKELETON_BONE',chance:0.60, quantity:[3,7]},
       {itemId:'STEEL_SWORD',  chance:0.20, quantity:[1,1]},
       {itemId:'TEMPLAR_PLATE', chance:0.18, quantity:[1,1]},
       {itemId:'POWER_STONE',  chance:0.12, quantity:[1,1]},
-      {itemId:'MANA_CRYSTAL', chance:0.30, quantity:[1,2]},
     ],
     requiredGuildRank:'D', isRepeatable:true,
     narratives:{
@@ -2194,7 +2481,6 @@ export const QUESTS = {
     duration:35, difficulty:2.5, recommendedPower:140,
     goldReward:{min:280,max:450}, expReward:{min:120,max:190}, rankPointReward:350,
     lootTable:[
-      {itemId:'BANDIT_MASK',  chance:0.90, quantity:[2,4]},
       {itemId:'STEEL_SWORD',  chance:0.25, quantity:[1,1]},
       {itemId:'VENOM_FANG',   chance:0.15, quantity:[1,1]},
       {itemId:'SHADOW_CHAIN',chance:0.20,quantity:[1,1]},
@@ -2216,11 +2502,9 @@ export const QUESTS = {
     duration:35, difficulty:3.5, recommendedPower:250,
     goldReward:{min:500,max:800}, expReward:{min:200,max:320}, rankPointReward:600,
     lootTable:[
-      {itemId:'OGRE_TOOTH',   chance:0.50, quantity:[1,2]},
       {itemId:'MYTHRIL_BLADE',chance:0.15, quantity:[1,1]},
       {itemId:'TEMPLAR_PLATE', chance:0.20, quantity:[1,1]},
       {itemId:'POWER_STONE',  chance:0.20, quantity:[1,1]},
-      {itemId:'MANA_CRYSTAL', chance:0.40, quantity:[2,4]},
     ],
     requiredGuildRank:'C', isRepeatable:true,
     narratives:{
@@ -2237,7 +2521,6 @@ export const QUESTS = {
     duration:40, difficulty:4.0, recommendedPower:300,
     goldReward:{min:700,max:1100}, expReward:{min:250,max:400}, rankPointReward:800,
     lootTable:[
-      {itemId:'MANA_CRYSTAL',  chance:0.60, quantity:[2,5]},
       {itemId:'MYTHRIL_BLADE', chance:0.18, quantity:[1,1]},
       {itemId:'SHADOW_EDGE',   chance:0.12, quantity:[1,1]},
       {itemId:'STORMREND_BOW', chance:0.12, quantity:[1,1]},
@@ -2259,10 +2542,8 @@ export const QUESTS = {
     duration:45, difficulty:6.0, recommendedPower:500,
     goldReward:{min:1500,max:2500}, expReward:{min:500,max:800}, rankPointReward:1500,
     lootTable:[
-      {itemId:'DRAGON_SCALE',  chance:0.80, quantity:[1,3]},
       {itemId:'MYTHRIL_PLATE',chance:0.20,quantity:[1,1]},
       {itemId:'MYTHRIL_BLADE', chance:0.20, quantity:[1,1]},
-      {itemId:'MANA_CRYSTAL',  chance:0.70, quantity:[3,6]},
     ],
     requiredGuildRank:'B', isRepeatable:true,
     narratives:{
@@ -2279,8 +2560,6 @@ export const QUESTS = {
     duration:50, difficulty:10.0, recommendedPower:900,
     goldReward:{min:5000,max:8000}, expReward:{min:1200,max:2000}, rankPointReward:3500,
     lootTable:[
-      {itemId:'DRAGON_SCALE',  chance:0.60, quantity:[2,5]},
-      {itemId:'MANA_CRYSTAL',  chance:0.90, quantity:[5,10]},
       {itemId:'MYTHRIL_BLADE', chance:0.30, quantity:[1,1]},
       {itemId:'MYTHRIL_PLATE',chance:0.30,quantity:[1,1]},
     ],
@@ -2298,10 +2577,7 @@ export const QUESTS = {
     enemies: ['Demon Elite Guard', 'Arch-Demon', 'The Demon King'],
     duration:60, difficulty:18.0, recommendedPower:1800,
     goldReward:{min:20000,max:30000}, expReward:{min:5000,max:8000}, rankPointReward:10000,
-    lootTable:[
-      {itemId:'DRAGON_SCALE',  chance:1.0, quantity:[5,10]},
-      {itemId:'MANA_CRYSTAL',  chance:1.0, quantity:[10,20]},
-    ],
+    lootTable:[],
     requiredGuildRank:'S', isRepeatable:true,
     narratives:{
       success:["The Demon King fell. The prophecy is fulfilled. You are no longer just adventurers — you are legends.",

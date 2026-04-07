@@ -1102,6 +1102,250 @@ export const SKILLS = {
     icon: '🕊', effects: { defBonus: 0.30, healBonus: 0.35, magBonus: 0.15 }, procChance: 0.55,
     narrative: 'channels Grace Eternal!',
   },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ██ CELESTIAL EQUIPMENT PROCS — God-tier set bonuses ████████████████████
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // ── HERO "Ascendant" Set Procs ──────────────────────────────────────────
+  CEL_ASCENDANT_WRATH: {
+    id: 'CEL_ASCENDANT_WRATH', name: 'Ascendant Wrath', type: 'active', source: 'equipment',
+    itemId: 'CEL_DAWNBREAKER', unlockLevel: null,
+    description: 'Dawnbreaker erupts with the fury of the first sunrise, dealing catastrophic radiant damage.',
+    icon: '🌅', effects: { atkBonus: 0.40, critChance: 0.25, powerMultiplier: 1.8 }, procChance: 0.55,
+    narrative: 'unleashes Ascendant Wrath — Dawnbreaker blazes with the fury of the first sunrise!',
+  },
+  CEL_ASCENDANT_AEGIS: {
+    id: 'CEL_ASCENDANT_AEGIS', name: 'Ascendant Aegis', type: 'active', source: 'equipment',
+    itemId: 'CEL_ASCENDANT_PLATE', unlockLevel: null,
+    description: 'The Ascendant Plate channels divine light, creating an impervious barrier.',
+    icon: '✨', effects: { defBonus: 0.50, maxHpBonus: 0.30 }, procChance: 0.50,
+    narrative: 'activates the Ascendant Aegis — divine light forms an impervious barrier!',
+  },
+  CEL_ASCENDANT_RALLY: {
+    id: 'CEL_ASCENDANT_RALLY', name: 'Ascendant Rally', type: 'active', source: 'equipment',
+    itemId: 'CEL_ASCENDANT_WARD', unlockLevel: null,
+    description: 'The Ascendant Ward radiates courage, pushing every ally beyond their limits.',
+    icon: '🏴', effects: { partyAtkBonus: 0.20, partyDefBonus: 0.15, partySpdBonus: 0.10 }, procChance: 0.45,
+    narrative: 'raises the Ascendant Ward — the entire party surges with divine courage!',
+  },
+  CEL_DESTINY_AURA: {
+    id: 'CEL_DESTINY_AURA', name: "Destiny's Mantle", type: 'passive', source: 'equipment',
+    itemId: 'CEL_CROWN_OF_THE_CHOSEN', unlockLevel: null,
+    description: 'The Crown of the Chosen bathes the hero in the light of destiny, elevating all abilities.',
+    icon: '👑', effects: { atkBonus: 0.20, defBonus: 0.20, spdBonus: 0.20, magBonus: 0.15, lckBonus: 0.20, maxHpBonus: 0.15 }, procChance: 1.0,
+    narrative: null,
+  },
+
+  // ── KNIGHT "Eternal Bastion" Set Procs ─────────────────────────────────
+  CEL_BASTION_SMITE: {
+    id: 'CEL_BASTION_SMITE', name: 'Bastion Smite', type: 'active', source: 'equipment',
+    itemId: 'CEL_OATHSWORN', unlockLevel: null,
+    description: 'Oathsworn channels the weight of an unbreakable vow into a devastating strike.',
+    icon: '⚔', effects: { atkBonus: 0.35, defBonus: 0.20, powerMultiplier: 1.6 }, procChance: 0.55,
+    narrative: 'delivers the Bastion Smite — Oathsworn strikes with the weight of an eternal vow!',
+  },
+  CEL_BASTION_FORTRESS: {
+    id: 'CEL_BASTION_FORTRESS', name: 'Living Fortress', type: 'active', source: 'equipment',
+    itemId: 'CEL_ETERNAL_BASTION', unlockLevel: null,
+    description: 'The Eternal Bastion hardens to a substance beyond diamond, absorbing all punishment.',
+    icon: '🏰', effects: { defBonus: 0.60, maxHpBonus: 0.40 }, procChance: 0.50,
+    narrative: 'becomes a Living Fortress — the Eternal Bastion absorbs catastrophic punishment!',
+  },
+  CEL_BASTION_WARD: {
+    id: 'CEL_BASTION_WARD', name: 'Infinite Aegis', type: 'active', source: 'equipment',
+    itemId: 'CEL_INFINITUM_SHIELD', unlockLevel: null,
+    description: 'The Infinitum Shield extends its protection across all allies simultaneously.',
+    icon: '🛡', effects: { partyDefBonus: 0.25, partyHpBonus: 0.15 }, procChance: 0.45,
+    narrative: 'raises the Infinite Aegis — the Infinitum Shield extends divine protection to all allies!',
+  },
+  CEL_IMMOVABLE_AURA: {
+    id: 'CEL_IMMOVABLE_AURA', name: 'The Immovable', type: 'passive', source: 'equipment',
+    itemId: 'CEL_SENTINELS_ETERNITY', unlockLevel: null,
+    description: "The Sentinel's Eternity makes the wearer an immovable anchor of divine protection.",
+    icon: '⛰', effects: { defBonus: 0.30, maxHpBonus: 0.25, partyDefBonus: 0.10 }, procChance: 1.0,
+    narrative: null,
+  },
+
+  // ── MAGE "Arcanum Infinitum" Set Procs ─────────────────────────────────
+  CEL_ARCANUM_CATACLYSM: {
+    id: 'CEL_ARCANUM_CATACLYSM', name: 'Arcane Cataclysm', type: 'active', source: 'equipment',
+    itemId: 'CEL_INFINITY_STAFF', unlockLevel: null,
+    description: 'The Infinity Staff tears open reality itself, unleashing a cataclysm of pure arcane energy.',
+    icon: '💥', effects: { magBonus: 0.45, critChance: 0.20, powerMultiplier: 2.0 }, procChance: 0.55,
+    narrative: 'channels Arcane Cataclysm — the Infinity Staff tears reality apart with impossible power!',
+  },
+  CEL_VOID_BARRIER: {
+    id: 'CEL_VOID_BARRIER', name: 'Void Barrier', type: 'active', source: 'equipment',
+    itemId: 'CEL_ROBES_OF_THE_VOID', unlockLevel: null,
+    description: 'The Robes of the Void redirect all incoming damage through a dimensional rift.',
+    icon: '🌀', effects: { defBonus: 0.40, magBonus: 0.30 }, procChance: 0.50,
+    narrative: 'activates the Void Barrier — attacks phase through into nothingness!',
+  },
+  CEL_ARCANUM_RESONANCE: {
+    id: 'CEL_ARCANUM_RESONANCE', name: 'Arcanum Resonance', type: 'active', source: 'equipment',
+    itemId: 'CEL_SINGULARITY_ORB', unlockLevel: null,
+    description: 'The Singularity Orb amplifies all magical energy nearby to devastating levels.',
+    icon: '🔮', effects: { partyMagBonus: 0.25, partyLckBonus: 0.10 }, procChance: 0.45,
+    narrative: 'pulses with Arcanum Resonance — the Singularity Orb amplifies all magic nearby!',
+  },
+  CEL_OMNISCIENCE_AURA: {
+    id: 'CEL_OMNISCIENCE_AURA', name: 'Omniscience', type: 'passive', source: 'equipment',
+    itemId: 'CEL_DIADEM_OF_OMNISCIENCE', unlockLevel: null,
+    description: 'The Diadem reveals all futures. Spells are cast with perfect foresight.',
+    icon: '👁', effects: { magBonus: 0.25, spdBonus: 0.20, critChance: 0.18, lckBonus: 0.15 }, procChance: 1.0,
+    narrative: null,
+  },
+
+  // ── ROGUE "Voidwalker" Set Procs ───────────────────────────────────────
+  CEL_VOIDWALKER_STRIKE: {
+    id: 'CEL_VOIDWALKER_STRIKE', name: 'Voidwalker Strike', type: 'active', source: 'equipment',
+    itemId: 'CEL_VOIDFANG', unlockLevel: null,
+    description: 'Voidfang phases through all defenses, striking directly at the target\'s essence.',
+    icon: '🗡', effects: { atkBonus: 0.35, critChance: 0.30, powerMultiplier: 1.9 }, procChance: 0.60,
+    narrative: 'executes the Voidwalker Strike — Voidfang phases through armor and strikes the soul!',
+  },
+  CEL_PHASE_SHIFT: {
+    id: 'CEL_PHASE_SHIFT', name: 'Phase Shift', type: 'active', source: 'equipment',
+    itemId: 'CEL_WRAITHWEAVE', unlockLevel: null,
+    description: 'Wraithweave shifts the rogue between dimensions, making them temporarily untouchable.',
+    icon: '👻', effects: { spdBonus: 0.45, defBonus: 0.35 }, procChance: 0.55,
+    narrative: 'Phase Shifts — flickering between dimensions, completely untouchable!',
+  },
+  CEL_VOID_ECHO: {
+    id: 'CEL_VOID_ECHO', name: 'Void Echo', type: 'active', source: 'equipment',
+    itemId: 'CEL_NULLBLADE', unlockLevel: null,
+    description: 'Nullblade resonates through the void, sharpening every ally\'s senses and reflexes.',
+    icon: '🌑', effects: { partySpdBonus: 0.20, partyLckBonus: 0.15 }, procChance: 0.45,
+    narrative: 'triggers Void Echo — Nullblade\'s resonance sharpens every ally\'s reflexes!',
+  },
+  CEL_SHADOW_DIMENSION: {
+    id: 'CEL_SHADOW_DIMENSION', name: 'Shadow Dimension', type: 'passive', source: 'equipment',
+    itemId: 'CEL_ECLIPSE_PENDANT', unlockLevel: null,
+    description: 'The Eclipse Pendant anchors the rogue partially in the shadow dimension. Always half-invisible.',
+    icon: '🌘', effects: { spdBonus: 0.25, lckBonus: 0.25, critChance: 0.20, atkBonus: 0.10 }, procChance: 1.0,
+    narrative: null,
+  },
+
+  // ── CLERIC "Divine Radiance" Set Procs ─────────────────────────────────
+  CEL_DIVINE_JUDGEMENT: {
+    id: 'CEL_DIVINE_JUDGEMENT', name: 'Divine Judgement', type: 'active', source: 'equipment',
+    itemId: 'CEL_SCEPTER_OF_DAWN', unlockLevel: null,
+    description: 'The Scepter of Dawn channels the wrath of the heavens, passing divine judgement.',
+    icon: '⚡', effects: { magBonus: 0.35, atkBonus: 0.20, powerMultiplier: 1.7 }, procChance: 0.55,
+    narrative: 'calls down Divine Judgement — the Scepter of Dawn sears evil with holy radiance!',
+  },
+  CEL_DIVINE_SHIELD: {
+    id: 'CEL_DIVINE_SHIELD', name: 'Divine Shield', type: 'active', source: 'equipment',
+    itemId: 'CEL_VESTMENTS_OF_GRACE', unlockLevel: null,
+    description: 'The Vestments of Grace form a divine shield that heals as it protects.',
+    icon: '🛐', effects: { defBonus: 0.45, maxHpBonus: 0.35, healBonus: 0.20 }, procChance: 0.50,
+    narrative: 'manifests a Divine Shield — wounds heal as quickly as they are made!',
+  },
+  CEL_MIRACULOUS_BLESSING: {
+    id: 'CEL_MIRACULOUS_BLESSING', name: 'Miraculous Blessing', type: 'active', source: 'equipment',
+    itemId: 'CEL_TOME_OF_MIRACLES', unlockLevel: null,
+    description: 'The Tome of Miracles opens, showering the entire party with divine protection and power.',
+    icon: '📖', effects: { partyDefBonus: 0.20, partyHpBonus: 0.15, partyMagBonus: 0.10 }, procChance: 0.45,
+    narrative: 'opens the Tome and unleashes a Miraculous Blessing — miracles wash over the entire party!',
+  },
+  CEL_RESURRECTION_AURA: {
+    id: 'CEL_RESURRECTION_AURA', name: 'Resurrection Aura', type: 'passive', source: 'equipment',
+    itemId: 'CEL_HALO_OF_THE_BLESSED', unlockLevel: null,
+    description: 'The Halo radiates constant divine energy. The wounded are mended, the weary are restored.',
+    icon: '😇', effects: { magBonus: 0.25, defBonus: 0.20, maxHpBonus: 0.20, healBonus: 0.25 }, procChance: 1.0,
+    narrative: null,
+  },
+
+  // ── RANGER "Starfall" Set Procs ────────────────────────────────────────
+  CEL_CELESTIAL_BARRAGE: {
+    id: 'CEL_CELESTIAL_BARRAGE', name: 'Celestial Barrage', type: 'active', source: 'equipment',
+    itemId: 'CEL_STARFALL_BOW', unlockLevel: null,
+    description: 'The Starfall Bow fires a barrage of star-forged arrows that rain from the heavens.',
+    icon: '🌠', effects: { atkBonus: 0.40, spdBonus: 0.25, powerMultiplier: 1.8 }, procChance: 0.55,
+    narrative: 'unleashes a Celestial Barrage — stars fall from the heavens, each one a devastating arrow!',
+  },
+  CEL_STELLAR_CLOAK: {
+    id: 'CEL_STELLAR_CLOAK', name: 'Stellar Cloak', type: 'active', source: 'equipment',
+    itemId: 'CEL_STARHIDE_MANTLE', unlockLevel: null,
+    description: 'The Starhide Mantle blazes with starlight, deflecting attacks into the void between stars.',
+    icon: '🌟', effects: { defBonus: 0.40, spdBonus: 0.30 }, procChance: 0.50,
+    narrative: 'activates the Stellar Cloak — starlight deflects all attacks into the cosmic void!',
+  },
+  CEL_STARFIRE_VOLLEY: {
+    id: 'CEL_STARFIRE_VOLLEY', name: 'Starfire Volley', type: 'active', source: 'equipment',
+    itemId: 'CEL_CONSTELLATION_QUIVER', unlockLevel: null,
+    description: 'The Constellation Quiver supplies starfire arrows to every ally, raining celestial destruction.',
+    icon: '🎆', effects: { partyAtkBonus: 0.20, partySpdBonus: 0.15 }, procChance: 0.45,
+    narrative: 'fires a Starfire Volley — the Constellation Quiver arms every ally with celestial arrows!',
+  },
+  CEL_NORTH_STAR_AURA: {
+    id: 'CEL_NORTH_STAR_AURA', name: 'North Star', type: 'passive', source: 'equipment',
+    itemId: 'CEL_POLARIS_PENDANT', unlockLevel: null,
+    description: 'Guided by the North Star. Every shot finds its mark. Every step finds its path.',
+    icon: '⭐', effects: { atkBonus: 0.25, spdBonus: 0.20, lckBonus: 0.20, critChance: 0.15 }, procChance: 1.0,
+    narrative: null,
+  },
+
+  // ── BARD "Harmony of Spheres" Set Procs ────────────────────────────────
+  CEL_SONG_OF_CREATION: {
+    id: 'CEL_SONG_OF_CREATION', name: 'Song of Creation', type: 'active', source: 'equipment',
+    itemId: 'CEL_LYRE_OF_CREATION', unlockLevel: null,
+    description: 'The Lyre plays the melody that created the universe. Reality reshapes at its command.',
+    icon: '🎵', effects: { magBonus: 0.30, lckBonus: 0.25, powerMultiplier: 1.7 }, procChance: 0.55,
+    narrative: 'plays the Song of Creation — the melody that birthed the universe reshapes the battlefield!',
+  },
+  CEL_COSMIC_HARMONY: {
+    id: 'CEL_COSMIC_HARMONY', name: 'Cosmic Harmony', type: 'active', source: 'equipment',
+    itemId: 'CEL_VESTMENTS_OF_COSMOS', unlockLevel: null,
+    description: 'The cosmos harmonizes around the wearer, turning all discord into protection.',
+    icon: '🪐', effects: { defBonus: 0.35, magBonus: 0.30 }, procChance: 0.50,
+    narrative: 'enters Cosmic Harmony — the fabric of the cosmos shields against all harm!',
+  },
+  CEL_RHYTHM_OF_WORLDS: {
+    id: 'CEL_RHYTHM_OF_WORLDS', name: 'Rhythm of Worlds', type: 'active', source: 'equipment',
+    itemId: 'CEL_DRUM_OF_ETERNITY', unlockLevel: null,
+    description: 'The Drum beats with the heartbeat of infinite worlds, synchronizing and empowering all allies.',
+    icon: '🥁', effects: { partyAtkBonus: 0.15, partyDefBonus: 0.15, partyMagBonus: 0.15, partySpdBonus: 0.15 }, procChance: 0.45,
+    narrative: 'strikes the Rhythm of Worlds — the heartbeat of infinite worlds empowers every ally!',
+  },
+  CEL_SYMPHONY_AURA: {
+    id: 'CEL_SYMPHONY_AURA', name: 'Eternal Symphony', type: 'passive', source: 'equipment',
+    itemId: 'CEL_MAESTROS_SIGNET', unlockLevel: null,
+    description: 'The grand symphony plays eternally. All who hear it are elevated beyond mortal limits.',
+    icon: '🎶', effects: { magBonus: 0.18, lckBonus: 0.22, spdBonus: 0.18, atkBonus: 0.10, defBonus: 0.10, partyLckBonus: 0.12 }, procChance: 1.0,
+    narrative: null,
+  },
+
+  // ── MONK "Transcendence" Set Procs ─────────────────────────────────────
+  CEL_TRANSCENDENT_STRIKE: {
+    id: 'CEL_TRANSCENDENT_STRIKE', name: 'Transcendent Strike', type: 'active', source: 'equipment',
+    itemId: 'CEL_FISTS_OF_NIRVANA', unlockLevel: null,
+    description: 'The Fists of Nirvana strike with the accumulated weight of ten thousand years of meditation.',
+    icon: '👊', effects: { atkBonus: 0.40, spdBonus: 0.25, powerMultiplier: 1.9 }, procChance: 0.60,
+    narrative: 'delivers the Transcendent Strike — fists blur with the speed and weight of enlightenment!',
+  },
+  CEL_ABSOLUTE_FLOW: {
+    id: 'CEL_ABSOLUTE_FLOW', name: 'Absolute Flow', type: 'active', source: 'equipment',
+    itemId: 'CEL_GI_OF_THE_ABSOLUTE', unlockLevel: null,
+    description: 'The Gi of the Absolute allows the monk to flow around every attack with perfect precision.',
+    icon: '🌊', effects: { defBonus: 0.40, spdBonus: 0.35 }, procChance: 0.50,
+    narrative: 'enters Absolute Flow — moving like water, bending around every attack with impossible grace!',
+  },
+  CEL_INFINITE_PALM: {
+    id: 'CEL_INFINITE_PALM', name: 'Infinite Palm', type: 'active', source: 'equipment',
+    itemId: 'CEL_PALM_OF_THE_INFINITE', unlockLevel: null,
+    description: 'The Palm radiates chi across the battlefield, quickening and strengthening every ally.',
+    icon: '🤲', effects: { partySpdBonus: 0.20, partyAtkBonus: 0.15, partyDefBonus: 0.10 }, procChance: 0.45,
+    narrative: 'opens the Infinite Palm — chi radiates outward, quickening and empowering every ally!',
+  },
+  CEL_NIRVANA_AURA: {
+    id: 'CEL_NIRVANA_AURA', name: 'Nirvana', type: 'passive', source: 'equipment',
+    itemId: 'CEL_CHAKRA_OF_ENLIGHTENMENT', unlockLevel: null,
+    description: 'True enlightenment achieved. Body, mind, and spirit in absolute harmony.',
+    icon: '☯', effects: { atkBonus: 0.20, defBonus: 0.20, spdBonus: 0.20, maxHpBonus: 0.15 }, procChance: 1.0,
+    narrative: null,
+  },
 };
 
 // ══════════════════════════════════════════════════════════════════════════════

@@ -487,6 +487,11 @@ const Game = (() => {
     const loot = [];
     if (success) {
       for (const entry of questDef.lootTable) {
+        // Guaranteed drops (chance === 1.0) always drop — skip RNG entirely
+        if (entry.chance >= 1.0) {
+          loot.push({ itemId: entry.itemId, quantity: randInt(entry.quantity[0], entry.quantity[1]) });
+          continue;
+        }
         const lootRatio = Math.min(ratio, 3.0);
         const baseChance = entry.chance * (0.7 + lootRatio * 0.3) + luckBonus * 0.02;
         const chance = Math.min(0.95, baseChance * (1 + itemFindBonus) * questRarityMult);
