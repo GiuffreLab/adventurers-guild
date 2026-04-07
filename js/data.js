@@ -235,10 +235,10 @@ export const EQUIPMENT = {
     desc: 'A sacred blade that protects those who wield it with honor.'
   },
 
-  // === 2-HANDED SWORDS ===
+  // === 2-HANDED SWORDS (Hero only — Hero trades shield for raw power) ===
   BLUNT_SHIV: {
     id: 'BLUNT_SHIV',
-    name: 'Blunt Shiv',
+    name: 'Rusty Greatsword',
     slot: 'weapon',
     tier: 1,
     rarity: 'common',
@@ -248,7 +248,7 @@ export const EQUIPMENT = {
     buyPrice: 16,
     shopMinRank: 'F',
     twoHanded: true,
-    desc: 'A crude two-handed club, blunt but effective.'
+    desc: 'A heavy, rust-pitted greatsword that requires both hands to swing.'
   },
   IRON_GREATSWORD: {
     id: 'IRON_GREATSWORD',
@@ -307,6 +307,144 @@ export const EQUIPMENT = {
     twoHanded: true,
     grantedSkill: 'WORLD_CLEAVE',
     desc: 'The sword of the apocalypse, prophesied to split the world.'
+  },
+
+  // === FLAILS (Knight offensive 1H — pairs with shield) ===
+  RUSTY_FLAIL: {
+    id: 'RUSTY_FLAIL',
+    name: 'Rusty Flail',
+    slot: 'weapon',
+    tier: 1,
+    rarity: 'common',
+    classReq: ['KNIGHT'],
+    statBonus: { atk: 4, def: 1 },
+    sellPrice: 5,
+    buyPrice: 16,
+    shopMinRank: 'F',
+    desc: 'A crude iron ball on a chain, unwieldy but punishing.'
+  },
+  IRON_FLAIL: {
+    id: 'IRON_FLAIL',
+    name: 'Iron Flail',
+    slot: 'weapon',
+    tier: 2,
+    rarity: 'magic',
+    classReq: ['KNIGHT'],
+    statBonus: { atk: 12, def: 3, maxHp: 8 },
+    sellPrice: 36,
+    buyPrice: 90,
+    shopMinRank: 'E',
+    desc: 'A sturdy iron flail that strikes with crushing force.'
+  },
+  STEEL_FLAIL: {
+    id: 'STEEL_FLAIL',
+    name: 'Steel Flail',
+    slot: 'weapon',
+    tier: 3,
+    rarity: 'rare',
+    classReq: ['KNIGHT'],
+    statBonus: { atk: 20, def: 5, maxHp: 12, crit: 2 },
+    sellPrice: 95,
+    buyPrice: 240,
+    shopMinRank: 'D',
+    desc: 'A well-crafted steel flail with devastating impact.'
+  },
+  TEMPLARS_FLAIL: {
+    id: 'TEMPLARS_FLAIL',
+    name: "Templar's Flail",
+    slot: 'weapon',
+    tier: 4,
+    rarity: 'epic',
+    classReq: ['KNIGHT'],
+    statBonus: { atk: 34, def: 8, maxHp: 20, crit: 4, spd: 3 },
+    sellPrice: 250,
+    buyPrice: 620,
+    shopMinRank: 'C',
+    grantedSkill: 'HOLY_SMITE',
+    desc: 'A holy warrior\'s flail, blessed to smite the unrighteous.'
+  },
+  JUDGEMENT: {
+    id: 'JUDGEMENT',
+    name: 'Judgement',
+    slot: 'weapon',
+    tier: 5,
+    rarity: 'legendary',
+    classReq: ['KNIGHT'],
+    statBonus: { atk: 48, def: 12, maxHp: 30, crit: 8, spd: 5 },
+    sellPrice: 880,
+    buyPrice: 2200,
+    shopMinRank: 'B',
+    grantedSkill: 'DIVINE_JUDGEMENT',
+    desc: 'The legendary flail of divine judgement, feared by all who oppose the light.'
+  },
+
+  // === MACES (Knight defensive 1H — pairs with shield) ===
+  WOODEN_MACE: {
+    id: 'WOODEN_MACE',
+    name: 'Wooden Mace',
+    slot: 'weapon',
+    tier: 1,
+    rarity: 'common',
+    classReq: ['KNIGHT'],
+    statBonus: { atk: 2, def: 3 },
+    sellPrice: 5,
+    buyPrice: 16,
+    shopMinRank: 'F',
+    desc: 'A simple club reinforced with iron bands, favored by watchmen.'
+  },
+  IRON_MACE: {
+    id: 'IRON_MACE',
+    name: 'Iron Mace',
+    slot: 'weapon',
+    tier: 2,
+    rarity: 'magic',
+    classReq: ['KNIGHT'],
+    statBonus: { atk: 8, def: 6, maxHp: 15 },
+    sellPrice: 36,
+    buyPrice: 90,
+    shopMinRank: 'E',
+    desc: 'A solid iron mace favored by temple guardians.'
+  },
+  STEEL_MACE: {
+    id: 'STEEL_MACE',
+    name: 'Steel Mace',
+    slot: 'weapon',
+    tier: 3,
+    rarity: 'rare',
+    classReq: ['KNIGHT'],
+    statBonus: { atk: 14, def: 10, maxHp: 22, lck: 2 },
+    sellPrice: 95,
+    buyPrice: 240,
+    shopMinRank: 'D',
+    desc: 'A heavy steel mace that punishes any who challenge its wielder.'
+  },
+  BLESSED_MACE: {
+    id: 'BLESSED_MACE',
+    name: 'Blessed Mace',
+    slot: 'weapon',
+    tier: 4,
+    rarity: 'epic',
+    classReq: ['KNIGHT'],
+    statBonus: { atk: 24, def: 14, maxHp: 35, lck: 4, crit: 3 },
+    sellPrice: 250,
+    buyPrice: 620,
+    shopMinRank: 'C',
+    grantedSkill: 'GUARDIAN_AURA',
+    desc: 'A mace anointed with holy oils, radiating protective light.'
+  },
+  SANCTUM_HAMMER: {
+    id: 'SANCTUM_HAMMER',
+    name: 'Sanctum Hammer',
+    slot: 'weapon',
+    tier: 5,
+    rarity: 'legendary',
+    classReq: ['KNIGHT'],
+    statBonus: { atk: 36, def: 20, maxHp: 50, lck: 8, crit: 5 },
+    sellPrice: 880,
+    buyPrice: 2200,
+    shopMinRank: 'B',
+    grantedSkill: 'SANCTUM_BARRIER',
+    desc: 'The sacred hammer of the high temple, an unbreakable bastion of faith.'
   },
 
   // === DAGGERS ===
@@ -613,7 +751,7 @@ export const EQUIPMENT = {
     slot: 'weapon',
     tier: 1,
     rarity: 'common',
-    classReq: ['MAGE', 'CLERIC', 'BARD'],
+    classReq: ['MAGE', 'CLERIC'],
     statBonus: { mag: 4, spd: 1 },
     sellPrice: 5,
     buyPrice: 18,
