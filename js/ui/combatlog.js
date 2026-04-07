@@ -480,6 +480,27 @@ function buildSimulation(aq, quest) {
     }
   }
 
+  // ── Per-member active skill pools & cooldowns (round-robin) ──
+  // Filter out passives so only real combat actions get picked.
+  // After a skill fires, it goes on a short cooldown to force variety.
+  const SKILL_COOLDOWN = 2; // rounds before a skill can be used again
+  const memberActiveSkills = {}; // { memberId: [skillId, ...] }  — only active (non-passive) skills
+  const skillCooldowns = {};     // { memberId: { skillId: roundsRemaining } }
+  for (const m of members) {
+    const memberData = Game.getMember(m.id);
+    const allSkills = memberData && memberData.skills ? memberData.skills : [];
+    // Only include skills that are actual active abilities (have procChance < 1 or are not passive)
+    const actives = allSkills.filter(sid => {
+      const sk = getSkill(sid);
+      if (!sk) return false;
+      // Passive skills (procChance 1.0 and no damage-like effects) are always-on buffs
+      if (sk.type === 'passive' || sk.procChance >= 1.0) return false;
+      return true;
+    });
+    memberActiveSkills[m.id] = actives.length > 0 ? actives : allSkills.slice(0, 3); // fallback to first few if no actives
+    skillCooldowns[m.id] = {};
+  }
+
   // Live buff state — passed to snapshots so UI can render indicators
   const _bufState = {
     regenPerTick: 0, coverCooldowns, knightsWithCover,
@@ -535,6 +556,14 @@ function buildSimulation(aq, quest) {
     for (const id of Object.keys(markedEnemies)) {
       if (markedEnemies[id] > 0) markedEnemies[id]--;
       if (markedEnemies[id] <= 0) delete markedEnemies[id];
+    }
+    // Tick down skill cooldowns (round-robin)
+    for (const mid of Object.keys(skillCooldowns)) {
+      const cds = skillCooldowns[mid];
+      for (const sid of Object.keys(cds)) {
+        if (cds[sid] > 0) cds[sid]--;
+        if (cds[sid] <= 0) delete cds[sid];
+      }
     }
     // Tick down Spell Echo durations
     for (const id of Object.keys(spellEchoRounds)) {
@@ -619,14 +648,21 @@ function buildSimulation(aq, quest) {
       }
 
     } else if (roll < 0.50) {
-      // ── Party skill usage ──
+      // ── Party skill usage (round-robin with cooldowns) ──
       const attacker = sPickWeighted(livingParty, es + 20);
       const target = sPick(livingEnemies, es + 21);
-      const memberData = Game.getMember(attacker.id);
-      const skills = memberData ? memberData.skills : [];
-      if (skills.length > 0) {
-        const skillId = sPick(skills, es + 22);
+      // Get active skills not on cooldown for this member
+      const allActives = memberActiveSkills[attacker.id] || [];
+      const cds = skillCooldowns[attacker.id] || {};
+      const readySkills = allActives.filter(sid => !cds[sid]);
+      // If all on cooldown, allow any active (reset effective cooldowns)
+      const skillPool = readySkills.length > 0 ? readySkills : allActives;
+      if (skillPool.length > 0) {
+        const skillId = sPick(skillPool, es + 22);
         const skill = getSkill(skillId);
+        // Put the used skill on cooldown
+        if (!skillCooldowns[attacker.id]) skillCooldowns[attacker.id] = {};
+        skillCooldowns[attacker.id][skillId] = SKILL_COOLDOWN;
         if (skill) {
           // ── Ranger Volley: AoE all enemies ──
           if (skillId === 'VOLLEY' && rangersWithVolley.has(attacker.id)) {
