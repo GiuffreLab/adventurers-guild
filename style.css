@@ -1118,6 +1118,22 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   padding: 4px 0; margin: 2px 0;
 }
 
+/* ── Battle Highlights ──────────────────────────────────────────────── */
+.highlight-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; margin: 2px 0;
+  border-radius: 6px; font-size: 0.85rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+.highlight-row:nth-child(even) { background: rgba(255, 255, 255, 0.06); }
+.highlight-icon { font-size: 1.1rem; flex-shrink: 0; width: 22px; text-align: center; }
+.highlight-label {
+  color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase;
+  letter-spacing: 0.04em; width: 100px; flex-shrink: 0;
+}
+.highlight-value { color: var(--text); flex: 1; }
+.highlight-value strong { color: var(--gold); }
+
 /* ── Active Quest Scene ──────────────────────────────────────────────── */
 
 .aq-scene {

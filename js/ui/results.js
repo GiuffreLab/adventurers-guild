@@ -215,16 +215,126 @@ export function showResultsModal() {
     </div>
   ` : '';
 
-  const skillActivationHtml = result.activatedSkills && result.activatedSkills.length > 0
-    ? `<div class="result-section">
-        <div class="result-section-title">Skills Activated</div>
-        ${result.activatedSkills.map(act => {
-          const skill = getSkill(act.skill.id);
-          const narrative = skill && skill.narrative ? skill.narrative : 'used their skill!';
-          return `<div class="result-skill-activation">${act.skill.icon || '•'} ${act.memberName} ${narrative}</div>`;
-        }).join('')}
-      </div>`
-    : '';
+  // ── Battle Highlights — extracted from combat events ──
+  const highlightsHtml = (() => {
+    const events = pr.combatEvents || [];
+    if (events.length === 0) return '';
+
+    // Parse damage numbers from event text (matches <span class="dmg-num ...">123</span> or plain numbers)
+    function extractDmg(text) {
+      // Try HTML span first
+      const m = text.match(/class="dmg-num[^"]*">\s*(\d[\d,]*)/);
+      if (m) return parseInt(m[1].replace(/,/g, ''), 10);
+      // Fallback: last number in text after a dash or "for"
+      const nums = text.match(/(?:—|for)\s*(\d[\d,]*)/g);
+      if (nums) {
+        const last = nums[nums.length - 1].match(/(\d[\d,]*)/);
+        if (last) return parseInt(last[1].replace(/,/g, ''), 10);
+      }
+      return 0;
+    }
+
+    // Extract name from start of event text (before "attacks", "activates", etc.)
+    function extractName(text) {
+      // Strip HTML tags first
+      const clean = text.replace(/<[^>]+>/g, '');
+      const m = clean.match(/^([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)/);
+      return m ? m[1] : null;
+    }
+
+    let biggestHit = { name: null, dmg: 0, type: '', text: '' };
+    let biggestHeal = { name: null, amt: 0, text: '' };
+    let biggestBlock = { name: null, dmg: 0, text: '' };
+    const kills = {};   // memberName → count
+    const dodges = {};   // memberName → count
+    const crits = {};    // memberName → count
+    let totalDodges = 0;
+    let totalCrits = 0;
+
+    for (const e of events) {
+      const dmg = extractDmg(e.text);
+      const name = extractName(e.text);
+
+      // Biggest single hit (party attacks/skills/crits)
+      if (['attack', 'magic', 'crit', 'skill', 'celestial', 'equip'].includes(e.type) && dmg > biggestHit.dmg) {
+        biggestHit = { name, dmg, type: e.type, text: e.text };
+      }
+
+      // Biggest heal
+      if (e.type === 'heal' && dmg > biggestHeal.amt) {
+        biggestHeal = { name, amt: dmg, text: e.text };
+      }
+
+      // Biggest block (Bulwark intercept)
+      if (e.type === 'cover' && dmg > biggestBlock.dmg) {
+        biggestBlock = { name, dmg, text: e.text };
+      }
+
+      // Kill tracking
+      if (e.type === 'defeat' && name) {
+        // "X delivers the final blow" or "X defeats Y"
+        const clean = e.text.replace(/<[^>]+>/g, '');
+        const killer = clean.match(/([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\s+(?:delivers|defeats|strikes)/);
+        if (killer) kills[killer[1]] = (kills[killer[1]] || 0) + 1;
+      }
+
+      // Dodge tracking
+      if (e.type === 'dodge') {
+        totalDodges++;
+        if (name) dodges[name] = (dodges[name] || 0) + 1;
+      }
+
+      // Crit tracking
+      if (e.type === 'crit') {
+        totalCrits++;
+        if (name) crits[name] = (crits[name] || 0) + 1;
+      }
+    }
+
+    const highlights = [];
+
+    if (biggestHit.dmg > 0) {
+      const critTag = biggestHit.type === 'crit' ? ' CRIT' : '';
+      highlights.push(`<div class="highlight-row"><span class="highlight-icon">💥</span><span class="highlight-label">Biggest Hit</span><span class="highlight-value">${biggestHit.name} — <strong>${biggestHit.dmg}${critTag}</strong></span></div>`);
+    }
+
+    if (biggestHeal.amt > 0) {
+      highlights.push(`<div class="highlight-row"><span class="highlight-icon">💚</span><span class="highlight-label">Biggest Heal</span><span class="highlight-value">${biggestHeal.name} — <strong>+${biggestHeal.amt} HP</strong></span></div>`);
+    }
+
+    if (biggestBlock.dmg > 0) {
+      highlights.push(`<div class="highlight-row"><span class="highlight-icon">🛡</span><span class="highlight-label">Biggest Block</span><span class="highlight-value">${biggestBlock.name} — <strong>${biggestBlock.dmg} absorbed</strong></span></div>`);
+    }
+
+    // Top killer
+    const topKiller = Object.entries(kills).sort((a, b) => b[1] - a[1])[0];
+    if (topKiller && topKiller[1] > 0) {
+      highlights.push(`<div class="highlight-row"><span class="highlight-icon">☠</span><span class="highlight-label">Most Kills</span><span class="highlight-value">${topKiller[0]} — <strong>${topKiller[1]} kills</strong></span></div>`);
+    }
+
+    // Top critter
+    if (totalCrits > 0) {
+      const topCrit = Object.entries(crits).sort((a, b) => b[1] - a[1])[0];
+      if (topCrit) {
+        highlights.push(`<div class="highlight-row"><span class="highlight-icon">⚡</span><span class="highlight-label">Crit Machine</span><span class="highlight-value">${topCrit[0]} — <strong>${topCrit[1]} crits</strong></span></div>`);
+      }
+    }
+
+    // Dodges
+    if (totalDodges > 0) {
+      const topDodge = Object.entries(dodges).sort((a, b) => b[1] - a[1])[0];
+      if (topDodge) {
+        highlights.push(`<div class="highlight-row"><span class="highlight-icon">💨</span><span class="highlight-label">Untouchable</span><span class="highlight-value">${topDodge[0]} — <strong>${topDodge[1]} dodge${topDodge[1] > 1 ? 's' : ''}</strong></span></div>`);
+      }
+    }
+
+    if (highlights.length === 0) return '';
+
+    return `<div class="result-section">
+      <div class="result-section-title">Battle Highlights</div>
+      ${highlights.join('')}
+    </div>`;
+  })();
 
   // Combat stats section
   const combatStatsHtml = combatStats && combatStats.length > 0 ? (() => {
@@ -293,7 +403,7 @@ export function showResultsModal() {
       Party Power: <strong style="color:${powerColor}">${result.partyPower}</strong> vs Quest: ${result.questPower} (${powerPct}%)
     </div>
     ${secretBossHtml}
-    ${skillActivationHtml}
+    ${highlightsHtml}
     ${combatStatsHtml}
     ${rewardsHtml}
     ${levelUpHtml}
