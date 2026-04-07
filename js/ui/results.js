@@ -1,7 +1,6 @@
 import Game from '../game.js';
 import { getItem, getItemRarity, CLASSES, EQUIPMENT } from '../data.js';
 import { getSkill, SKILLS } from '../skills.js';
-import { generateCombatLog, getCombatStats } from './combatlog.js';
 
 function formatLootEntry(d) {
   const item = getItem(d.itemId);
@@ -92,20 +91,28 @@ function formatFightLog() {
     lines.push('── SKILL ACTIVATIONS (Power Roll) ────────');
     for (const act of result.activatedSkills) {
       const sk = act.skill;
-      lines.push(`  ${sk.icon || '•'} ${act.memberName}: ${sk.name} — ×${sk.effects?.powerMultiplier?.toFixed(1) || '?'} power mult`);
+      const effectParts = [];
+      if (sk.effects) {
+        for (const [key, val] of Object.entries(sk.effects)) {
+          if (key === 'powerMultiplier') effectParts.push(`×${val} power`);
+          else if (typeof val === 'number') effectParts.push(`${key}: ${val >= 1 ? val : (val > 0 ? '+' + Math.round(val * 100) + '%' : val)}`);
+        }
+      }
+      const effectStr = effectParts.length > 0 ? effectParts.join(', ') : 'passive';
+      const sourceSkill = getSkill(sk.id);
+      const src = sourceSkill?.source || '?';
+      lines.push(`  ${sk.icon || '•'} ${act.memberName}: ${sk.name} [${src}] — ${effectStr}`);
     }
     lines.push('');
   }
 
-  // Full combat event log (text-only, stripped of HTML)
-  const events = generateCombatLog();
+  // Full combat event log (cached from sim before quest resolved)
+  const events = pr.combatEvents || [];
   if (events.length > 0) {
     lines.push('── FULL COMBAT LOG ───────────────────────');
     for (let i = 0; i < events.length; i++) {
       const e = events[i];
-      // Strip HTML tags for clean text
-      const clean = e.text.replace(/<[^>]+>/g, '').replace(/&[a-z]+;/g, ' ');
-      lines.push(`  [${String(i+1).padStart(3)}] ${e.icon} (${e.type.padEnd(10)}) ${clean}`);
+      lines.push(`  [${String(i+1).padStart(3)}] ${e.icon} (${e.type.padEnd(10)}) ${e.text}`);
     }
     lines.push('');
   }
@@ -156,7 +163,7 @@ function formatFightLog() {
   lines.push('');
   lines.push('═══════════════════════════════════════════');
   lines.push(`Exported at: ${new Date().toLocaleString()}`);
-  lines.push(`Guild Rank: ${s.guild.rank}  |  Gold: ${s.guild.gold}g`);
+  lines.push(`Guild Rank: ${s.guild.rank}  |  Gold: ${s.gold}g`);
   lines.push('═══════════════════════════════════════════');
 
   return lines.join('\n');

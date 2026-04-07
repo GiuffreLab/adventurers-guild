@@ -1038,6 +1038,17 @@ export function getCombatStats() {
   return Object.values(sim.combatStats);
 }
 
+// Get all simulation events (call before resetCombatLog to capture for export)
+export function getSimEvents() {
+  if (!_sim) return [];
+  return _sim.events.map(e => ({
+    text: e.text.replace(/<[^>]+>/g, '').replace(/&[a-z]+;/g, ' '),
+    type: e.type,
+    icon: e.icon,
+    phase: e.phase,
+  }));
+}
+
 export function resetCombatLog() {
   _sim = null;
   _simQuestId = null;

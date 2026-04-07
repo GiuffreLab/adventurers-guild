@@ -11,7 +11,7 @@ import {
   calculatePartyStrength, generateQuestBoard, shouldRefreshBoard,
   getQuestDifficultyTier, BOARD_REFRESH_MS
 } from './questgen.js';
-import { getCombatStats } from './ui/combatlog.js';
+import { getCombatStats, getSimEvents } from './ui/combatlog.js';
 
 const Game = (() => {
 
@@ -1086,13 +1086,14 @@ const Game = (() => {
 
     logEvent(result.success ? `Quest complete: ${quest.title} (+${result.goldEarned}g)` : `Quest failed: ${quest.title}`);
 
-    // Grab combat stats from the simulation before it resets
+    // Grab combat stats and full event log from the simulation before it resets
     const combatStatsData = getCombatStats() || [];
+    const combatEventsData = getSimEvents() || [];
 
     // Add to quest history
     addToHistory(quest, result, levelUps, aq.partySnapshot, combatStatsData);
 
-    state.pendingResults = { quest, result, levelUps, rankUp, synergyUnlocks, skillGains, combatStats: combatStatsData, resolvedAt: Date.now() };
+    state.pendingResults = { quest, result, levelUps, rankUp, synergyUnlocks, skillGains, combatStats: combatStatsData, combatEvents: combatEventsData, resolvedAt: Date.now() };
     state.guild.activeQuest = null;
 
     // Refresh quest board for this rank on completion
