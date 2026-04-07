@@ -82,7 +82,7 @@ export const ITEM_RARITIES = {
   rare:      { id: 'rare',      label: 'Rare',      color: '#f0c060' },
   epic:      { id: 'epic',      label: 'Epic',      color: '#9b59b6' },
   legendary: { id: 'legendary', label: 'Legendary', color: '#e74c3c' },
-  celestial: { id: 'celestial', label: 'Celestial', color: '#ffd700' },
+  celestial: { id: 'celestial', label: 'Celestial', color: '#00e5c8' },
 };
 
 // ── Equipment ─────────────────────────────────────────────────────────────────

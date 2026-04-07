@@ -561,7 +561,7 @@ const Game = (() => {
 
   function refreshShop() {
     const ri = rankIndex(state.guild.rank);
-    const available = Object.values(EQUIPMENT).filter(item => rankIndex(item.shopMinRank) <= ri);
+    const available = Object.values(EQUIPMENT).filter(item => item.rarity !== 'celestial' && item.shopMinRank != null && rankIndex(item.shopMinRank) <= ri);
     if (available.length === 0) { state.shop.stock = []; state.shop.lastRefreshed = Date.now(); return; }
 
     // Weighted random selection — pick 10 items, preferring common/magic
