@@ -4,6 +4,8 @@ A browser-based idle RPG where you manage a guild of adventurers, send them on q
 
 **[Play Now](https://giuffrelab.github.io/adventurers-guild/)**
 
+[![pages-build-deployment](https://github.com/GiuffreLab/adventurers-guild/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/GiuffreLab/adventurers-guild/actions/workflows/pages/pages-build-deployment)
+
 ## How to Play
 
 You start by creating your character — a Hero — and registering with the guild. From there, the game revolves around four main tabs:
