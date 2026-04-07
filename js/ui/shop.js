@@ -70,7 +70,7 @@ export function renderShop() {
           const item = getItem(entry.itemId);
           if (!item) return '';
           const canAfford = s.gold >= entry.price;
-          const bonusStr = Object.entries(item.statBonus || {}).map(([k,v]) => `${v >= 0 ? '+' : ''}${v} ${k.toUpperCase()}`).join(' · ');
+          const bonusStr = Object.entries(item.statBonus || {}).map(([k,v]) => `<span class="${v < 0 ? 'stat-penalty' : 'stat-bonus'}">${v >= 0 ? '+' : ''}${v} ${k.toUpperCase()}</span>`).join(' · ');
           const rarity = getItemRarity(item);
           const classReqStr = item.classReq
             ? item.classReq.map(cid => CLASSES[cid]?.label || cid).join(', ')
@@ -102,7 +102,7 @@ export function renderShop() {
           const item = getItem(e.itemId);
           if (!item) return '';
           const sellPrice = item.sellPrice || Math.floor(item.buyPrice * 0.4);
-          const bonusStr = item.statBonus ? Object.entries(item.statBonus).map(([k,v]) => `${v >= 0 ? '+' : ''}${v} ${k.toUpperCase()}`).join(' · ') : '';
+          const bonusStr = item.statBonus ? Object.entries(item.statBonus).map(([k,v]) => `<span class="${v < 0 ? 'stat-penalty' : 'stat-bonus'}">${v >= 0 ? '+' : ''}${v} ${k.toUpperCase()}</span>`).join(' · ') : '';
           const rarity = getItemRarity(item);
           return `
             <div class="shop-item">

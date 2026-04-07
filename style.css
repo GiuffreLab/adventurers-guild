@@ -456,7 +456,7 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 }
 .equip-item-row:hover { border-color: var(--cyan); background: var(--bg-hover); }
 .equip-item-row-name { flex: 1; font-size: 0.875rem; }
-.equip-item-bonus { font-size: 0.75rem; color: var(--green); }
+.equip-item-bonus { font-size: 0.75rem; }
 .equip-item-qty { font-size: 0.75rem; color: var(--text-dim); }
 
 /* ── Shop Screen ───────────────────────────────────────────────────────── */
@@ -473,7 +473,7 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .shop-item-info { flex: 1; }
 .shop-item-name { font-weight: 600; font-size: 0.9rem; }
 .shop-item-desc { font-size: 0.78rem; color: var(--text-dim); }
-.shop-item-bonus { font-size: 0.78rem; color: var(--green); }
+.shop-item-bonus { font-size: 0.78rem; }
 .shop-item-slot { font-size: 0.7rem; color: var(--cyan); text-transform: uppercase; }
 .shop-item-meta { display: flex; gap: 10px; align-items: center; }
 .shop-item-class-req { font-size: 0.7rem; color: var(--text-muted); }
@@ -914,7 +914,7 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 }
 
 .equip-slot-bonus {
-  font-size: 0.72rem; color: var(--green); white-space: nowrap;
+  font-size: 0.72rem; white-space: nowrap;
 }
 
 .equip-unequip-btn {
@@ -961,7 +961,7 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 
 .equip-picker-item-name { font-size: 0.85rem; font-weight: 600; color: var(--text); }
 .equip-picker-qty { color: var(--text-muted); font-weight: 400; }
-.equip-picker-item-bonus { font-size: 0.75rem; color: var(--green); }
+.equip-picker-item-bonus { font-size: 0.75rem; }
 .equip-picker-item-skill { font-size: 0.72rem; color: var(--purple); margin-top: 3px; }
 .equip-picker-item-desc { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
 
@@ -1016,11 +1016,11 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 }
 
 .stat-bonus {
-  font-size: 0.72rem; color: var(--green); font-weight: 600; margin-left: 4px;
+  color: var(--green); font-weight: 600;
 }
 
 .stat-penalty {
-  font-size: 0.72rem; color: var(--red); font-weight: 600; margin-left: 4px;
+  color: var(--red); font-weight: 600;
 }
 
 /* ── Skills Panel ────────────────────────────────────────────────────── */
