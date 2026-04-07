@@ -61,10 +61,13 @@ export function calculatePartyStrength(playerMember, activeMembers, effectiveSta
   for (const m of activeMembers) {
     total += calculateMemberStrength(m, effectiveStatsFn);
   }
-  // Small synergy bonus for full party
+  // Synergy bonus for larger parties
   const partySize = 1 + activeMembers.length;
   if (partySize >= 3) total = Math.floor(total * 1.05);
   if (partySize >= 4) total = Math.floor(total * 1.03);
+  if (partySize >= 5) total = Math.floor(total * 1.03);
+  if (partySize >= 6) total = Math.floor(total * 1.02);
+  if (partySize >= 7) total = Math.floor(total * 1.02);
   return total;
 }
 

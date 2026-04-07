@@ -18,6 +18,34 @@ const Game = (() => {
   const RANK_THRESHOLDS = { F:1000, E:3000, D:7000, C:15000, B:35000, A:80000, S:null };
   const SHOP_REFRESH_MS = 10 * 60 * 1000;  // 10 minutes
 
+  // ── Party Expansion ───────────────────────────────────────────────────────
+  const BASE_PARTY_SIZE = 4;      // default max active party (including player)
+  const MAX_PARTY_SIZE = 7;       // ultimate max after all expansions
+  const PARTY_EXPANSION_COSTS = [50000, 100000, 150000]; // cost for slots 5, 6, 7
+
+  function getMaxPartySize() {
+    const expansions = state.partyExpansions || 0;
+    return Math.min(BASE_PARTY_SIZE + expansions, MAX_PARTY_SIZE);
+  }
+
+  function getPartyExpansionCost() {
+    const expansions = state.partyExpansions || 0;
+    if (expansions >= PARTY_EXPANSION_COSTS.length) return null; // maxed
+    return PARTY_EXPANSION_COSTS[expansions];
+  }
+
+  function expandParty() {
+    const expansions = state.partyExpansions || 0;
+    if (expansions >= PARTY_EXPANSION_COSTS.length) return { ok: false, reason: 'Guild hall is already at maximum capacity!' };
+    const cost = PARTY_EXPANSION_COSTS[expansions];
+    if (state.gold < cost) return { ok: false, reason: `Need ${cost.toLocaleString()}g (have ${state.gold.toLocaleString()}g)` };
+    state.gold -= cost;
+    state.partyExpansions = expansions + 1;
+    const newMax = getMaxPartySize();
+    logEvent(`Guild hall expanded! Active party size increased to ${newMax}.`);
+    return { ok: true, newMax };
+  }
+
   // ── Default State ──────────────────────────────────────────────────────────
 
   function newGameState(playerName, playerClass) {
@@ -44,9 +72,9 @@ const Game = (() => {
         questsCompleted: 0,
       },
       party: [],          // recruited members
-      activeSlots: [],    // up to 4 member IDs currently "in party"
+      activeSlots: [],    // member IDs currently "in party" (max determined by partyExpansions)
       inventory: [],      // [{ itemId, quantity }]
-      shop: { stock: [], lastRefreshed: null },
+      shop: { stock: [], lastRefreshed: null, level: 0 },
       questBoard: { quests: {}, lastRefreshed: {}, seeds: {} }, // rank → generated quests
       questHistory: [],   // [{ quest, result, levelUps, timestamp }] — last 50
       partySynergy: {
@@ -55,6 +83,7 @@ const Game = (() => {
         bonusesUnlocked: [],    // synergy bonus IDs
         secretBossesFound: 0,
       },
+      partyExpansions: 0,  // 0-3 purchased expansions (party size 4→7)
       autoRun: null,      // { strategy:'safe'|'balanced'|'push', remaining, total, rank } or null
       nextMemberId: 1,
       pendingResults: null,
@@ -216,7 +245,7 @@ const Game = (() => {
     const available = getAvailableClasses(state.guild.rank);
     if (!available.find(c => c.id === classId)) return { ok:false, reason:`${cls.label} not yet unlocked` };
     if (state.gold < cls.recruitCost) return { ok:false, reason:`Need ${cls.recruitCost}g (have ${state.gold}g)` };
-    if (state.party.length >= 8) return { ok:false, reason:'Roster full (max 8 members)' };
+    if (state.party.length >= 12) return { ok:false, reason:'Roster full (max 12 members)' };
 
     state.gold -= cls.recruitCost;
     const stats = computeStats(classId, 1);
@@ -254,7 +283,8 @@ const Game = (() => {
   function setActive(memberId, active) {
     if (active) {
       if (state.activeSlots.includes(memberId)) return { ok:false, reason:'Already active' };
-      if (state.activeSlots.length >= 4) return { ok:false, reason:'Active party full (max 4)' };
+      const maxSize = getMaxPartySize();
+      if (state.activeSlots.length >= maxSize) return { ok:false, reason:`Active party full (max ${maxSize})` };
       if (!state.party.find(m => m.id === memberId)) return { ok:false, reason:'Member not found' };
       state.activeSlots.push(memberId);
     } else {
@@ -473,8 +503,46 @@ const Game = (() => {
     }
   }
 
-  // Rarity weights: higher rarity items appear less often in the shop
-  const RARITY_SHOP_WEIGHT = { common: 40, magic: 30, rare: 18, epic: 8, legendary: 4 };
+  // ── Shop Upgrade System ─────────────────────────────────────────────────
+  // 10 levels of shop upgrades. Each level shifts rarity weights toward
+  // higher-quality items. At max level the shop is dominated by epic/legendary.
+
+  const SHOP_UPGRADE_COSTS = [
+    500, 1500, 4000, 8000, 15000, 25000, 40000, 60000, 80000, 100000
+  ];
+
+  // Base weights at level 0, and weights at level 10
+  // Intermediate levels interpolate linearly between these
+  const RARITY_WEIGHT_BASE = { common: 40, magic: 30, rare: 18, epic: 8, legendary: 4 };
+  const RARITY_WEIGHT_MAX  = { common: 0,  magic: 0,  rare: 10, epic: 45, legendary: 45 };
+
+  function getShopRarityWeights() {
+    const level = state.shop.level || 0;
+    const t = level / 10; // 0.0 → 1.0
+    const weights = {};
+    for (const r of Object.keys(RARITY_WEIGHT_BASE)) {
+      weights[r] = Math.round(RARITY_WEIGHT_BASE[r] * (1 - t) + RARITY_WEIGHT_MAX[r] * t);
+    }
+    return weights;
+  }
+
+  function getShopUpgradeCost() {
+    const level = state.shop.level || 0;
+    if (level >= 10) return null; // maxed
+    return SHOP_UPGRADE_COSTS[level];
+  }
+
+  function upgradeShop() {
+    const level = state.shop.level || 0;
+    if (level >= 10) return { ok: false, reason: 'Shop is already max level!' };
+    const cost = SHOP_UPGRADE_COSTS[level];
+    if (state.gold < cost) return { ok: false, reason: `Need ${cost.toLocaleString()}g (have ${state.gold.toLocaleString()}g)` };
+    state.gold -= cost;
+    state.shop.level = level + 1;
+    logEvent(`Shop upgraded to level ${state.shop.level}!`);
+    refreshShop(); // restock with new weights immediately
+    return { ok: true, newLevel: state.shop.level };
+  }
 
   function refreshShop() {
     const ri = rankIndex(state.guild.rank);
@@ -515,10 +583,11 @@ const Game = (() => {
   }
 
   function weightedPick(items) {
-    const totalWeight = items.reduce((sum, it) => sum + (RARITY_SHOP_WEIGHT[it.rarity || 'common'] || 20), 0);
+    const weights = getShopRarityWeights();
+    const totalWeight = items.reduce((sum, it) => sum + (weights[it.rarity || 'common'] || 20), 0);
     let roll = Math.random() * totalWeight;
     for (const item of items) {
-      roll -= RARITY_SHOP_WEIGHT[item.rarity || 'common'] || 20;
+      roll -= weights[item.rarity || 'common'] || 20;
       if (roll <= 0) return item;
     }
     return items[items.length - 1];
@@ -1111,7 +1180,8 @@ const Game = (() => {
     // Mutations
     logEvent, addRankPoints, addExp, addToInventory, removeFromInventory,
     healTick, recruitMember, dismissMember, setActive, equipItem, unequipItem,
-    refreshShop, buyItem, sellItem,
+    refreshShop, buyItem, sellItem, upgradeShop, getShopUpgradeCost, getShopRarityWeights,
+    expandParty, getPartyExpansionCost, getMaxPartySize,
 
     // Engine
     startQuest, finishQuest, resolveIdle, startTick, stopTick,

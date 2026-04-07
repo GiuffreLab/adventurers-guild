@@ -4,6 +4,55 @@ import { showToast } from './helpers.js';
 
 let shopMode = 'buy';
 
+function buildUpgradePanel() {
+  const s = Game.state;
+  const level = s.shop.level || 0;
+  const maxed = level >= 10;
+  const cost = Game.getShopUpgradeCost();
+  const canAfford = !maxed && s.gold >= cost;
+  const weights = Game.getShopRarityWeights();
+
+  // Build the rarity distribution bar
+  const rarities = ['common', 'magic', 'rare', 'epic', 'legendary'];
+  const rarityColors = { common: '#9a9a9a', magic: '#2ecc71', rare: '#3498db', epic: '#9b59b6', legendary: '#e67e22' };
+  const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);
+  const barSegments = rarities
+    .filter(r => weights[r] > 0)
+    .map(r => {
+      const pct = totalWeight > 0 ? (weights[r] / totalWeight * 100).toFixed(0) : 0;
+      return `<div class="shop-rarity-bar-seg" style="width:${pct}%;background:${rarityColors[r]}" title="${r}: ${pct}%"></div>`;
+    }).join('');
+
+  const barLabels = rarities
+    .filter(r => weights[r] > 0)
+    .map(r => {
+      const pct = totalWeight > 0 ? (weights[r] / totalWeight * 100).toFixed(0) : 0;
+      return `<span class="shop-rarity-label" style="color:${rarityColors[r]}">${r.charAt(0).toUpperCase() + r.slice(1)} ${pct}%</span>`;
+    }).join('');
+
+  // Progress pips
+  const pips = Array.from({ length: 10 }, (_, i) =>
+    `<div class="shop-upgrade-pip${i < level ? ' filled' : ''}"></div>`
+  ).join('');
+
+  return `
+    <div class="shop-upgrade-panel">
+      <div class="shop-upgrade-header">
+        <span class="shop-upgrade-title">Shop Level ${level}/10</span>
+        ${maxed
+          ? '<span class="shop-upgrade-maxed">MAX</span>'
+          : `<button class="btn btn-sm${canAfford ? ' btn-upgrade' : ''}" id="btn-shop-upgrade" ${canAfford ? '' : 'disabled'}>
+              Upgrade — ${cost.toLocaleString()}g
+            </button>`
+        }
+      </div>
+      <div class="shop-upgrade-pips">${pips}</div>
+      <div class="shop-rarity-bar">${barSegments}</div>
+      <div class="shop-rarity-labels">${barLabels}</div>
+    </div>
+  `;
+}
+
 export function renderShop() {
   const s = Game.state;
   const el = document.getElementById('tab-shop');
@@ -74,6 +123,7 @@ export function renderShop() {
   }
 
   el.innerHTML = `
+    ${buildUpgradePanel()}
     <div class="shop-refresh">Shop refreshes in: <strong>${refreshStr}</strong></div>
     <div class="shop-toggle">
       <button class="btn${shopMode === 'buy' ? ' active' : ''}" id="btn-shop-buy">Buy</button>
@@ -81,6 +131,22 @@ export function renderShop() {
     </div>
     <div class="shop-grid">${content}</div>
   `;
+
+  // Upgrade button
+  const upgradeBtn = el.querySelector('#btn-shop-upgrade');
+  if (upgradeBtn) {
+    upgradeBtn.addEventListener('click', () => {
+      const result = Game.upgradeShop();
+      if (result.ok) {
+        showToast(`Shop upgraded to level ${result.newLevel}!`, 'success');
+        Game.save();
+      } else {
+        showToast(result.reason, 'error');
+      }
+      renderShop();
+      updateHeader();
+    });
+  }
 
   el.querySelector('#btn-shop-buy').addEventListener('click', () => { shopMode = 'buy'; renderShop(); });
   el.querySelector('#btn-shop-sell').addEventListener('click', () => { shopMode = 'sell'; renderShop(); });

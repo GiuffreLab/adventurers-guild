@@ -75,7 +75,8 @@ export function renderParty() {
   if (partyView === 'sheet' && selectedMemberId) { renderCharSheet(el, s); return; }
 
   // ── Roster View ──────────────────────────────────────────────────────────
-  const slotCards = [0,1,2,3].map(i => {
+  const maxParty = Game.getMaxPartySize();
+  const slotCards = Array.from({ length: maxParty }, (_, i) => i).map(i => {
     const id = s.activeSlots[i];
     const m = id ? s.party.find(p => p.id === id) : null;
     if (m) {
@@ -120,16 +121,47 @@ export function renderParty() {
     `;
   }).join('');
 
+  // Guild hall expansion panel
+  const expansionCost = Game.getPartyExpansionCost();
+  const expansionMaxed = expansionCost === null;
+  const canAffordExpansion = !expansionMaxed && s.gold >= expansionCost;
+  const expansionPips = Array.from({ length: 3 }, (_, i) =>
+    `<div class="party-expand-pip${i < (s.partyExpansions || 0) ? ' filled' : ''}"></div>`
+  ).join('');
+  const expansionPanel = maxParty < 7 ? `
+    <div class="party-expand-panel">
+      <div class="party-expand-header">
+        <span class="party-expand-title">Guild Hall Capacity ${maxParty}/7</span>
+        ${expansionMaxed
+          ? '<span class="party-expand-maxed">MAX</span>'
+          : `<button class="btn btn-sm${canAffordExpansion ? ' btn-expand' : ''}" id="btn-expand-party" ${canAffordExpansion ? '' : 'disabled'}>
+              Expand — ${expansionCost.toLocaleString()}g
+            </button>`
+        }
+      </div>
+      <div class="party-expand-pips">${expansionPips}</div>
+    </div>
+  ` : `
+    <div class="party-expand-panel">
+      <div class="party-expand-header">
+        <span class="party-expand-title">Guild Hall Capacity 7/7</span>
+        <span class="party-expand-maxed">MAX</span>
+      </div>
+      <div class="party-expand-pips">${expansionPips}</div>
+    </div>
+  `;
+
   el.innerHTML = `
     <div class="card">
       <div class="section-header">
-        <div class="card-title" style="margin:0">Active Party <span style="font-weight:400;color:var(--text-muted)">(${s.activeSlots.length}/4)</span></div>
+        <div class="card-title" style="margin:0">Active Party <span style="font-weight:400;color:var(--text-muted)">(${s.activeSlots.length}/${maxParty})</span></div>
       </div>
       <div class="active-slots">${slotCards}</div>
+      ${expansionPanel}
     </div>
     <div class="card">
       <div class="section-header">
-        <div class="card-title" style="margin:0">Roster <span style="font-weight:400;color:var(--text-muted)">(${s.party.length}/8)</span></div>
+        <div class="card-title" style="margin:0">Roster <span style="font-weight:400;color:var(--text-muted)">(${s.party.length}/12)</span></div>
         <button class="btn btn-sm btn-success" id="btn-recruit">+ Recruit</button>
       </div>
       <div class="roster-grid">${rosterRows}</div>
@@ -157,6 +189,22 @@ export function renderParty() {
     partyView = 'recruit';
     renderParty();
   });
+
+  // Guild hall expansion
+  const expandBtn = el.querySelector('#btn-expand-party');
+  if (expandBtn) {
+    expandBtn.addEventListener('click', () => {
+      const result = Game.expandParty();
+      if (result.ok) {
+        showToast(`Guild hall expanded! Party size now ${result.newMax}.`, 'success');
+        Game.save();
+      } else {
+        showToast(result.reason, 'error');
+      }
+      renderParty();
+      document.getElementById('header-gold').textContent = Game.state.gold.toLocaleString();
+    });
+  }
 }
 
 
@@ -551,7 +599,7 @@ function renderRecruit(el, s) {
   const available = getAvailableClasses(s.guild.rank);
   const rows = available.map(cls => {
     const canAfford = s.gold >= cls.recruitCost;
-    const full = s.party.length >= 8;
+    const full = s.party.length >= 12;
     const disabled = !canAfford || full;
     return `
       <div class="recruit-row${disabled ? ' cant-afford' : ''}" data-class-id="${cls.id}">
