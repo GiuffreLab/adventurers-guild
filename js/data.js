@@ -1123,7 +1123,7 @@ export const EQUIPMENT = {
     tier: 3,
     rarity: 'rare',
     classReq: ['HERO', 'KNIGHT'],
-    statBonus: { def: 22, maxHp: 35, def_pierce_resist: 0.15 },
+    statBonus: { def: 22, maxHp: 35, lck: 5 },
     sellPrice: 105,
     buyPrice: 260,
     shopMinRank: 'D',
@@ -1891,12 +1891,12 @@ export const EQUIPMENT = {
     tier: 5,
     rarity: 'legendary',
     classReq: ['HERO', 'KNIGHT'],
-    statBonus: { def: 45, maxHp: 55, spd: 3, crit: 10, def_pierce_resist: 0.15 },
+    statBonus: { def: 45, maxHp: 55, spd: 3, crit: 10, mag: 8 },
     sellPrice: 900,
     buyPrice: 2250,
     shopMinRank: 'B',
     grantedSkill: 'ETERNAL_GUARD',
-    desc: 'The legendary shield, nothing pierces its defense.'
+    desc: 'The legendary shield, imbued with ancient protective magic.'
   },
   WALL_OF_AGES: {
     id: 'WALL_OF_AGES',
@@ -1905,7 +1905,7 @@ export const EQUIPMENT = {
     tier: 5,
     rarity: 'legendary',
     classReq: ['KNIGHT'],
-    statBonus: { def: 50, maxHp: 70, def_pierce_resist: 0.20 },
+    statBonus: { def: 60, maxHp: 70, lck: 8 },
     sellPrice: 910,
     buyPrice: 2280,
     shopMinRank: 'B',

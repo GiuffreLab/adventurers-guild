@@ -655,7 +655,7 @@ function renderRecruit(el, s) {
 
 function formatBonuses(statBonus) {
   if (!statBonus) return '';
-  return Object.entries(statBonus).map(([k, v]) => `+${v} ${k.toUpperCase()}`).join('  ');
+  return Object.entries(statBonus).map(([k, v]) => `${v >= 0 ? '+' : ''}${v} ${k.toUpperCase()}`).join('  ');
 }
 
 function formatSkillEffects(skill) {
