@@ -471,6 +471,10 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .result-exp { color: var(--cyan); }
 .result-rank { color: var(--purple); }
 .result-loot { color: var(--green); }
+.result-loot-section { padding: 4px 0; }
+.result-loot-section .result-row-label { font-size: 0.82rem; color: var(--text-dim); margin-bottom: 4px; }
+.result-loot-entry { font-size: 0.82rem; padding: 2px 0; }
+.result-loot-class-req { font-size: 0.68rem; color: var(--text-muted); }
 .result-injury { color: var(--red); }
 .result-levelup { color: var(--gold); font-weight: 700; text-align: center; font-size: 0.9rem; padding: 8px; background: rgba(240,192,96,0.08); border-radius: var(--radius-sm); }
 
@@ -798,6 +802,10 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   font-size: 0.75rem; padding: 2px 8px; color: var(--red); border-color: transparent;
 }
 .equip-unequip-btn:hover { border-color: var(--red); background: var(--red-dim); }
+
+.equip-slot-class-req {
+  font-size: 0.7rem; color: var(--text-muted); padding: 0 12px 4px 38px;
+}
 
 .equip-skill-grant {
   font-size: 0.72rem; color: var(--purple); padding: 4px 12px 8px 38px;
@@ -1310,7 +1318,9 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   font-size: 0.8rem; color: var(--text-dim);
 }
 .qd-loot-label { font-weight: 600; }
-.qd-loot-list { color: var(--cyan); }
+.qd-loot-list { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.qd-loot-entry { font-size: 0.8rem; }
+.qd-loot-class-req { font-size: 0.68rem; color: var(--text-muted); }
 
 .qd-actions {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -1561,9 +1571,10 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .qh-loot-grid { display: flex; flex-wrap: wrap; gap: 6px; }
 .qh-loot-item {
   font-size: 0.8rem; padding: 3px 8px; border-radius: var(--radius-sm);
-  background: rgba(46,204,113,0.1); color: var(--green);
+  background: rgba(46,204,113,0.1);
   border: 1px solid rgba(46,204,113,0.15);
 }
+.qh-loot-class-req { font-size: 0.68rem; color: var(--text-muted); }
 .qh-skills-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .qh-skill-item {
   font-size: 0.8rem; padding: 3px 8px; border-radius: var(--radius-sm);

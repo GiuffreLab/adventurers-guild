@@ -59,7 +59,7 @@ export function renderShop() {
             <div class="shop-item">
               <div class="shop-item-info">
                 <div class="shop-item-name" style="color:${rarity.color}">${item.name}${rarity.id !== 'common' ? ` <span class="item-rarity-badge" style="color:${rarity.color};border-color:${rarity.color}30">${rarity.label}</span>` : ''} ${e.quantity > 1 ? `<span style="color:var(--text-muted)">×${e.quantity}</span>` : ''}</div>
-                ${item.slot ? `<div class="shop-item-slot">${item.slot}</div>` : ''}
+                <div class="shop-item-meta">${item.slot ? `<span class="shop-item-slot">${item.slot}</span>` : ''}<span class="shop-item-class-req">${item.classReq ? item.classReq.map(cid => CLASSES[cid]?.label || cid).join(', ') : 'Any class'}</span></div>
                 ${bonusStr ? `<div class="shop-item-bonus">${bonusStr}</div>` : ''}
                 <div class="shop-item-desc">${item.desc}</div>
               </div>

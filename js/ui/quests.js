@@ -1,5 +1,5 @@
 import Game from '../game.js';
-import { RANK_ORDER, getQuest, getItem, getClass, rankIndex } from '../data.js';
+import { RANK_ORDER, getQuest, getItem, getClass, getItemRarity, CLASSES, rankIndex } from '../data.js';
 import { rankTag, fmtTime, timeAgo, showToast } from './helpers.js';
 import { generateCombatLog, getCombatSnapshot, getQuestPhase, getPhases, resetCombatLog, getSimInfo } from './combatlog.js';
 import { getQuestDifficultyTier, DIFFICULTY_TIERS } from '../questgen.js';
@@ -451,10 +451,15 @@ function renderQuestCard(s, quest, partyStrength) {
 
   let detail = '';
   if (expanded) {
-    const lootNames = quest.lootTable.map(e => {
+    const lootEntries = quest.lootTable.map(e => {
       const item = getItem(e.itemId);
-      return item ? item.name : e.itemId;
-    }).join(', ');
+      if (!item) return `<span>${e.itemId}</span>`;
+      const rarity = getItemRarity(item);
+      const classReqStr = item.classReq
+        ? item.classReq.map(cid => CLASSES[cid]?.label || cid).join(', ')
+        : 'Any class';
+      return `<span class="qd-loot-entry"><span style="color:${rarity.color}">${item.name}</span> <span class="item-rarity-badge" style="color:${rarity.color};border-color:${rarity.color}30">${rarity.label}</span> <span class="qd-loot-class-req">${classReqStr}</span></span>`;
+    }).join('');
 
     const powerRatio = partyStrength / Math.max(1, quest.recommendedPower);
     const powerPct = Math.min(100, powerRatio * 50);
@@ -536,7 +541,7 @@ function renderQuestCard(s, quest, partyStrength) {
 
         <div class="qd-loot">
           <span class="qd-loot-label">Possible Loot:</span>
-          <span class="qd-loot-list">${lootNames}</span>
+          <div class="qd-loot-list">${lootEntries}</div>
         </div>
 
         <div class="qd-actions">
@@ -651,8 +656,13 @@ function renderQuestHistory(s) {
       if (loot.length > 0) {
         const lootItems = loot.map(d => {
           const item = getItem(d.itemId);
-          const name = item ? item.name : d.itemId;
-          return `<span class="qh-loot-item">${name}${d.quantity > 1 ? ` ×${d.quantity}` : ''}</span>`;
+          if (!item) return `<span class="qh-loot-item">${d.itemId}</span>`;
+          const rarity = getItemRarity(item);
+          const classReqStr = item.classReq
+            ? item.classReq.map(cid => CLASSES[cid]?.label || cid).join(', ')
+            : 'Any class';
+          const qty = d.quantity > 1 ? ` ×${d.quantity}` : '';
+          return `<span class="qh-loot-item"><span style="color:${rarity.color}">${item.name}</span>${qty} <span class="item-rarity-badge" style="color:${rarity.color};border-color:${rarity.color}30">${rarity.label}</span> <span class="qh-loot-class-req">${classReqStr}</span></span>`;
         }).join('');
         lootHtml = `<div class="qh-detail-section"><div class="qh-detail-section-title">Loot Obtained</div><div class="qh-loot-grid">${lootItems}</div></div>`;
       }

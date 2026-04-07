@@ -1,11 +1,16 @@
 import Game from '../game.js';
-import { getItem } from '../data.js';
+import { getItem, getItemRarity, CLASSES } from '../data.js';
 import { getSkill } from '../skills.js';
 
 function formatLootEntry(d) {
   const item = getItem(d.itemId);
-  const name = item ? item.name : d.itemId;
-  return d.quantity > 1 ? name + ' \u00d7' + d.quantity : name;
+  if (!item) return `<span>${d.itemId}</span>`;
+  const rarity = getItemRarity(item);
+  const classReqStr = item.classReq
+    ? item.classReq.map(cid => CLASSES[cid]?.label || cid).join(', ')
+    : 'Any class';
+  const qty = d.quantity > 1 ? ` \u00d7${d.quantity}` : '';
+  return `<span style="color:${rarity.color}">${item.name}</span>${qty} <span class="item-rarity-badge" style="color:${rarity.color};border-color:${rarity.color}30">${rarity.label}</span> <span class="result-loot-class-req">${classReqStr}</span>`;
 }
 
 export function showResultsModal() {
@@ -16,14 +21,14 @@ export function showResultsModal() {
 
   let rewardsHtml = '';
   if (result.success) {
-    const lootStr = result.loot.map(formatLootEntry).join(', ');
+    const lootItems = result.loot.map(d => `<div class="result-loot-entry">${formatLootEntry(d)}</div>`).join('');
     rewardsHtml = `
       <div class="result-section">
         <div class="result-section-title">Rewards</div>
         <div class="result-row"><span class="result-row-label">Gold earned</span><span class="result-row-value result-gold">+${result.goldEarned}g</span></div>
         <div class="result-row"><span class="result-row-label">Exp per member</span><span class="result-row-value result-exp">+${result.expEarned}</span></div>
         ${result.rankPoints ? `<div class="result-row"><span class="result-row-label">Rank points</span><span class="result-row-value result-rank">+${result.rankPoints}</span></div>` : ''}
-        ${result.loot.length > 0 ? `<div class="result-row"><span class="result-row-label">Loot</span><span class="result-row-value result-loot">${lootStr}</span></div>` : ''}
+        ${result.loot.length > 0 ? `<div class="result-loot-section"><div class="result-row-label">Loot</div>${lootItems}</div>` : ''}
       </div>
     `;
   } else {

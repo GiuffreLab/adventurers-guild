@@ -292,6 +292,7 @@ function renderEquipmentPanel(m, s) {
           ${item ? `<div class="equip-slot-bonus">${bonusStr}</div>` : ''}
           ${item ? `<button class="btn btn-sm btn-ghost equip-unequip-btn" data-unequip="${slot}" title="Unequip">✕</button>` : ''}
         </div>
+        ${item ? `<div class="equip-slot-class-req">${item.classReq ? item.classReq.map(cid => CLASSES[cid]?.label || cid).join(', ') : 'Any class'}</div>` : ''}
         ${grantedSkill ? `<div class="equip-skill-grant">${grantedSkill.icon} Grants: ${grantedSkill.name}</div>` : ''}
     `;
 
