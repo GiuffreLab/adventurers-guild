@@ -1546,6 +1546,42 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .rarity-rare      { background: rgba(155,89,182,0.15); color: var(--purple); }
 .rarity-legendary { background: rgba(240,192,96,0.15); color: var(--gold); }
 
+/* ── Special Quest Card Effects ─────────────────────────────────────── */
+
+.quest-card.quest-boss {
+  border: 1px solid rgba(231, 76, 60, 0.5);
+  animation: bossGlow 2s ease-in-out infinite;
+}
+.quest-card.quest-boss .quest-title { color: #e74c3c; font-weight: 700; }
+
+.quest-card.quest-gem-mining {
+  border: 1px solid rgba(240, 192, 96, 0.5);
+  animation: gemGlow 2.5s ease-in-out infinite;
+}
+.quest-card.quest-gem-mining .quest-title { color: #f0c060; font-weight: 600; }
+
+@keyframes bossGlow {
+  0%, 100% { box-shadow: 0 0 4px rgba(231, 76, 60, 0.2), inset 0 0 4px rgba(231, 76, 60, 0.05); border-color: rgba(231, 76, 60, 0.3); }
+  50% { box-shadow: 0 0 12px rgba(231, 76, 60, 0.5), inset 0 0 8px rgba(231, 76, 60, 0.1); border-color: rgba(231, 76, 60, 0.7); }
+}
+
+@keyframes gemGlow {
+  0%, 100% { box-shadow: 0 0 4px rgba(240, 192, 96, 0.2), inset 0 0 4px rgba(240, 192, 96, 0.05); border-color: rgba(240, 192, 96, 0.3); }
+  50% { box-shadow: 0 0 12px rgba(240, 192, 96, 0.5), inset 0 0 8px rgba(240, 192, 96, 0.1); border-color: rgba(240, 192, 96, 0.7); }
+}
+
+.quest-type-tag {
+  font-size: 0.6rem; font-weight: 700; padding: 1px 6px;
+  border-radius: 3px; text-transform: uppercase; letter-spacing: 0.05em;
+  margin-left: 4px;
+}
+.quest-type-tag.tag-boss {
+  background: rgba(231, 76, 60, 0.2); color: #e74c3c;
+}
+.quest-type-tag.tag-gem-mining {
+  background: rgba(240, 192, 96, 0.2); color: #f0c060;
+}
+
 /* ── Quest Detail Additions ─────────────────────────────────────────── */
 
 .qd-tier-label {

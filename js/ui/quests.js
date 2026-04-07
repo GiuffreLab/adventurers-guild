@@ -485,7 +485,9 @@ function renderQuestCard(s, quest, partyStrength) {
   const tier = getQuestDifficultyTier(questPower, partyStrength);
 
   const isDone = !quest.isRepeatable && completions > 0;
-  const cardClass = `quest-card${expanded ? ' selected' : ''}${isDone ? ' done' : ''}`;
+  const isBoss = quest.boss;
+  const isGemMining = quest.gemMining;
+  const cardClass = `quest-card${expanded ? ' selected' : ''}${isDone ? ' done' : ''}${isBoss ? ' quest-boss' : ''}${isGemMining ? ' quest-gem-mining' : ''}`;
   const env = quest.environment || { name: '???', icon: '?', mood: 'dungeon' };
 
   // Rarity badge
@@ -493,6 +495,13 @@ function renderQuestCard(s, quest, partyStrength) {
   const rarityBadge = rarity !== 'common'
     ? `<span class="rarity-badge rarity-${rarity}">${rarity}</span>`
     : '';
+
+  // Special quest type tag
+  const typeTag = isBoss
+    ? `<span class="quest-type-tag tag-boss">⚠ BOSS</span>`
+    : isGemMining
+      ? `<span class="quest-type-tag tag-gem-mining">💎 GEM HAUL</span>`
+      : '';
 
   const metaRight = `
     <span class="qc-stat qc-gold" title="Gold reward">💰 ${quest.goldReward.min}–${quest.goldReward.max}</span>
@@ -612,7 +621,7 @@ function renderQuestCard(s, quest, partyStrength) {
       <div class="quest-header" data-quest-id="${quest.id}">
         <span class="quest-rank-tag rank-${quest.rank}" style="color:var(--rank-${quest.rank});border-color:var(--rank-${quest.rank})">${quest.rank}</span>
         <span class="qc-env-icon">${env.icon}</span>
-        <span class="quest-title">${quest.title}</span>
+        <span class="quest-title">${quest.title}</span>${typeTag}
         <div class="quest-meta">${metaRight}</div>
       </div>
       ${detail}
