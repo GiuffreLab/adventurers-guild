@@ -1970,6 +1970,313 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .syn-bonus-req { font-size: 0.78rem; color: var(--text-muted); }
 .syn-bonus-desc { font-size: 0.8rem; color: var(--text-dim); }
 
+/* ── Compendium ────────────────────────────────────────────────────────── */
+.compendium-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 0;
+  min-height: 70vh;
+  background: var(--bg-base);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.comp-sidebar {
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.comp-sidebar-title {
+  padding: 8px 16px 16px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.5px;
+}
+.comp-nav-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  text-align: left;
+  padding: 10px 16px;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  border-left: 3px solid transparent;
+}
+.comp-nav-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.comp-nav-btn.active {
+  background: var(--bg-hover);
+  color: var(--cyan);
+  border-left-color: var(--cyan);
+  font-weight: 600;
+}
+.comp-body {
+  padding: 24px 32px;
+  overflow-y: auto;
+  max-height: 75vh;
+}
+.comp-section { max-width: 800px; }
+.comp-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--gold);
+  margin-bottom: 12px;
+}
+.comp-subtitle {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--cyan);
+  margin: 20px 0 8px;
+}
+.comp-text {
+  color: var(--text-dim);
+  line-height: 1.65;
+  margin-bottom: 10px;
+  font-size: 0.92rem;
+}
+.comp-text strong { color: var(--text); }
+
+/* Stats Guide */
+.comp-stat-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  align-items: start;
+}
+.comp-stat-row:last-child { border-bottom: none; }
+.comp-stat-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+.comp-stat-desc {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+/* Class Cards */
+.comp-class-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.comp-class-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.comp-class-sigil {
+  font-size: 2rem;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card-alt);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.comp-class-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.comp-class-role {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+.comp-class-desc {
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  margin-bottom: 12px;
+}
+.comp-class-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  background: var(--bg-card-alt);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+}
+.comp-class-stats span { white-space: nowrap; }
+.comp-class-stats em {
+  color: var(--text-muted);
+  font-style: normal;
+  font-size: 0.78rem;
+}
+
+/* Skills in class cards */
+.comp-skill-section { margin-top: 8px; }
+.comp-skill-header {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--cyan);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.comp-skill-row {
+  display: grid;
+  grid-template-columns: 24px 140px 60px 1fr;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 0.83rem;
+  align-items: start;
+  border-bottom: 1px solid var(--border);
+}
+.comp-skill-row:last-child { border-bottom: none; }
+.comp-skill-row.comp-mastery { opacity: 0.85; }
+.comp-skill-icon { text-align: center; }
+.comp-skill-name {
+  font-weight: 600;
+  color: var(--text);
+}
+.comp-skill-type {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+.comp-skill-desc {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
+
+/* Rarity rows */
+.comp-rarity-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.comp-rarity-row:last-child { border-bottom: none; }
+.comp-rarity-badge {
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border: 1px solid;
+  border-radius: var(--radius-sm);
+  min-width: 80px;
+  text-align: center;
+}
+.comp-rarity-desc {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+/* Item proc table */
+.comp-item-table {
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.comp-item-header,
+.comp-item-row {
+  display: grid;
+  grid-template-columns: 180px 70px 60px 180px 1fr;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 0.83rem;
+  align-items: start;
+}
+.comp-item-header {
+  background: var(--bg-card-alt);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+}
+.comp-item-row {
+  border-top: 1px solid var(--border);
+}
+.comp-item-name { font-weight: 600; }
+.comp-item-slot { color: var(--text-muted); text-transform: capitalize; }
+.comp-item-class { color: var(--text-muted); }
+.comp-item-skill { color: var(--text); }
+.comp-item-skill em { color: var(--text-muted); font-size: 0.78rem; }
+.comp-item-desc { color: var(--text-dim); font-size: 0.8rem; }
+
+/* Synergy table */
+.comp-synergy-table {
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.comp-synergy-header,
+.comp-synergy-row {
+  display: grid;
+  grid-template-columns: 90px 160px 1fr 60px;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 0.83rem;
+  align-items: center;
+}
+.comp-synergy-header {
+  background: var(--bg-card-alt);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+}
+.comp-synergy-row {
+  border-top: 1px solid var(--border);
+}
+.comp-synergy-row.unlocked {
+  background: rgba(78, 205, 196, 0.06);
+}
+.comp-synergy-quests { color: var(--gold); font-weight: 600; }
+.comp-synergy-label { color: var(--text); font-weight: 500; }
+.comp-synergy-desc { color: var(--text-dim); font-size: 0.82rem; }
+.comp-synergy-status { text-align: center; font-size: 1rem; }
+.comp-synergy-row.unlocked .comp-synergy-status { color: var(--green); }
+
+/* Rank rows */
+.comp-rank-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.comp-rank-row:last-child { border-bottom: none; }
+.comp-rank-row.current {
+  background: rgba(78, 205, 196, 0.06);
+  border-radius: var(--radius-sm);
+}
+.comp-rank-desc {
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  flex: 1;
+}
+.comp-rank-current {
+  font-size: 0.82rem;
+  color: var(--cyan);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 /* ── Responsive tweaks ─────────────────────────────────────────────────── */
 @media (max-width: 800px) {
   .char-body { grid-template-columns: 1fr; }
@@ -1985,4 +2292,12 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   .qd-rewards-grid { grid-template-columns: repeat(2, 1fr); }
   .syn-stats-row { grid-template-columns: repeat(2, 1fr); }
   .quest-tabs { flex-wrap: wrap; }
+  .compendium-layout { grid-template-columns: 1fr; }
+  .comp-sidebar { flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--border); padding: 8px; gap: 4px; }
+  .comp-sidebar-title { display: none; }
+  .comp-nav-btn { padding: 6px 10px; font-size: 0.78rem; border-left: none; border-bottom: 2px solid transparent; }
+  .comp-nav-btn.active { border-left-color: transparent; border-bottom-color: var(--cyan); }
+  .comp-body { padding: 16px; max-height: none; }
+  .comp-skill-row { grid-template-columns: 24px 100px 50px 1fr; }
+  .comp-item-header, .comp-item-row { grid-template-columns: 140px 50px 50px 150px 1fr; font-size: 0.78rem; }
 }

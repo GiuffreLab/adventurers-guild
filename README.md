@@ -14,41 +14,71 @@ You start by creating your character — a Hero — and registering with the gui
 
 **Quest Board** — Pick from available quests suited to your guild's rank. Each quest shows enemies, difficulty, rewards, and recommended party power. Hit "Send Party" and watch the combat play out event by event. As you complete more quests, your party builds synergy bonuses that improve gold, XP, damage, healing, and more. Once you unlock auto-battle, you can queue up repeated runs with different strategies (safe, balanced, or push).
 
-**Party** — Recruit new members, manage your roster, equip gear, and assign active party slots. Each class plays differently — Knights tank, Mages deal magic damage, Rogues rely on speed and luck, Clerics heal, Rangers excel in ranged combat, Bards boost the whole party, and Monks are well-rounded late-game powerhouses. New classes unlock as your guild rank increases.
+**Party** — Recruit new members, manage your roster, equip gear, and assign active party slots. All eight classes are available from the start — build whatever party composition you want. Recruitment costs scale with party size: your first few recruits are cheap (50–150g) to get a base party going, while later slots ramp up (500–1500g) as a long-term gold sink. Maximum roster is 8 members.
 
 **Shop** — Buy and sell equipment. The shop restocks periodically with gear appropriate to your rank. Higher rarity items appear less frequently but offer stronger stat bonuses.
 
 ## Core Systems
 
-**Combat** — Quests run a full battle simulation. Your party fights enemies in real time until one side falls. Events play out every 1.5 seconds (faster with ATK speed synergy bonuses), showing attacks, skills, healing, enemy knockouts, and reinforcements.
+### Combat Simulation
 
-**Guild Rank** — Completing quests earns rank points. Accumulate enough and your guild promotes through the ranks: F, E, D, C, B, A, and finally S. Higher ranks unlock harder quests, better loot, new recruit classes, and stronger shop inventory.
+Quests run a full deterministic battle simulation. Your party fights enemies in real time until one side falls. Events play out every 1.5 seconds (faster with ATK speed synergy bonuses), showing attacks, skills, healing, enemy knockouts, and reinforcements. Every stat on your characters matters in combat:
 
-**Party Synergy** — The more quests your party completes together, the stronger they become. Synergy bonuses unlock progressively across eight categories: Gold/XP, Damage, Damage Reduction, ATK Speed, Healing Efficiency, Item Find, Boss Encounter Chance, and Rank Points. Auto-battle also unlocks through synergy milestones.
+- **ATK** — Scales physical damage for melee and ranged classes. The primary damage stat for Heroes, Knights, Rogues, Rangers, and Monks.
+- **MAG** — Scales magic damage for caster classes and also scales heal strength. The primary stat for Mages, Clerics, and Bards.
+- **DEF** — Reduces incoming damage with diminishing returns. Knights with 200+ DEF shrug off hits that would flatten a Mage.
+- **SPD** — Determines how often a character gets selected to act. High-SPD characters like Rogues and Rangers attack significantly more often than slow tanks.
+- **CRIT** — Chance to land a critical hit for 1.5x damage. Scales with diminishing returns — Rogues and Mages have the highest crit rates.
+- **DODGE** — Chance to completely avoid an incoming enemy attack. Monks and Bards dodge most frequently.
 
-**Skills** — Party members learn skills as they level up. Each class has a unique skill tree with passive and active abilities that can trigger during quests.
+### Skill Round-Robin
+
+Each class learns active and passive skills as they level up, and legendary/celestial equipment grants additional active procs. In combat, the sim uses a round-robin cooldown system — after a skill fires, it goes on a short cooldown, forcing variety and ensuring every active ability gets used across a fight. Passive skills are filtered out of the combat pool since they're always-on buffs, so only real combat actions compete for skill turns.
+
+### Guild Rank
+
+Completing quests earns rank points. Accumulate enough and your guild promotes through the ranks: F, E, D, C, B, A, and finally S. Higher ranks unlock harder quests, better loot, and stronger shop inventory.
+
+### Party Synergy
+
+The more quests your party completes together, the stronger they become. Synergy bonuses unlock progressively across eight categories: Gold/XP, Damage, Damage Reduction, ATK Speed, Healing Efficiency, Item Find, Boss Encounter Chance, and Rank Points. Auto-battle also unlocks through synergy milestones.
+
+### Quest Results & Battle Highlights
+
+After each quest, the results screen shows a combat performance breakdown with damage bars per member, plus a Battle Highlights section featuring the fight's standout moments: biggest hit, biggest heal, biggest block, most kills, crit machine, and untouchable (dodges). A "Copy Fight Log" button exports the full battle data — party composition, gear, stats, skill activations, and every combat event — for analysis and balance troubleshooting.
 
 ## Classes
 
-Every class brings a unique signature ability to the party. Building a diverse roster lets you combine these strengths for harder content.
+Every class brings a unique signature ability to the party. All classes are available from the start — build your dream roster from day one.
 
-**Hero** — Your starting character. A balanced all-rounder with solid stats across the board. Signature: **Rally Cry** — when any ally drops below 30% HP, the Hero rallies them with a burst heal and attack buff. The insurance policy that keeps runs from falling apart.
+**Hero** — Your starting character (free). A balanced all-rounder with solid stats across the board. Signature: **Rally Cry** — when any ally drops below 30% HP, the Hero rallies them with a burst heal and attack buff. The insurance policy that keeps runs from falling apart.
 
-**Knight** (Unlocks at F-Rank) — The iron wall. Massive HP and defense make the Knight the party's frontline. Signature: **Bulwark** — every 3 rounds, the Knight intercepts an attack aimed at an ally and absorbs the damage. Keeps your squishies alive.
+**Knight** — The iron wall. Massive HP and defense make the Knight the party's frontline. Signature: **Bulwark** — every 3 rounds, the Knight intercepts an attack aimed at an ally and absorbs the damage. Keeps your squishies alive. Low SPD means Knights rarely attack, but that's by design — their job is to tank.
 
-**Mage** (Unlocks at F-Rank) — Glass cannon. Devastating arcane damage from ice shards, lightning bolts, and fire. Signature: **Spell Echo** — spells hit twice, and the capstone Meteor Storm deals the highest single-target damage in the game. Pure destruction.
+**Mage** — Glass cannon. Devastating arcane damage from ice shards, lightning bolts, and fire. High CRIT rivals the Rogue as the caster-side DPS mirror. Signature: **Spell Echo** — spells hit twice, and the capstone Meteor Storm deals the highest single-target damage in the game. Pure destruction.
 
-**Rogue** (Unlocks at F-Rank) — Swift and deadly. High speed and luck mean frequent crits and backstabs. Signature: **Mark for Death** — on a critical hit, the Rogue marks the target so ALL party members deal +20% damage to it for 2 rounds. A force multiplier for the whole team.
+**Rogue** — Swift and deadly. Highest SPD in the game means Rogues act constantly. High ATK and CRIT make every hit dangerous. Signature: **Mark for Death** — on a critical hit, the Rogue marks the target so ALL party members deal +20% damage to it for 2 rounds. A force multiplier for the whole team.
 
-**Cleric** (Unlocks at F-Rank) — The party's lifeline. Signature: **Group Heal** — the only class that can cast direct group heals, restoring HP to the entire party mid-combat. Also deals divine damage through smites and holy wrath.
+**Cleric** — The party's lifeline. Heals scale off MAG, making a well-geared Cleric's group heals massive. Signature: **Divine Shield** — after a group heal, the entire party takes 15% less damage for 3 rounds. Also deals divine damage through smites and holy wrath.
 
-**Ranger** (Unlocks at E-Rank) — Precision archer with keen survival instincts. Signature: **Volley** — fires a rain of arrows that strikes ALL enemies at once. The answer to swarm encounters with lots of weaker foes. Also boosts gold and XP gain through Wilderness Mastery.
+**Ranger** — Precision archer with keen survival instincts. Second-highest SPD and ATK in the game. Signature: **Volley** — fires a rain of arrows that strikes ALL enemies at once, followed by Camouflage for a 40% dodge buff. The answer to swarm encounters. Rangers use mainhand bows paired with quiver offhands for maximum loadout flexibility.
 
-**Bard** (Unlocks at C-Rank) — The ultimate support. Signature: **Regen Melody + Party Buffs** — the only class that provides persistent HP regeneration each round AND boosts the entire party's ATK, DEF, and SPD through songs. No direct damage — pure party amplification.
+**Bard** — The ultimate support. Signature: **Regen Melody + Party Buffs** — the only class that provides persistent HP regeneration each round AND boosts the entire party's ATK, DEF, and SPD through songs. Bards wield two-handed instruments with boosted stats to compensate for no offhand slot. High DODGE makes them surprisingly survivable.
 
-**Monk** (Unlocks at A-Rank) — Martial arts master with perfectly balanced stats. Signature: **Ki Barrier** — heals 25% of all damage dealt back as HP, making the Monk a self-sustaining frontliner who doesn't need a healer. A late-game powerhouse worth the wait.
+**Monk** — Martial arts master with perfectly balanced stats. Signature: **Ki Barrier** — heals 25% of all damage dealt back as HP, making the Monk a self-sustaining frontliner who doesn't need a healer. High SPD and balanced ATK/DEF mean Monks contribute everywhere. A late-game powerhouse worth the investment.
 
-**Equipment** — Gear comes in five rarities (Common, Magic, Rare, Epic, Legendary) and four slots (Weapon, Armor, Accessory, Offhand). Equipping items boosts your party members' stats and affects combat outcomes.
+## Equipment
+
+Gear comes in six rarities and four slots (Weapon, Armor, Accessory, Offhand):
+
+- **Common** — Basic starting gear. Stats only.
+- **Magic** — Modest stat upgrades. Available early in the shop.
+- **Rare** — Solid mid-game gear with broader stat spreads.
+- **Epic** — Strong endgame options. Some grant equipment skills.
+- **Legendary** — Best-in-slot non-celestial gear. Every legendary item grants a unique active skill proc when equipped.
+- **Celestial** — God-tier S-Rank drops. Each class has a full 4-piece celestial set (weapon, armor, offhand, accessory) with massive stats and powerful celestial skill procs that get special visual effects in combat.
+
+Two-handed weapons (Bard instruments, Hero greatswords, Monk staves) carry ~1.5x the stat budget of one-handed weapons to compensate for the lost offhand slot.
 
 ## Running Locally
 
@@ -62,4 +92,4 @@ Then open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Tech
 
-Pure vanilla JavaScript with ES modules. No frameworks, no bundler, no dependencies. Game state persists in localStorage.
+Pure vanilla JavaScript with ES modules. No frameworks, no bundler, no dependencies. Game state persists in localStorage. Combat is fully deterministic via seeded random number generation — replaying the same quest seed produces identical results.

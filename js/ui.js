@@ -3,6 +3,7 @@ import { renderHall, markHallDirty } from './ui/hall.js';
 import { renderQuests, resetQuestsState, tickUpdateQuests, getQuestRankFilter } from './ui/quests.js';
 import { renderParty, resetPartyState, tickUpdateParty } from './ui/party.js';
 import { renderShop } from './ui/shop.js';
+import { renderCompendium } from './ui/compendium.js';
 import { showResultsModal } from './ui/results.js';
 import { shouldRefreshBoard } from './questgen.js';
 
@@ -55,6 +56,7 @@ export function render() {
   if (currentTab === 'quests') renderQuests(setTab);
   if (currentTab === 'party')  renderParty();
   if (currentTab === 'shop')   renderShop();
+  if (currentTab === 'compendium') renderCompendium();
 
   if (Game.state.pendingResults) {
     showResultsModal();
