@@ -141,6 +141,21 @@ const QUEST_TEMPLATES = {
     tmpl('Crystal Cavern Sweep', 'A cavern at {env} glitters with rough quartz formations. Clear the creatures and fill your bags with crystals!', 'dungeon', ['Quartz Crab', 'Glow Worm', 'Stalactite Lurker'], { gemMining: true, gemItemId: 'GEM_ROUGH_QUARTZ' }),
     tmpl('Quartz Escort', 'A mining crew at {env} struck quartz but needs protection while they extract it. Guard them and earn a share of the haul!', 'pastoral', ['Goblin Scavenger', 'Rock Snake', 'Dig Beetle'], { gemMining: true, gemItemId: 'GEM_ROUGH_QUARTZ' }),
     tmpl('Riverside Quartz Panning', 'Raw quartz washes downstream from {env}. Pan the riverbed — but watch for river creatures guarding the deposit!', 'wilderness', ['River Crab', 'Water Rat', 'Brook Troll'], { gemMining: true, gemItemId: 'GEM_ROUGH_QUARTZ' }),
+    // ── BOSS encounters (F-rank) ──
+    tmpl('BOSS: Grimjaw the Unyielding', 'A massive cave troll called Grimjaw has claimed {env} as his territory. He\'s crushed every party sent against him. This is no ordinary troll — he\'s smart, relentless, and very, very angry.', 'dungeon', ['Troll Brute', 'Cave Troll Guard', 'Grimjaw the Unyielding'], {
+      boss: true, bossName: 'Grimjaw the Unyielding',
+      narratives: {
+        success: ["Grimjaw's roar shook the cavern as Dawnbreaker found his heart. The Unyielding finally yielded.", "It took everything the party had. Grimjaw fought like ten trolls, but in the end, even he couldn't stand against united steel."],
+        failure: ["Grimjaw laughed — actually laughed — as the party retreated. His territory remains unchallenged.", "The troll's regeneration was beyond anything the party had seen. Every wound closed before the next blow could land."],
+      }
+    }),
+    tmpl('BOSS: The Rat King', 'Something unholy lurks beneath {env}. Dozens of giant rats have fused into a single writhing abomination — the Rat King. Its many eyes see everything. Its many mouths never stop screaming.', 'dungeon', ['Rat Swarm', 'Plague Carrier', 'The Rat King'], {
+      boss: true, bossName: 'The Rat King',
+      narratives: {
+        success: ["The Rat King burst apart when its core was pierced, showering the party in... best not to think about it. The nightmare is over.", "A hundred rats in one body. It took fire, steel, and sheer determination to end the abomination."],
+        failure: ["Every rat killed just made the mass angrier. The party retreated, covered in bites, as the Rat King's screaming echoed behind them.", "The Rat King absorbed the party's attacks like a sponge. They'll need a better strategy — or a lot more fire."],
+      }
+    }),
   ],
   E: [
     tmpl('Goblin Cave Clearance', 'A goblin tribe has claimed {env}. Clear them out.', 'dungeon', ['Goblin Warrior', 'Goblin Shaman', 'Goblin Chieftain']),
@@ -175,6 +190,21 @@ const QUEST_TEMPLATES = {
     tmpl('Amethyst Geode Hunt', 'Giant amethyst geodes have been spotted in {env}. Crack them open and collect the gems — but watch for creatures drawn to the crystals\' energy!', 'dungeon', ['Geode Crab', 'Crystal Spider', 'Stone Lurker'], { gemMining: true, gemItemId: 'GEM_AMETHYST' }),
     tmpl('Purple Vein Expedition', 'An expedition to {env} needs muscle. The amethyst veins there are legendary — and so are the monsters. Bring back the gems!', 'dungeon', ['Deep Worm', 'Ore Golem', 'Tunnel Serpent'], { gemMining: true, gemItemId: 'GEM_AMETHYST' }),
     tmpl('Amethyst Smuggler Raid', 'Smugglers are extracting amethysts from {env} illegally. Shut them down and confiscate the gems for the guild!', 'fortress', ['Smuggler Miner', 'Gem Guard', 'Smuggler Boss'], { gemMining: true, gemItemId: 'GEM_AMETHYST' }),
+    // ── BOSS encounters (E-rank) ──
+    tmpl('BOSS: Vexara the Hex Weaver', 'A goblin witch of terrifying power has taken over {env}. Vexara the Hex Weaver commands dark magic that no goblin should possess. Her hexes have turned entire squads against each other.', 'haunted', ['Hexed Goblin', 'Curse Totem', 'Vexara the Hex Weaver'], {
+      boss: true, bossName: 'Vexara the Hex Weaver',
+      narratives: {
+        success: ["Vexara's final hex backfired spectacularly when the party shattered her focus crystal. She shrieked as her own curses consumed her.", "The witch threw everything she had — mind control, pain curses, shadow bindings. The party broke through every single one."],
+        failure: ["The party turned on each other under Vexara's hex. By the time they broke free, she had vanished into the shadows, cackling.", "Every spell the party cast was twisted back at them. Vexara's mastery of hexcraft was beyond anything they'd prepared for."],
+      }
+    }),
+    tmpl('BOSS: Bloodfang, Alpha of the Ironwood', 'The largest dire wolf ever recorded stalks {env}. Bloodfang has killed three adventuring parties. His pack obeys with fanatical loyalty, and his fangs can shear through plate armor.', 'wilderness', ['Shadow Wolf Elite', 'Ironwood Pack Leader', 'Bloodfang'], {
+      boss: true, bossName: 'Bloodfang',
+      narratives: {
+        success: ["Bloodfang fought to the last breath, never retreating, never faltering. In death, the great wolf looked almost peaceful. The Ironwood is safe.", "The alpha's howl shook the trees as the party closed in. When silence finally fell, so did the king of wolves."],
+        failure: ["Bloodfang's pack attacked from every direction while the alpha circled, picking off stragglers. A masterful predator.", "The party couldn't even get close. Bloodfang's speed was supernatural — there one moment, gone the next, always striking from behind."],
+      }
+    }),
   ],
   D: [
     tmpl('Iron Tomb Dungeon', 'Explore and clear the dungeon at {env}.', 'dungeon', ['Skeleton Knight', 'Iron Golem', 'Ancient Lich']),
@@ -209,6 +239,21 @@ const QUEST_TEMPLATES = {
     tmpl('Blue Vein Strike', 'A massive sapphire vein was discovered in {env}. The guild wants a cut — literally. Mine the gems and bring them home!', 'dungeon', ['Vein Parasite', 'Rock Titan', 'Crystal Sentinel'], { gemMining: true, gemItemId: 'GEM_SAPPHIRE' }),
     tmpl('Sapphire Cavern Defense', 'Hold {env} while miners extract a sapphire deposit. Monsters want the gems as badly as you do!', 'dungeon', ['Cave Drake', 'Gem Thief', 'Cavern Beast'], { gemMining: true, gemItemId: 'GEM_SAPPHIRE' }),
     tmpl('Sunken Sapphire Reef', 'Sapphires grow naturally on the reef near {env}. Dive in and collect them before the sea creatures swarm!', 'wilderness', ['Reef Serpent', 'Coral Golem', 'Deep Sea Horror'], { gemMining: true, gemItemId: 'GEM_SAPPHIRE' }),
+    // ── BOSS encounters (D-rank) ──
+    tmpl('BOSS: The Iron Revenant', 'An ancient knight has risen from the depths of {env}. The Iron Revenant is no mere undead — it remembers every sword technique from its centuries of service, and its enchanted armor repairs itself.', 'haunted', ['Revenant Squire', 'Spectral Knight', 'The Iron Revenant'], {
+      boss: true, bossName: 'The Iron Revenant',
+      narratives: {
+        success: ["The Revenant's armor finally shattered, and the spirit within whispered 'thank you' before dissolving into light. Centuries of torment, ended.", "Every technique the ancient knight knew was countered, one by one. When the last was defeated, the Iron Revenant knelt and crumbled to rust."],
+        failure: ["The Revenant's sword moved with the precision of a thousand battles. The party couldn't find a single opening.", "Every wound the party inflicted sealed shut as the enchanted armor rebuilt itself. They need to find the source of its power first."],
+      }
+    }),
+    tmpl('BOSS: Kargoth the Bandit Emperor', 'The bandit known as Kargoth has united every outlaw, cutthroat, and mercenary in the region under one banner at {env}. He fights with the cunning of a general and the brutality of a berserker.', 'fortress', ['Bandit Elite Guard', 'Kargoth\'s Lieutenant', 'Kargoth the Bandit Emperor'], {
+      boss: true, bossName: 'Kargoth the Bandit Emperor',
+      narratives: {
+        success: ["Kargoth fought like a cornered lion, but even an emperor falls when his army crumbles. The bandit empire is no more.", "The Emperor's crown was just a dented helmet, but the man who wore it was genuinely terrifying. The party earned every coin of this bounty."],
+        failure: ["Kargoth had planned for this. Traps, ambushes, and his elite guard turned what should have been a siege into a massacre. The party barely escaped.", "The Bandit Emperor's fortress was a labyrinth of kill zones. The party fought bravely but was outmaneuvered at every turn."],
+      }
+    }),
   ],
   C: [
     tmpl('Troll Bridge Menace', 'Stone trolls blockade {env}. Remove them.', 'wilderness', ['Stone Troll', 'Elder Stone Troll']),
@@ -243,6 +288,21 @@ const QUEST_TEMPLATES = {
     tmpl('Ancient Emerald Vault', 'A sealed vault at {env} holds emeralds from a lost civilization. Break the seals, defeat the guardians, and claim the trove!', 'dungeon', ['Vault Sentinel', 'Ancient Construct', 'Emerald Golem'], { gemMining: true, gemItemId: 'GEM_EMERALD' }),
     tmpl('Emerald Dragon\'s Stash', 'A young dragon hoards emeralds at {env}. Defeat it and loot the gem stash!', 'mountain', ['Drake Scout', 'Emerald Drake', 'Young Green Dragon'], { gemMining: true, gemItemId: 'GEM_EMERALD' }),
     tmpl('Emerald River Dredge', 'The river at {env} carries raw emeralds downstream from an unknown source. Dredge the riverbed and fight off anything that surfaces!', 'wilderness', ['River Leviathan', 'Water Elemental', 'Gem Crab'], { gemMining: true, gemItemId: 'GEM_EMERALD' }),
+    // ── BOSS encounters (C-rank) ──
+    tmpl("BOSS: Zul'Thara, the Emerald Wyrm", "A young dragon of terrifying intelligence has made {env} her lair. Zul'Thara doesn't just breathe fire — she speaks, schemes, and has been manipulating local politics for decades. She considers adventurers amusing.", 'mountain', ['Dragonsworn Cultist', 'Emerald Drake', "Zul'Thara, the Emerald Wyrm"], {
+      boss: true, bossName: "Zul'Thara",
+      narratives: {
+        success: ["Zul'Thara's laughter turned to shock as the party pierced her scales. 'Impressive,' she gasped. 'Perhaps mortals are not so amusing after all.' The wyrm fell.", "The dragon fought with intelligence and fury in equal measure, but the party was prepared. Zul'Thara's reign of manipulation is over."],
+        failure: ["'How delightful,' Zul'Thara purred as the party fled her emerald flames. 'Do come again. I so enjoy visitors.' The dragon didn't even bother to chase.", "Zul'Thara had anticipated every strategy. She'd been watching the party for weeks, she admitted cheerfully, before nearly killing them all."],
+      }
+    }),
+    tmpl('BOSS: The Lich of Ashenmoor', 'The lich that haunts {env} has had centuries to perfect its craft. It commands legions of undead, weaves death magic that can stop hearts at a distance, and its phylactery has never been found.', 'haunted', ['Death Knight Champion', 'Spectral Archmage', 'The Lich of Ashenmoor'], {
+      boss: true, bossName: 'The Lich of Ashenmoor',
+      narratives: {
+        success: ["The phylactery was hidden inside one of its own death knights. When the party destroyed it, the lich's scream could be heard for miles as it crumbled to dust.", "Centuries of dark magic, undone in a single battle. The Lich of Ashenmoor underestimated the living for the last time."],
+        failure: ["The lich raised the party's own fallen against them. Fighting your allies' corpses while dodging death magic is as terrible as it sounds.", "Even with the lich seemingly destroyed, it reformed minutes later. Without finding the phylactery, this fight is unwinnable."],
+      }
+    }),
   ],
   B: [
     tmpl('Dragon\'s Foothold', 'A young wyvern claims {env}. Slay it.', 'mountain', ['Mountain Drake', 'Wyvern Hatchling', 'Young Wyvern']),
@@ -277,6 +337,21 @@ const QUEST_TEMPLATES = {
     tmpl('Crimson Caverns', 'The Crimson Caverns at {env} glow red with embedded rubies. Fight through the crystalline beasts and fill your bags with the fiery gems!', 'dungeon', ['Crystal Beast', 'Ruby Golem', 'Crimson Wyrm'], { gemMining: true, gemItemId: 'GEM_RUBY' }),
     tmpl('Ruby Titan\'s Hoard', 'A defeated titan\'s hoard at {env} contains rubies the size of fists. But the titan\'s guardians still stand watch!', 'fortress', ['Titan Sentinel', 'Stone Guardian', 'Ruby Titan Fragment'], { gemMining: true, gemItemId: 'GEM_RUBY' }),
     tmpl('Volcanic Ruby Rush', 'Mount {env} is erupting — and the lava reveals ruby deposits. Mine fast, fight faster, and get out before the mountain blows!', 'mountain', ['Lava Elemental', 'Volcanic Worm', 'Ember Dragon'], { gemMining: true, gemItemId: 'GEM_RUBY' }),
+    // ── BOSS encounters (B-rank) ──
+    tmpl('BOSS: Infernus, Lord of Cinders', 'A rift to the fire plane has stabilized at {env}, and through it walked Infernus — a greater fire demon of immense power. The ground melts where he stands. The air ignites where he breathes. He must be stopped.', 'demonic', ['Infernal Vanguard', 'Hellfire Archon', 'Infernus, Lord of Cinders'], {
+      boss: true, bossName: 'Infernus',
+      narratives: {
+        success: ["Infernus roared as the dimensional anchor shattered, dragging him back through the rift. The Lord of Cinders clawed at reality itself, but the seal held.", "Fire hot enough to melt stone. A demon strong enough to crack mountains. And a party stubborn enough to beat both. Infernus falls."],
+        failure: ["The temperature reached levels that made steel soft. The party couldn't get close enough to strike before their equipment began to warp.", "Infernus didn't fight — he simply existed, and his existence was enough to defeat them. The heat alone nearly killed the entire party."],
+      }
+    }),
+    tmpl('BOSS: The Colossus of Ruin', 'An ancient war machine the size of a castle has activated at {env}. The Colossus of Ruin was built to end civilizations, and after ten thousand years of slumber, it has resumed its mission.', 'fortress', ['Colossus Drone', 'Siege Automaton', 'The Colossus of Ruin'], {
+      boss: true, bossName: 'The Colossus of Ruin',
+      narratives: {
+        success: ["The party found the control core deep within the Colossus and destroyed it. The ancient machine groaned, sparked, and finally went dark after ten millennia.", "It took climbing the Colossus itself, fighting through its internal defenses, and destroying its heart. An engineering nightmare turned into a victory."],
+        failure: ["The Colossus doesn't feel pain, doesn't tire, and doesn't stop. The party's weapons barely scratched its ancient alloy hull.", "Every weapon system, every defense protocol, every countermeasure — the Colossus was designed to defeat armies. A single party wasn't enough."],
+      }
+    }),
   ],
   A: [
     tmpl('Demon Gate Incursion', 'A dimensional rift has opened at {env}. Seal it.', 'demonic', ['Lesser Demon', 'Hellfire Imp', 'Demon Commander']),
@@ -311,6 +386,21 @@ const QUEST_TEMPLATES = {
     tmpl('Fallen Star Harvest', 'A fallen star embedded in {env} has crystallized into pure star diamonds. Harvest the gems from the impact crater while fighting off cosmic predators!', 'mountain', ['Cosmic Worm', 'Star Fragment', 'Meteor Beast'], { gemMining: true, gemItemId: 'GEM_STAR_DIAMOND' }),
     tmpl('Diamond Dimension Breach', 'A breach to the diamond plane has opened at {env}. Star diamonds spill through — along with their guardians. Grab what you can!', 'demonic', ['Diamond Elemental', 'Prismatic Guardian', 'Plane Warden'], { gemMining: true, gemItemId: 'GEM_STAR_DIAMOND' }),
     tmpl('Star Diamond Dragon\'s Lair', 'An ancient dragon at {env} hoards star diamonds by the hundreds. Defeat it and claim the most valuable gem haul of a lifetime!', 'mountain', ['Diamond Drake', 'Star Dragon', 'Ancient Diamond Dragon'], { gemMining: true, gemItemId: 'GEM_STAR_DIAMOND' }),
+    // ── BOSS encounters (A-rank) ──
+    tmpl('BOSS: Nethara, the Void Empress', 'Beyond the dimensional veil at {env} lurks Nethara — an empress of the void who has consumed entire realities. She is reaching through the barrier, and if she crosses fully, this world ends.', 'demonic', ['Void Herald', 'Reality Shredder', 'Nethara, the Void Empress'], {
+      boss: true, bossName: 'Nethara',
+      narratives: {
+        success: ["Nethara's hand was reaching through when the party severed it. The Void Empress shrieked across dimensions as the rift sealed, taking her grasping fingers with it.", "They fought a being that eats realities for breakfast. And won. The Void Empress retreated to her domain, diminished, furious, and afraid for the first time."],
+        failure: ["Reality itself bent around Nethara. The party's attacks curved away, their magic fizzled, and the laws of physics became suggestions. They fled before their minds broke.", "The Void Empress didn't fight physically — she simply unmade the space around the party. Weapons ceased to exist. Armor forgot it was solid. Retreat was the only option."],
+      }
+    }),
+    tmpl('BOSS: Chronos, the Time Devourer', 'Something is eating time itself at {env}. Chronos exists in every moment simultaneously, feeding on the past and future alike. Yesterday is disappearing. Tomorrow may never come.', 'dungeon', ['Temporal Echo', 'Paradox Knight', 'Chronos, the Time Devourer'], {
+      boss: true, bossName: 'Chronos',
+      narratives: {
+        success: ["The party struck Chronos in the one moment it was vulnerable — the present. Past and future collapsed into now, and the Time Devourer starved.", "Fighting something that exists in all times simultaneously required attacking in perfect synchronization. One perfect moment. One perfect strike. Time resumes."],
+        failure: ["Chronos rewound every fatal blow. The party killed it six times, but it simply ate those moments and started the fight over — from before they'd arrived.", "Time became a weapon. The party aged decades, then reverted to children, then experienced their own deaths in reverse. They retreated, unsure what year it was."],
+      }
+    }),
   ],
   S: [
     tmpl('The Demon King', 'The Demon King stirs at {env}. Legends are made here.', 'demonic', ['Demon Elite Guard', 'Arch-Demon', 'The Demon King']),
@@ -345,6 +435,21 @@ const QUEST_TEMPLATES = {
     tmpl('The Opal Dimension', 'An entire dimension of celestial opals exists beyond {env}. Enter, mine, and escape before the dimension seals forever!', 'demonic', ['Opal Titan', 'Prismatic Wyrm', 'Dimension Core'], { gemMining: true, gemItemId: 'GEM_CELESTIAL_OPAL' }),
     tmpl('Primordial Opal Vein', 'The primordial opal vein at {env} predates the world itself. The gems here are the most valuable objects in existence — if you can survive the extraction!', 'dungeon', ['Primordial Golem', 'Time Wyrm', 'Ancient Opal Guardian'], { gemMining: true, gemItemId: 'GEM_CELESTIAL_OPAL' }),
     tmpl('World\'s End Mine', 'At the edge of existence, {env} holds the last celestial opal deposit. Mine it all — there won\'t be another chance. These opals are worth more than kingdoms!', 'demonic', ['End Walker', 'Void Miner', 'The Final Guardian'], { gemMining: true, gemItemId: 'GEM_CELESTIAL_OPAL' }),
+    // ── BOSS encounters (S-rank) ──
+    tmpl('BOSS: Aethon, the World Ender', 'A primordial god of destruction has manifested at {env}. Aethon existed before creation and will exist after it ends. It does not hate the world — it simply does not believe the world should exist. This is the fight that defines an era.', 'demonic', ['Apocalypse Herald', 'End Times Incarnate', 'Aethon, the World Ender'], {
+      boss: true, bossName: 'Aethon',
+      narratives: {
+        success: ["Aethon fell — not destroyed, for a primordial cannot be destroyed — but banished, sealed, pushed back into the void between worlds. The party didn't just save the world. They saved the concept of worlds.", "For one eternal moment, the World Ender and the party existed in perfect opposition: annihilation versus defiance. Defiance won. This time."],
+        failure: ["Aethon unmade the battlefield. Not destroyed — unmade. The ground simply stopped being ground. The party fled through a world that was forgetting how to exist.", "A primordial god doesn't fight. It simply asserts that you don't exist. The party's conviction that they DID exist wavered, and that was enough to lose."],
+      }
+    }),
+    tmpl('BOSS: The Architect of Oblivion', 'At the edge of {env}, where reality ends, stands the Architect — the entity that will one day unmake all of creation. It is not evil. It is inevitability. And it has decided that \'one day\' is today.', 'demonic', ['Oblivion Construct', 'Entropy Incarnate', 'The Architect of Oblivion'], {
+      boss: true, bossName: 'The Architect of Oblivion',
+      narratives: {
+        success: ["The Architect paused. 'Interesting,' it said, in a voice like the death of stars. 'You have earned more time. Use it wisely.' The entity dissolved — delayed, not defeated.", "The party fought the end of all things and forced it to postpone its schedule. No one in history has ever achieved this. The world endures because of them."],
+        failure: ["The Architect didn't fight. It simply began erasing, starting with the party's memories of why they were fighting. They fled before they forgot who they were.", "'You cannot stop entropy,' the Architect explained patiently as reality dissolved around the party. 'You can only delay it.' Today, they couldn't even do that."],
+      }
+    }),
   ],
 };
 
@@ -389,6 +494,21 @@ const RANK_LOOT_POOLS = {
     'CEL_FISTS_OF_NIRVANA', 'CEL_GI_OF_THE_ABSOLUTE', 'CEL_PALM_OF_THE_INFINITE', 'CEL_CHAKRA_OF_ENLIGHTENMENT',
   ],
 };
+
+// All celestial item IDs (used by boss loot injection)
+const CELESTIAL_ITEM_IDS = [
+  'CEL_DAWNBREAKER', 'CEL_ASCENDANT_PLATE', 'CEL_ASCENDANT_WARD', 'CEL_CROWN_OF_THE_CHOSEN',
+  'CEL_OATHSWORN', 'CEL_ETERNAL_BASTION', 'CEL_INFINITUM_SHIELD', 'CEL_SENTINELS_ETERNITY',
+  'CEL_INFINITY_STAFF', 'CEL_ROBES_OF_THE_VOID', 'CEL_SINGULARITY_ORB', 'CEL_DIADEM_OF_OMNISCIENCE',
+  'CEL_VOIDFANG', 'CEL_WRAITHWEAVE', 'CEL_NULLBLADE', 'CEL_ECLIPSE_PENDANT',
+  'CEL_SCEPTER_OF_DAWN', 'CEL_VESTMENTS_OF_GRACE', 'CEL_TOME_OF_MIRACLES', 'CEL_HALO_OF_THE_BLESSED',
+  'CEL_STARFALL_BOW', 'CEL_STARHIDE_MANTLE', 'CEL_CONSTELLATION_QUIVER', 'CEL_POLARIS_PENDANT',
+  'CEL_LYRE_OF_CREATION', 'CEL_VESTMENTS_OF_COSMOS', 'CEL_DRUM_OF_ETERNITY', 'CEL_MAESTROS_SIGNET',
+  'CEL_FISTS_OF_NIRVANA', 'CEL_GI_OF_THE_ABSOLUTE', 'CEL_PALM_OF_THE_INFINITE', 'CEL_CHAKRA_OF_ENLIGHTENMENT',
+];
+
+// Next-rank lookup for boss higher-tier loot
+const NEXT_RANK = { F: 'E', E: 'D', D: 'C', C: 'B', B: 'A', A: 'S', S: 'S' };
 
 const SUCCESS_NARRATIVES = [
   "The party emerged victorious, battered but triumphant.",
@@ -492,10 +612,27 @@ export function generateQuestInstance(rank, templateIndex, seed, partyStrength) 
     }));
     lootTable = [gemEntry, ...junkEntries];
   } else {
-    const lootPool = RANK_LOOT_POOLS[rank] || [];
+    const isBoss = !!t.boss;
+
+    // Boss quests: merge current rank pool + next-rank items + celestial items
+    // Normal quests: use standard rank pool
+    let lootPool = [...(RANK_LOOT_POOLS[rank] || [])];
+    if (isBoss) {
+      // Add items from one tier above
+      const nextRank = NEXT_RANK[rank];
+      if (nextRank && nextRank !== rank) {
+        const nextPool = RANK_LOOT_POOLS[nextRank] || [];
+        for (const id of nextPool) { if (!lootPool.includes(id)) lootPool.push(id); }
+      }
+      // Inject celestial items into boss loot pools
+      for (const id of CELESTIAL_ITEM_IDS) { if (!lootPool.includes(id)) lootPool.push(id); }
+    }
+
     const rarityLootBonus = rarity === 'legendary' ? 3 : rarity === 'rare' ? 2 : rarity === 'uncommon' ? 1 : 0;
-    const lootCountMin = 2 + Math.floor(rarityLootBonus / 2);
-    const lootCountMax = Math.min(4 + rarityLootBonus, lootPool.length);
+    // Bosses get more loot entries (larger table = more chances)
+    const bossLootBonus = isBoss ? 2 : 0;
+    const lootCountMin = 2 + Math.floor(rarityLootBonus / 2) + bossLootBonus;
+    const lootCountMax = Math.min(4 + rarityLootBonus + bossLootBonus, lootPool.length);
     const lootCount = seededRandInt(lootCountMin, Math.max(lootCountMin, lootCountMax), seed + 9);
     const shuffled = [...lootPool].sort((a, b) => seededRand(seed + 10 + lootPool.indexOf(a)) - seededRand(seed + 10 + lootPool.indexOf(b)));
     lootTable = shuffled.slice(0, lootCount).map((itemId, i) => {
@@ -503,18 +640,24 @@ export function generateQuestInstance(rank, templateIndex, seed, partyStrength) 
       const isCelestial = isEquip && EQUIPMENT[itemId].rarity === 'celestial';
       // Rarer quests boost equipment drop chances significantly
       const rarityDropMult = rarity === 'legendary' ? 2.0 : rarity === 'rare' ? 1.5 : rarity === 'uncommon' ? 1.2 : 1.0;
+
+      // S-rank bosses get 3x celestial drop rate; non-S bosses get standard S-rank rates
+      const bossCelestialMult = isBoss ? (rank === 'S' ? 3.0 : 1.0) : 1.0;
+
       let baseChance;
       if (isCelestial) {
-        // Celestial items: ultra-rare base chance (~1-3%), slightly boosted by quest rarity
-        baseChance = (0.008 + seededRand(seed + 20 + i) * 0.012) * Math.min(rarityDropMult, 1.5);
+        // Celestial items: ultra-rare base chance (~1-3%), boosted for S-rank bosses (~3-9%)
+        baseChance = (0.008 + seededRand(seed + 20 + i) * 0.012) * Math.min(rarityDropMult, 1.5) * bossCelestialMult;
       } else if (isEquip) {
-        baseChance = (0.08 + seededRand(seed + 20 + i) * 0.15) * rarityDropMult;
+        // Boss quests give a slight boost to all equipment drop rates
+        const bossEquipMult = isBoss ? 1.3 : 1.0;
+        baseChance = (0.08 + seededRand(seed + 20 + i) * 0.15) * rarityDropMult * bossEquipMult;
       } else {
         baseChance = 0.30 + seededRand(seed + 30 + i) * 0.50;
       }
       return {
         itemId,
-        chance: Math.min(isCelestial ? 0.05 : 0.90, baseChance), // Celestial capped at 5%
+        chance: Math.min(isCelestial ? (isBoss && rank === 'S' ? 0.12 : 0.05) : 0.90, baseChance),
         quantity: isEquip ? [1, 1] : [1, seededRandInt(1, 4, seed + 40 + i)],
       };
     });
@@ -542,8 +685,10 @@ export function generateQuestInstance(rank, templateIndex, seed, partyStrength) 
     rarity,
     gemMining: isGemMining || false,
     gemItemId: isGemMining ? t.gemItemId : null,
+    boss: !!t.boss,
+    bossName: t.bossName || null,
     templateIndex,
-    narratives: {
+    narratives: t.narratives || {
       success: SUCCESS_NARRATIVES,
       failure: FAILURE_NARRATIVES,
     },
@@ -560,36 +705,65 @@ export function generateQuestBoard(rank, partyStrength, seed) {
   const templates = QUEST_TEMPLATES[rank];
   if (!templates) return [];
 
-  // Pick BOARD_SIZE templates: 3 at-level, 1-2 harder
+  // Separate boss templates from normal templates
+  const bossIndices = templates.map((t, i) => t.boss ? i : -1).filter(i => i >= 0);
+  const normalIndices = templates.map((t, i) => !t.boss ? i : -1).filter(i => i >= 0);
+
   const indices = [];
   const used = new Set();
 
-  // First, pick 3 quests that should be at-level (moderate difficulty)
+  // ~25% chance per board refresh to include a boss quest (replaces one harder slot)
+  const bossRoll = seededRand(seed + 500);
+  const hasBoss = bossRoll < 0.25 && bossIndices.length > 0;
+
+  // First, pick 3 quests that should be at-level (moderate difficulty) — never bosses
   let attempts = 0;
   while (indices.length < 3 && attempts < 50) {
-    const idx = Math.floor(seededRand(seed + attempts) * templates.length);
+    const poolIdx = Math.floor(seededRand(seed + attempts) * normalIndices.length);
+    const idx = normalIndices[poolIdx];
     if (!used.has(idx)) {
       used.add(idx);
-      indices.push({ idx, harder: false });
+      indices.push({ idx, harder: false, boss: false });
     }
     attempts++;
   }
 
-  // Then pick 2 quests that can be harder
+  // If boss spawns, add one boss quest as a "harder" slot
+  if (hasBoss) {
+    const bossPoolIdx = Math.floor(seededRand(seed + 600) * bossIndices.length);
+    const bossIdx = bossIndices[bossPoolIdx];
+    used.add(bossIdx);
+    indices.push({ idx: bossIdx, harder: true, boss: true });
+  }
+
+  // Fill remaining slots with harder normal quests
   attempts = 0;
   while (indices.length < BOARD_SIZE && attempts < 50) {
-    const idx = Math.floor(seededRand(seed + 100 + attempts) * templates.length);
+    const poolIdx = Math.floor(seededRand(seed + 100 + attempts) * normalIndices.length);
+    const idx = normalIndices[poolIdx];
     if (!used.has(idx)) {
       used.add(idx);
-      indices.push({ idx, harder: true });
+      indices.push({ idx, harder: true, boss: false });
     }
     attempts++;
   }
 
   // Generate quest instances — pass partyStrength so quests scale with the party
-  return indices.map(({ idx, harder }, i) => {
+  return indices.map(({ idx, harder, boss }, i) => {
     const quest = generateQuestInstance(rank, idx, seed + i * 1000, partyStrength);
-    if (harder && quest) {
+    if (!quest) return null;
+
+    if (boss) {
+      // Boss quests: significantly harder (1.8-2.5x) with boosted rewards
+      const bossBoost = 1.8 + seededRand(seed + 300 + i) * 0.7;
+      quest.difficulty = Math.round(quest.difficulty * bossBoost * 100) / 100;
+      quest.recommendedPower = Math.floor(quest.recommendedPower * bossBoost);
+      quest.goldReward.min = Math.floor(quest.goldReward.min * bossBoost * 1.5);
+      quest.goldReward.max = Math.floor(quest.goldReward.max * bossBoost * 1.5);
+      quest.expReward.min = Math.floor(quest.expReward.min * bossBoost * 1.3);
+      quest.expReward.max = Math.floor(quest.expReward.max * bossBoost * 1.3);
+      quest.rankPointReward = Math.floor(quest.rankPointReward * bossBoost * 1.2);
+    } else if (harder) {
       // Boost difficulty by 30-80% for the harder slots (wider range for stronger parties)
       const baseBoost = 1.3 + seededRand(seed + 200 + i) * 0.5;
       const boost = baseBoost;
