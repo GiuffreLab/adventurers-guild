@@ -145,6 +145,20 @@ const T_SKILL = [
   (m, sk, e, dmg) => `The power of <strong>${sk}</strong> surges through ${m} — <span class="dmg-num dmg-skill">${dmg}</span> to ${e}!`,
 ];
 
+// ── Non-celestial equipment proc templates (purple styling) ─────────
+const T_EQUIP_SKILL = [
+  (m, sk, e, dmg) => `${m}'s gear surges — <strong>${sk}</strong> strikes ${e} for <span class="dmg-num dmg-equip">${dmg}</span>!`,
+  (m, sk, e, dmg) => `<strong>${sk}</strong> activates! ${m}'s weapon flares, hitting ${e} for <span class="dmg-num dmg-equip">${dmg}</span>!`,
+  (m, sk, e, dmg) => `${m} triggers <strong>${sk}</strong> — enchanted energy slams ${e} for <span class="dmg-num dmg-equip">${dmg}</span>!`,
+];
+
+// ── Celestial equipment proc templates (teal glow styling) ──────────
+const T_CELESTIAL_SKILL = [
+  (m, sk, e, dmg) => `${m} channels <strong>${sk}</strong> — celestial energy engulfs ${e} for <span class="dmg-num dmg-celestial">${dmg}</span>!`,
+  (m, sk, e, dmg) => `The heavens answer ${m}! <strong>${sk}</strong> strikes ${e} — <span class="dmg-num dmg-celestial">${dmg}</span>!`,
+  (m, sk, e, dmg) => `Divine radiance erupts from ${m}'s gear — <strong>${sk}</strong> obliterates ${e} for <span class="dmg-num dmg-celestial">${dmg}</span>!`,
+];
+
 // ── Cleric heal templates (direct group heal) ────────────────────────
 const T_HEAL_CLERIC = [
   (m, hp) => `${m} invokes a prayer of restoration — party recovers <span class="dmg-num dmg-heal">+${hp}</span> HP!`,
@@ -505,13 +519,17 @@ function buildSimulation(aq, quest) {
       target.hp = Math.max(0, target.hp - dmg);
       if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += dmg;
 
-      const dmgStr = isCrit ? `${dmg} CRIT` : `${dmg}`;
       const classId = attacker.class || 'HERO';
-      text = getAttackTemplate(classId, es)(attacker.name, target.name, dmgStr);
-      if (isMagicClass(classId)) {
-        icon = '✨'; type = 'magic';
+      if (isCrit) {
+        const dmgStr = `${dmg} CRIT`;
+        // Override template to use crit class for the damage number
+        const baseText = getAttackTemplate(classId, es)(attacker.name, target.name, dmgStr);
+        text = baseText.replace(/dmg-(phys|mag)/, 'dmg-crit');
+        icon = '💥'; type = 'crit';
       } else {
-        icon = '⚔'; type = 'attack';
+        text = getAttackTemplate(classId, es)(attacker.name, target.name, `${dmg}`);
+        if (isMagicClass(classId)) { icon = '✨'; type = 'magic'; }
+        else { icon = '⚔'; type = 'attack'; }
       }
 
       // Monk Ki Barrier — lifesteal on hit
@@ -597,8 +615,20 @@ function buildSimulation(aq, quest) {
             if (markedEnemies[target.id]) baseDmg = Math.floor(baseDmg * 1.20);
             target.hp = Math.max(0, target.hp - baseDmg);
             if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += baseDmg;
-            text = sPick(T_SKILL, es)(attacker.name, skill.name, target.name, baseDmg);
-            icon = skill.icon || '⚡'; type = 'skill';
+
+            // 3-tier skill styling: celestial > equipment > class
+            const isCelestial = skillId.startsWith('CEL_');
+            const isEquipProc = !isCelestial && skill.source === 'equipment';
+            if (isCelestial) {
+              text = sPick(T_CELESTIAL_SKILL, es)(attacker.name, skill.name, target.name, baseDmg);
+              icon = '✦'; type = 'celestial';
+            } else if (isEquipProc) {
+              text = sPick(T_EQUIP_SKILL, es)(attacker.name, skill.name, target.name, baseDmg);
+              icon = skill.icon || '⚡'; type = 'equip';
+            } else {
+              text = sPick(T_SKILL, es)(attacker.name, skill.name, target.name, baseDmg);
+              icon = skill.icon || '⚡'; type = 'skill';
+            }
 
             // Monk Ki Barrier lifesteal on skill use
             if (monksWithKiBarrier.has(attacker.id) && attacker.hp > 0) {

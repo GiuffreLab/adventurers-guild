@@ -1323,10 +1323,73 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 }
 .dmg-phys  { color: #f5f5f5; background: rgba(78,205,196,0.15); }
 .dmg-mag   { color: var(--purple); background: rgba(155,89,182,0.12); }
-.dmg-skill { color: var(--gold); background: rgba(240,192,96,0.15); }
+.dmg-skill {
+  color: var(--gold); background: rgba(240,192,96,0.15);
+  animation: skillFlash 0.35s ease-out;
+}
+@keyframes skillFlash {
+  0%   { background: rgba(240,192,96,0.4); }
+  100% { background: rgba(240,192,96,0.15); }
+}
+
+/* Non-celestial equipment proc damage (purple flare) */
+.dmg-equip {
+  color: #c882ff; background: rgba(168,100,255,0.18);
+  font-size: 0.9em; font-weight: 800;
+  text-shadow: 0 0 5px rgba(168,100,255,0.5);
+  animation: equipFlare 0.5s ease-out;
+}
+@keyframes equipFlare {
+  0%   { background: rgba(168,100,255,0.4); text-shadow: 0 0 10px rgba(168,100,255,0.8); transform: scale(1.15); }
+  100% { background: rgba(168,100,255,0.18); text-shadow: 0 0 5px rgba(168,100,255,0.5); transform: scale(1.0); }
+}
 .dmg-heal  { color: var(--green); background: rgba(46,204,113,0.12); }
 .dmg-block { color: var(--text-dim); background: rgba(255,255,255,0.06); }
 .dmg-enemy { color: var(--red); background: rgba(231,76,60,0.12); }
+
+/* Critical hit damage numbers */
+.dmg-crit {
+  color: #fff; background: rgba(255,200,60,0.25);
+  font-size: 1.0em; text-shadow: 0 0 6px rgba(255,200,60,0.7);
+  animation: critPop 0.4s ease-out;
+}
+@keyframes critPop {
+  0%   { transform: scale(1.0); }
+  30%  { transform: scale(1.35); }
+  60%  { transform: scale(0.95); }
+  100% { transform: scale(1.0); }
+}
+
+/* Celestial proc damage / text */
+.dmg-celestial {
+  color: #00e5c8; background: rgba(0,229,200,0.15);
+  font-size: 1.0em; font-weight: 800;
+  text-shadow: 0 0 8px rgba(0,229,200,0.6), 0 0 16px rgba(0,229,200,0.3);
+  animation: celestialShimmer 1.8s ease-in-out infinite;
+}
+@keyframes celestialShimmer {
+  0%, 100% { text-shadow: 0 0 8px rgba(0,229,200,0.6), 0 0 16px rgba(0,229,200,0.3); }
+  50%      { text-shadow: 0 0 12px rgba(0,229,200,0.9), 0 0 24px rgba(0,229,200,0.5), 0 0 36px rgba(0,229,200,0.2); }
+}
+
+/* KO / defeat text */
+.dmg-ko {
+  color: #ff4444; background: rgba(255,68,68,0.15);
+  font-weight: 800; animation: koShake 0.4s ease-out;
+}
+@keyframes koShake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-3px); }
+  40%      { transform: translateX(3px); }
+  60%      { transform: translateX(-2px); }
+  80%      { transform: translateX(2px); }
+}
+
+/* Dodge / miss text */
+.dmg-dodge {
+  color: var(--text-muted); background: rgba(255,255,255,0.04);
+  font-style: italic; opacity: 0.7;
+}
 
 /* Rewards preview */
 .aq-rewards-row {
@@ -1386,6 +1449,18 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .combat-log-entry.log-skill    { background: rgba(240,192,96,0.08); border-left: 2px solid var(--gold); }
 .combat-log-entry.log-skill .log-text { color: var(--gold); font-weight: 600; }
 
+/* Non-celestial equipment proc log entry — purple accent */
+.combat-log-entry.log-equip {
+  background: rgba(168,100,255,0.08); border-left: 2px solid rgba(168,100,255,0.6);
+  animation: slideUp 0.3s ease-out, equipEntryFlash 0.6s ease-out;
+}
+.combat-log-entry.log-equip .log-text { color: #c882ff; font-weight: 600; }
+.combat-log-entry.log-equip strong { color: #daa0ff; text-shadow: 0 0 4px rgba(168,100,255,0.4); }
+@keyframes equipEntryFlash {
+  0%   { background: rgba(168,100,255,0.2); }
+  100% { background: rgba(168,100,255,0.08); }
+}
+
 .combat-log-entry.log-enemy    { background: rgba(231,76,60,0.08); }
 .combat-log-entry.log-enemy .log-text { color: var(--red); }
 
@@ -1397,6 +1472,40 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 
 .combat-log-entry.log-resolve  { background: rgba(78,205,196,0.08); }
 .combat-log-entry.log-resolve .log-text { color: var(--cyan); font-style: italic; }
+
+/* Critical hit log entry — gold left border + subtle glow */
+.combat-log-entry.log-crit {
+  background: rgba(255,200,60,0.08); border-left: 2px solid rgba(255,200,60,0.6);
+}
+.combat-log-entry.log-crit .log-text { color: #ffd866; font-weight: 600; }
+
+/* Celestial proc log entry — teal glow border + shimmer background */
+.combat-log-entry.log-celestial {
+  background: rgba(0,229,200,0.08);
+  border-left: 2px solid #00e5c8;
+  animation: slideUp 0.3s ease-out, celestialEntryGlow 2.5s ease-in-out infinite;
+}
+.combat-log-entry.log-celestial .log-text { color: #00e5c8; font-weight: 700; }
+.combat-log-entry.log-celestial strong { color: #5af5e2; text-shadow: 0 0 6px rgba(0,229,200,0.5); }
+@keyframes celestialEntryGlow {
+  0%, 100% { background: rgba(0,229,200,0.06); box-shadow: none; }
+  50%      { background: rgba(0,229,200,0.12); box-shadow: inset 0 0 12px rgba(0,229,200,0.08); }
+}
+
+/* KO log entry — red flash */
+.combat-log-entry.log-ko {
+  background: rgba(255,68,68,0.1); border-left: 2px solid #ff4444;
+  animation: slideUp 0.3s ease-out, koFlash 0.6s ease-out;
+}
+.combat-log-entry.log-ko .log-text { color: #ff6b6b; font-weight: 600; }
+@keyframes koFlash {
+  0%   { background: rgba(255,68,68,0.25); }
+  100% { background: rgba(255,68,68,0.1); }
+}
+
+/* Dodge / miss log entry */
+.combat-log-entry.log-dodge { background: rgba(255,255,255,0.02); }
+.combat-log-entry.log-dodge .log-text { color: var(--text-muted); font-style: italic; }
 
 /* ── Quest Board Enhancements ────────────────────────────────────────── */
 
