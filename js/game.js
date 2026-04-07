@@ -4,8 +4,8 @@ import {
   rankIndex, randInt, canClassEquip
 } from './data.js';
 import {
-  getSkill, getUnlockedClassSkills, getMasterySkill, getEquipmentSkill,
-  getMemberActiveSkills, applyPassiveSkills, rollActiveSkills
+  getSkill, getUnlockedClassSkills, getUnlockedClassMasteries,
+  getEquipmentSkill, getMemberActiveSkills, applyPassiveSkills, rollActiveSkills
 } from './skills.js';
 import {
   calculatePartyStrength, generateQuestBoard, shouldRefreshBoard,
@@ -189,10 +189,17 @@ const Game = (() => {
         if (k !== 'hp') member.stats[k] = v;
       }
       member.stats.hp = Math.min(member.stats.maxHp, member.stats.hp + Math.max(0, hpGain));
+      // Check for new class skill unlocks
       const newSkill = getUnlockedClassSkills(member.class, member.level).find(s => !member.skills.includes(s.id));
       if (newSkill && !member.skills.includes(newSkill.id)) {
         member.skills.push(newSkill.id);
-        logEvent(`${member.name} learned ${newSkill.name}!`);
+        logEvent(`${member.name} learned skill: ${newSkill.name}!`);
+      }
+      // Check for new mastery unlocks
+      const newMastery = getUnlockedClassMasteries(member.class, member.level).find(s => !member.skills.includes(s.id));
+      if (newMastery && !member.skills.includes(newMastery.id)) {
+        member.skills.push(newMastery.id);
+        logEvent(`${member.name} gained mastery: ${newMastery.name}!`);
       }
       levelUps.push({ name: member.name, level: member.level });
     }
@@ -398,16 +405,19 @@ const Game = (() => {
     const member = getMember(memberId);
     if (!member) return [];
     const skills = [];
+    // Class skills (proc-based, unlock every 2 levels starting at 2)
     const classSkills = getUnlockedClassSkills(member.class, member.level);
     skills.push(...classSkills.map(s => s.id));
+    // Class masteries (passive, unlock every 2 levels starting at 4)
+    const classMasteries = getUnlockedClassMasteries(member.class, member.level);
+    skills.push(...classMasteries.map(s => s.id));
+    // Equipment-granted skills (item procs, separate from class skills)
     for (const slot of Object.values(member.equipment || {})) {
       if (slot) {
         const eqSkill = getEquipmentSkill(slot);
         if (eqSkill) skills.push(eqSkill.id);
       }
     }
-    const masterySkill = getMasterySkill(member.questsCompleted || 0);
-    if (masterySkill) skills.push(masterySkill.id);
     return skills;
   }
 
@@ -1076,12 +1086,6 @@ const Game = (() => {
         const m = getMember(snap.id);
         if (m) {
           m.questsCompleted = (m.questsCompleted || 0) + 1;
-          const masterySkill = getMasterySkill(m.questsCompleted);
-          if (masterySkill && !m.skills.includes(masterySkill.id)) {
-            m.skills.push(masterySkill.id);
-            skillGains.push({ memberName: m.name, skillName: masterySkill.name, skillIcon: masterySkill.icon || '⚡' });
-            logEvent(`${m.name} mastered ${masterySkill.name}!`);
-          }
         }
       }
       // Update party synergy

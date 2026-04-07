@@ -1186,17 +1186,36 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   display: flex; gap: 8px; flex-wrap: wrap;
 }
 .aq-party-member {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: 8px 12px; background: var(--bg-deep); border: 1px solid var(--border);
-  border-radius: var(--radius-sm); min-width: 72px;
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 8px 10px; background: var(--bg-deep); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); min-width: 100px; max-width: 140px;
+  transition: border-color 0.3s ease;
+}
+.aq-party-header {
+  display: flex; align-items: center; gap: 6px;
 }
 .aq-party-sigil {
-  font-size: 1rem; font-weight: 700; color: var(--cyan);
-  background: rgba(78,205,196,0.1); padding: 2px 8px; border-radius: 3px;
-  font-family: monospace;
+  font-size: 0.85rem; font-weight: 700; color: var(--cyan);
+  background: rgba(78,205,196,0.1); padding: 2px 6px; border-radius: 3px;
+  font-family: monospace; flex-shrink: 0;
 }
-.aq-party-name { font-size: 0.75rem; font-weight: 600; color: var(--text); }
-.aq-party-level { font-size: 0.65rem; color: var(--text-muted); }
+.aq-party-info { display: flex; flex-direction: column; min-width: 0; }
+.aq-party-name { font-size: 0.75rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.aq-party-level { font-size: 0.6rem; color: var(--text-muted); white-space: nowrap; }
+
+/* Buff/cooldown indicators on hero cards */
+.aq-buff-row {
+  display: flex; gap: 3px; flex-wrap: wrap; margin-top: 2px;
+}
+.aq-buff-pip {
+  font-size: 0.7rem; padding: 1px 4px; border-radius: 3px;
+  background: rgba(78,205,196,0.12); border: 1px solid rgba(78,205,196,0.25);
+  cursor: default; line-height: 1.1; transition: all 0.3s ease;
+}
+.aq-buff-pip.buff-cd {
+  background: rgba(127,127,140,0.12); border-color: rgba(127,127,140,0.3);
+  opacity: 0.6; filter: grayscale(0.4);
+}
 
 /* Live HP bars (shared between party and enemy) */
 .aq-hp-bar {
@@ -1236,6 +1255,28 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .aq-reinforce-tag {
   font-size: 0.6rem; font-weight: 700; color: var(--orange);
   text-transform: uppercase; letter-spacing: 0.5px;
+}
+/* Enemy debuff state */
+.aq-enemy-card.debuffed {
+  border-color: rgba(243,156,18,0.5);
+  box-shadow: 0 0 6px rgba(243,156,18,0.15);
+}
+.aq-debuff-row {
+  display: inline-flex; gap: 3px; margin-left: 4px; vertical-align: middle;
+}
+.aq-debuff-pip {
+  font-size: 0.65rem; padding: 0px 3px; border-radius: 3px;
+  background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3);
+  color: var(--red); cursor: default; line-height: 1.2;
+  animation: debuffPulse 1.5s ease-in-out infinite;
+}
+.aq-debuff-rounds {
+  font-size: 0.55rem; font-weight: 700; margin-left: 1px;
+  font-variant-numeric: tabular-nums;
+}
+@keyframes debuffPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
 /* Damage numbers in combat log */

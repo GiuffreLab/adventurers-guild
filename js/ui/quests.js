@@ -133,6 +133,23 @@ export function tickUpdateQuests() {
         el.classList.toggle('aq-member-dead', dead);
         const sigil = el.querySelector('.aq-party-sigil');
         if (sigil && dead && sigil.textContent !== '💀') sigil.textContent = '💀';
+        // Live-update buff indicators
+        const buffs = p.buffs || [];
+        let buffRow = el.querySelector('.aq-buff-row');
+        if (buffs.length > 0) {
+          const buffHtml = buffs.map(b => {
+            const cdClass = b.cooldown ? ' buff-cd' : '';
+            return `<span class="aq-buff-pip${cdClass}" title="${b.label}: ${b.desc}">${b.icon}</span>`;
+          }).join('');
+          if (!buffRow) {
+            buffRow = document.createElement('div');
+            buffRow.className = 'aq-buff-row';
+            el.appendChild(buffRow);
+          }
+          buffRow.innerHTML = buffHtml;
+        } else if (buffRow) {
+          buffRow.remove();
+        }
       });
 
       // Patch enemy HP bars (and add new enemies for reinforcements)
@@ -158,12 +175,32 @@ export function tickUpdateQuests() {
           const hpPct = Math.round((e.hp / Math.max(1, e.maxHp)) * 100);
           const hpColor = dead ? 'var(--text-muted)' : hpPct > 50 ? 'var(--red)' : hpPct > 25 ? 'var(--orange)' : 'var(--gold)';
           el.classList.toggle('defeated', dead);
+          el.classList.toggle('debuffed', (e.debuffs || []).length > 0);
           const icon = el.querySelector('.aq-enemy-icon');
           if (icon) icon.textContent = dead ? '💀' : '👹';
           const fill = el.querySelector('.aq-hp-fill');
           if (fill) { fill.style.width = (dead ? 0 : hpPct) + '%'; fill.style.background = hpColor; }
           const text = el.querySelector('.aq-hp-text');
           if (text) text.textContent = dead ? 'Defeated' : `${e.hp}/${e.maxHp}`;
+          // Live-update debuff indicators
+          const debuffs = e.debuffs || [];
+          const nameEl = el.querySelector('.aq-enemy-name');
+          if (nameEl) {
+            let debuffRow = nameEl.querySelector('.aq-debuff-row');
+            if (debuffs.length > 0) {
+              const debuffHtml = debuffs.map(d =>
+                `<span class="aq-debuff-pip" title="${d.label}: ${d.desc}">${d.icon}<span class="aq-debuff-rounds">${d.rounds || ''}</span></span>`
+              ).join('');
+              if (!debuffRow) {
+                debuffRow = document.createElement('span');
+                debuffRow.className = 'aq-debuff-row';
+                nameEl.appendChild(debuffRow);
+              }
+              debuffRow.innerHTML = debuffHtml;
+            } else if (debuffRow) {
+              debuffRow.remove();
+            }
+          }
         });
       }
     }
@@ -225,12 +262,24 @@ function renderActiveQuestView(s) {
     const dead = hp <= 0;
     const hpPct = dead ? 0 : Math.round((hp / Math.max(1, maxHp)) * 100);
     const hpColor = dead ? 'var(--text-muted)' : hpPct > 60 ? 'var(--green)' : hpPct > 30 ? 'var(--gold)' : 'var(--red)';
+    // Render buff/cooldown indicators from snapshot
+    const buffs = (pSnap && pSnap.buffs) ? pSnap.buffs : [];
+    const buffIcons = buffs.map(b => {
+      const cdClass = b.cooldown ? ' buff-cd' : '';
+      return `<span class="aq-buff-pip${cdClass}" title="${b.label}: ${b.desc}">${b.icon}</span>`;
+    }).join('');
+    const buffRow = buffs.length > 0 ? `<div class="aq-buff-row">${buffIcons}</div>` : '';
     return `<div class="aq-party-member${dead ? ' aq-member-dead' : ''}" data-member-id="${m.id}">
-      <div class="aq-party-sigil">${dead ? '💀' : cls.sigil}</div>
-      <div class="aq-party-name">${m.name.split(' ')[0]}</div>
-      <div class="aq-party-level">Lv.${m.level}</div>
+      <div class="aq-party-header">
+        <div class="aq-party-sigil">${dead ? '💀' : cls.sigil}</div>
+        <div class="aq-party-info">
+          <div class="aq-party-name">${m.name.split(' ')[0]}</div>
+          <div class="aq-party-level">${cls.label} Lv.${m.level}</div>
+        </div>
+      </div>
       <div class="aq-hp-bar"><div class="aq-hp-fill" style="width:${hpPct}%;background:${hpColor}"></div></div>
       <div class="aq-hp-text">${dead ? '💀 KO' : `${hp}/${maxHp}`}</div>
+      ${buffRow}
     </div>`;
   }).join('');
 
@@ -245,10 +294,16 @@ function renderActiveQuestView(s) {
     const hpPct = Math.round((e.hp / Math.max(1, e.maxHp)) * 100);
     const hpColor = e.hp <= 0 ? 'var(--text-muted)' : hpPct > 50 ? 'var(--red)' : hpPct > 25 ? 'var(--orange)' : 'var(--gold)';
     const dead = e.hp <= 0 || !e.alive;
-    return `<div class="aq-enemy-card${dead ? ' defeated' : ''}${e.isReinforcement ? ' reinforcement' : ''}" data-enemy-id="${e.id}">
+    // Debuff indicators from snapshot
+    const debuffs = (e.debuffs || []);
+    const debuffIcons = debuffs.map(d =>
+      `<span class="aq-debuff-pip" title="${d.label}: ${d.desc}">${d.icon}<span class="aq-debuff-rounds">${d.rounds || ''}</span></span>`
+    ).join('');
+    const debuffRow = debuffs.length > 0 ? `<div class="aq-debuff-row">${debuffIcons}</div>` : '';
+    return `<div class="aq-enemy-card${dead ? ' defeated' : ''}${e.isReinforcement ? ' reinforcement' : ''}${debuffs.length > 0 ? ' debuffed' : ''}" data-enemy-id="${e.id}">
       <div class="aq-enemy-icon">${dead ? '💀' : '👹'}</div>
       <div class="aq-enemy-info">
-        <div class="aq-enemy-name">${e.name}${e.isReinforcement ? ' <span class="aq-reinforce-tag">NEW</span>' : ''}</div>
+        <div class="aq-enemy-name">${e.name}${e.isReinforcement ? ' <span class="aq-reinforce-tag">NEW</span>' : ''}${debuffRow}</div>
         <div class="aq-hp-bar enemy"><div class="aq-hp-fill" style="width:${dead ? 0 : hpPct}%;background:${hpColor}"></div></div>
         <div class="aq-hp-text">${dead ? 'Defeated' : `${e.hp}/${e.maxHp}`}</div>
       </div>

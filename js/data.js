@@ -795,7 +795,7 @@ export const EQUIPMENT = {
     sellPrice: 260,
     buyPrice: 650,
     shopMinRank: 'C',
-    grantedSkill: 'ARCANE_CATACLYSM',
+    grantedSkill: 'ARCANE_CATACLYSM_EQ',
     desc: 'A staff of immense power, crackling with raw mana.'
   },
   STAFF_OF_AGES: {
@@ -851,7 +851,7 @@ export const EQUIPMENT = {
     sellPrice: 245,
     buyPrice: 610,
     shopMinRank: 'C',
-    grantedSkill: 'DIVINE_GRACE',
+    grantedSkill: 'DIVINE_GRACE_EQ',
     desc: 'A staff radiating divine light and holy power.'
   },
   STAFF_OF_DAWN: {

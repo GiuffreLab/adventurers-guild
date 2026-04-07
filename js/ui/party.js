@@ -2,7 +2,8 @@ import Game from '../game.js';
 import { getClass, getItem, getAvailableClasses, EQUIPMENT, canClassEquip, getItemRarity, CLASSES } from '../data.js';
 import {
   getSkill, getClassSkills, getUnlockedClassSkills, getNextClassSkill,
-  getNextMasterySkill, getAllMasterySkills, getEquipmentSkill
+  getClassMasteries, getUnlockedClassMasteries, getNextClassMastery,
+  getAllClassUnlocks, getNextUnlock, getEquipmentSkill
 } from '../skills.js';
 import { hpClass, fmtTime, showToast } from './helpers.js';
 
@@ -457,9 +458,9 @@ function renderSkillsPanel(m) {
     }
   }
 
-  // Mastery skills
-  const allMastery = getAllMasterySkills();
-  const questsDone = m.questsCompleted || 0;
+  // Class masteries
+  const allMasteries = getClassMasteries(m.class);
+  const unlockedMasteryIds = new Set(getUnlockedClassMasteries(m.class, m.level).map(s => s.id));
 
   let html = '';
 
@@ -473,20 +474,22 @@ function renderSkillsPanel(m) {
     html += renderSkillRow(sk, unlocked, unlocked ? null : `Unlocks at Lv.${sk.unlockLevel}`);
   }
 
+  // Class masteries
+  html += `<div class="skills-category-label" style="margin-top:12px">Masteries</div>`;
+  if (allMasteries.length === 0) {
+    html += `<div class="skill-empty-note">No masteries available.</div>`;
+  }
+  for (const sk of allMasteries) {
+    const unlocked = unlockedMasteryIds.has(sk.id);
+    html += renderSkillRow(sk, unlocked, unlocked ? null : `Unlocks at Lv.${sk.unlockLevel}`);
+  }
+
   // Equipment skills
   if (eqSkills.length > 0) {
     html += `<div class="skills-category-label" style="margin-top:12px">Equipment Skills</div>`;
     for (const { skill, source } of eqSkills) {
       html += renderSkillRow(skill, true, null, source);
     }
-  }
-
-  // Mastery skills
-  html += `<div class="skills-category-label" style="margin-top:12px">Mastery <span class="skills-category-sub">(${questsDone} quests done)</span></div>`;
-  for (const sk of allMastery) {
-    const unlocked = questsDone >= sk.questsRequired;
-    const lockMsg = unlocked ? null : `${sk.questsRequired - questsDone} more quests needed`;
-    html += renderSkillRow(sk, unlocked, lockMsg);
   }
 
   return `<div class="skills-panel">${html}</div>`;

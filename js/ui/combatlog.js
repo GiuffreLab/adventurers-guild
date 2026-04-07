@@ -194,6 +194,25 @@ const T_KI_BARRIER = [
   (monk, hp) => `${monk} absorbs life energy through their Ki Barrier — <span class="dmg-num dmg-heal">+${hp}</span> HP!`,
 ];
 
+// ── Mage Spell Echo templates ──────────────────────────────────────
+const T_SPELL_ECHO = [
+  (mage) => `Arcane energy swirls around ${mage} — <span class="dmg-num" style="color:#a0f">Spell Echo</span> activated!`,
+  (mage) => `${mage}'s magic reverberates — <span class="dmg-num" style="color:#a0f">Spell Echo</span>: next spells amplified!`,
+  (mage) => `The air crackles as ${mage} channels <span class="dmg-num" style="color:#a0f">Spell Echo</span>!`,
+];
+// ── Ranger Camouflage templates ────────────────────────────────────
+const T_CAMOUFLAGE = [
+  (ranger) => `${ranger} fades into the shadows — <span class="dmg-num" style="color:#4a4">Camouflage</span> active!`,
+  (ranger) => `${ranger} blends with the terrain — <span class="dmg-num" style="color:#4a4">Camouflage</span>: harder to hit!`,
+  (ranger) => `${ranger} vanishes from sight — <span class="dmg-num" style="color:#4a4">Camouflaged</span>!`,
+];
+// ── Cleric Divine Shield templates ─────────────────────────────────
+const T_DIVINE_SHIELD = [
+  (cleric) => `${cleric} invokes a <span class="dmg-num" style="color:#ff0">Divine Shield</span> — the party is protected!`,
+  (cleric) => `Holy light surrounds the party! ${cleric}'s <span class="dmg-num" style="color:#ff0">Divine Shield</span> reduces incoming damage!`,
+  (cleric) => `${cleric} channels sacred energy — <span class="dmg-num" style="color:#ff0">Divine Shield</span> guards the party!`,
+];
+
 const T_DEFEND = [
   (m, e, dmg) => `${m} blocks ${e}'s attack — only <span class="dmg-num dmg-block">${dmg}</span> damage taken!`,
   (m, e, dmg) => `${m} parries ${e} — <span class="dmg-num dmg-block">${dmg}</span> damage absorbed!`,
@@ -344,6 +363,18 @@ function buildSimulation(aq, quest) {
   // Monk Ki Barrier — track monks with lifesteal
   const monksWithKiBarrier = new Set();
 
+  // Mage Spell Echo — damage amp after skill cast
+  const magesWithSpellEcho = new Set();
+  const spellEchoRounds = {}; // { memberId: roundsRemaining }
+
+  // Ranger Camouflage — dodge/damage reduction after Volley
+  const camoRounds = {}; // { memberId: roundsRemaining }
+
+  // Cleric Divine Shield — party damage reduction after heal
+  const clericsWithDivineShield = new Set();
+  let divineShieldRounds = 0; // party-wide counter
+  let divineShieldSource = null; // name of cleric who cast it
+
   for (const m of members) {
     const memberData = Game.getMember(m.id);
     const memberSkills = memberData && memberData.skills ? memberData.skills : [];
@@ -364,9 +395,29 @@ function buildSimulation(aq, quest) {
     if (m.class === 'MONK' && memberSkills.includes('KI_BARRIER')) {
       monksWithKiBarrier.add(m.id);
     }
+    if (m.class === 'MAGE' && (memberSkills.includes('SPELL_ECHO') || memberSkills.includes('MANA_SURGE'))) {
+      magesWithSpellEcho.add(m.id);
+      spellEchoRounds[m.id] = 0;
+    }
+    if (m.class === 'CLERIC' && memberSkills.includes('DIVINE_SHIELD')) {
+      clericsWithDivineShield.add(m.id);
+    }
   }
 
+  // Live buff state — passed to snapshots so UI can render indicators
+  const _bufState = {
+    regenPerTick: 0, coverCooldowns, knightsWithCover,
+    rallyCooldowns, heroesWithRally, markedEnemies,
+    roguesWithMark, monksWithKiBarrier,
+    magesWithSpellEcho, spellEchoRounds,
+    camoRounds, rangersWithVolley,
+    divineShieldRounds: 0, clericsWithDivineShield, divineShieldSource: null,
+  };
+
   for (let i = 0; i < MAX_BATTLE_EVENTS; i++) {
+    _bufState.regenPerTick = regenPerTick;  // keep in sync
+    _bufState.divineShieldRounds = divineShieldRounds;
+    _bufState.divineShieldSource = divineShieldRounds > 0 ? divineShieldSource : null;
     const livingEnemies = enemies.filter(e => e.alive);
     const livingParty = partyHp.filter(p => p.hp > 0);
 
@@ -385,7 +436,7 @@ function buildSimulation(aq, quest) {
       if (anyHealed) {
         const regenText = sPick(T_REGEN_TICK, seed + i * 1111)(regenPerTick);
         events.push({ text: regenText, type: 'heal', icon: '🎵', phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies));
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
       }
       // Re-check after regen in case everyone died (shouldn't happen, but safety)
       if (partyHp.filter(p => p.hp > 0).length === 0) { battleOutcome = 'defeat'; break; }
@@ -404,6 +455,21 @@ function buildSimulation(aq, quest) {
       if (markedEnemies[id] > 0) markedEnemies[id]--;
       if (markedEnemies[id] <= 0) delete markedEnemies[id];
     }
+    // Tick down Spell Echo durations
+    for (const id of Object.keys(spellEchoRounds)) {
+      if (spellEchoRounds[id] > 0) spellEchoRounds[id]--;
+    }
+    // Tick down Camouflage durations
+    for (const id of Object.keys(camoRounds)) {
+      if (camoRounds[id] > 0) camoRounds[id]--;
+      if (camoRounds[id] <= 0) delete camoRounds[id];
+    }
+    // Tick down Divine Shield
+    if (divineShieldRounds > 0) {
+      divineShieldRounds--;
+      _bufState.divineShieldRounds = divineShieldRounds;
+      _bufState.divineShieldSource = divineShieldRounds > 0 ? divineShieldSource : null;
+    }
 
     const es = seed + (i + 10) * 7919;
     const roll = sRand(es + 3);
@@ -418,6 +484,8 @@ function buildSimulation(aq, quest) {
       const cls = getClass(attacker.class);
       const avgEnemyHp = enemies.reduce((s, e) => s + e.maxHp, 0) / Math.max(1, enemies.length);
       let baseDmg = Math.max(2, Math.floor(avgEnemyHp * (0.15 + sRand(es + 12) * 0.20) * dmgBonus));
+      // Mage Spell Echo amplification
+      if (spellEchoRounds[attacker.id] > 0) baseDmg = Math.floor(baseDmg * 1.50);
       // Mark for Death amplification
       if (markedEnemies[target.id]) baseDmg = Math.floor(baseDmg * 1.20);
       const isCrit = sRand(es + 13) < 0.15;
@@ -441,7 +509,7 @@ function buildSimulation(aq, quest) {
         const actual = attacker.hp - before;
         if (actual > 0) {
           events.push({ text, type, icon, phase: 'battle' });
-          snapshots.push(makeSnapshot(partyHp, enemies));
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
           text = sPick(T_KI_BARRIER, es + 90)(attacker.name, actual);
           icon = '🔮'; type = 'heal';
         }
@@ -450,7 +518,7 @@ function buildSimulation(aq, quest) {
       // Rogue Mark for Death — on crit, mark the target
       if (isCrit && roguesWithMark.has(attacker.id) && target.alive) {
         events.push({ text, type, icon, phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies));
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
         markedEnemies[target.id] = 2;
         text = sPick(T_MARK_FOR_DEATH, es + 91)(attacker.name, target.name);
         icon = '🎯'; type = 'debuff';
@@ -459,7 +527,7 @@ function buildSimulation(aq, quest) {
       if (target.hp <= 0) {
         target.alive = false;
         events.push({ text, type, icon, phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies));
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
         text = sPick(T_ENEMY_DEFEAT, es + 50)(target.name, attacker.name);
         icon = '💥'; type = 'defeat';
       }
@@ -486,11 +554,19 @@ function buildSimulation(aq, quest) {
             });
             text = sPick(T_VOLLEY, es)(attacker.name, currentLiving.length, perTargetDmg);
             icon = '🏹'; type = 'skill';
+            // Ranger Camouflage — activate after Volley
+            if (rangersWithVolley.has(attacker.id)) {
+              camoRounds[attacker.id] = 2;
+              events.push({ text, type, icon, phase: 'battle' });
+              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+              text = sPick(T_CAMOUFLAGE, es + 96)(attacker.name);
+              icon = '🍃'; type = 'buff';
+            }
             // Check for kills
             const killed = currentLiving.filter(e => !e.alive);
             if (killed.length > 0) {
               events.push({ text, type, icon, phase: 'battle' });
-              snapshots.push(makeSnapshot(partyHp, enemies));
+              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
               text = killed.map(e => `${e.name} falls!`).join(' ');
               icon = '💥'; type = 'defeat';
             }
@@ -498,6 +574,8 @@ function buildSimulation(aq, quest) {
             // Standard skill attack
             const avgEHp = enemies.reduce((s, e) => s + e.maxHp, 0) / Math.max(1, enemies.length);
             let baseDmg = Math.max(3, Math.floor(avgEHp * (0.20 + sRand(es + 23) * 0.25) * dmgBonus));
+            // Mage Spell Echo amplification on skill damage
+            if (spellEchoRounds[attacker.id] > 0) baseDmg = Math.floor(baseDmg * 1.50);
             if (markedEnemies[target.id]) baseDmg = Math.floor(baseDmg * 1.20);
             target.hp = Math.max(0, target.hp - baseDmg);
             text = sPick(T_SKILL, es)(attacker.name, skill.name, target.name, baseDmg);
@@ -511,16 +589,25 @@ function buildSimulation(aq, quest) {
               const actual = attacker.hp - before;
               if (actual > 0) {
                 events.push({ text, type, icon, phase: 'battle' });
-                snapshots.push(makeSnapshot(partyHp, enemies));
+                snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
                 text = sPick(T_KI_BARRIER, es + 90)(attacker.name, actual);
                 icon = '🔮'; type = 'heal';
               }
             }
 
+            // Mage Spell Echo — activate damage amp after casting a skill
+            if (magesWithSpellEcho.has(attacker.id) && spellEchoRounds[attacker.id] === 0) {
+              spellEchoRounds[attacker.id] = 2;
+              events.push({ text, type, icon, phase: 'battle' });
+              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+              text = sPick(T_SPELL_ECHO, es + 95)(attacker.name);
+              icon = '🌀'; type = 'buff';
+            }
+
             if (target.hp <= 0) {
               target.alive = false;
               events.push({ text, type, icon, phase: 'battle' });
-              snapshots.push(makeSnapshot(partyHp, enemies));
+              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
               text = sPick(T_ENEMY_DEFEAT, es + 51)(target.name, attacker.name);
               icon = '💥'; type = 'defeat';
             }
@@ -545,7 +632,17 @@ function buildSimulation(aq, quest) {
       const attacker = sPick(livingEnemies, es + 30);
       const target = sPick(livingParty, es + 31);
       const rawDmg = Math.max(1, Math.floor(attacker.atk * (0.5 + sRand(es + 32) * 0.7)));
-      const baseDmg = Math.max(1, Math.floor(rawDmg * (1 - dmgReduction)));
+      // Divine Shield party damage reduction
+      const shieldReduction = divineShieldRounds > 0 ? 0.15 : 0;
+      const baseDmg = Math.max(1, Math.floor(rawDmg * (1 - dmgReduction) * (1 - shieldReduction)));
+      // Ranger Camouflage — chance to dodge entirely
+      if (camoRounds[target.id] > 0 && sRand(es + 97) < 0.40) {
+        text = `${target.name} is camouflaged — the attack misses!`;
+        icon = '🍃'; type = 'dodge';
+        events.push({ text, type, icon, phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        continue;
+      }
       const isSkill = sRand(es + 33) < 0.30;
 
       if (isSkill) {
@@ -574,7 +671,7 @@ function buildSimulation(aq, quest) {
 
         // Push the original attack event first
         events.push({ text, type, icon, phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies));
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
 
         // Then the Bulwark intercept event
         text = sPick(T_BULWARK, es + 81)(knight.name, target.name, dmgTaken);
@@ -583,14 +680,14 @@ function buildSimulation(aq, quest) {
         // Check if the knight was KO'd from absorbing the hit
         if (knight.hp <= 0) {
           events.push({ text, type, icon, phase: 'battle' });
-          snapshots.push(makeSnapshot(partyHp, enemies));
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
           text = sPick(T_PARTY_KO, es + 82)(knight.name, attacker.name);
           icon = '💀'; type = 'ko';
         }
       } else if (target.hp <= 0) {
         // No Bulwark available — normal KO
         events.push({ text, type, icon, phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies));
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
         text = sPick(T_PARTY_KO, es + 70)(target.name, attacker.name);
         icon = '💀'; type = 'ko';
       }
@@ -610,7 +707,7 @@ function buildSimulation(aq, quest) {
 
           if (actual > 0) {
             events.push({ text, type, icon, phase: 'battle' });
-            snapshots.push(makeSnapshot(partyHp, enemies));
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
             text = sPick(T_RALLY_CRY, es + 85)(availableHero.name, woundedAlly.name, actual);
             icon = '📣'; type = 'buff';
           }
@@ -661,14 +758,24 @@ function buildSimulation(aq, quest) {
         text = getHealTemplate(es)(healer.name, healAmt);
         icon = '💚'; type = 'heal';
         events.push({ text, type, icon, phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies));
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
 
         if (healed.length > 0) {
           const names = healed.map(h => `${h.name} (<span class="dmg-num dmg-heal">+${h.amt}</span>)`).join(', ');
           text = `${names} received healing from ${healer.name}.`;
           icon = '💚'; type = 'heal';
           events.push({ text, type, icon, phase: 'battle' });
-          snapshots.push(makeSnapshot(partyHp, enemies));
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        }
+        // Cleric Divine Shield — activate after group heal
+        if (clericsWithDivineShield.has(healer.id)) {
+          divineShieldRounds = 3;
+          divineShieldSource = healer.name;
+          _bufState.divineShieldRounds = divineShieldRounds;
+          _bufState.divineShieldSource = divineShieldSource;
+          const shieldText = sPick(T_DIVINE_SHIELD, es + 98)(healer.name);
+          events.push({ text: shieldText, type: 'buff', icon: '⛨', phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
         }
         continue;
       } else {
@@ -682,7 +789,7 @@ function buildSimulation(aq, quest) {
         text = sPick(T_BARD_REGEN, es)(bard.name, regenAmt);
         icon = '🎵'; type = 'buff';
         events.push({ text, type, icon, phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies));
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
         continue;
       }
 
@@ -716,7 +823,7 @@ function buildSimulation(aq, quest) {
     }
 
     events.push({ text, type, icon, phase: 'battle' });
-    snapshots.push(makeSnapshot(partyHp, enemies));
+    snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
   }
 
   // If we hit the cap without resolution, determine outcome by HP remaining
@@ -733,20 +840,73 @@ function buildSimulation(aq, quest) {
     const templates = battleOutcome === 'victory' ? T_RESOLVE_WIN : T_RESOLVE_LOSE;
     const text = sPick(templates, es)(m ? m.name : 'The party');
     events.push({ text, type: 'resolve', icon: '✦', phase: 'resolve' });
-    snapshots.push(makeSnapshot(partyHp, enemies));
+    snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
   }
 
   const totalEvents = events.length;
   return { events, snapshots, partyHp, enemies, totalEvents, battleOutcome, effectiveInterval };
 }
 
-function makeSnapshot(party, enemies) {
+function makeSnapshot(party, enemies, buffs) {
+  const b = buffs || {};
   return {
-    party: party.map(p => ({ id: p.id, name: p.name, hp: p.hp, maxHp: p.maxHp })),
-    enemies: enemies.map(e => ({
-      id: e.id, name: e.name, hp: Math.max(0, e.hp), maxHp: e.maxHp,
-      alive: e.alive, isReinforcement: e.isReinforcement || false,
-    })),
+    party: party.map(p => {
+      const pBuffs = [];
+      // Bard regen
+      if (b.regenPerTick > 0) pBuffs.push({ id: 'regen', icon: '🎵', label: 'Regen', desc: `+${b.regenPerTick} HP/rd` });
+      // Knight Bulwark cooldown
+      if (b.coverCooldowns && b.coverCooldowns[p.id] !== undefined) {
+        const cd = b.coverCooldowns[p.id];
+        if (b.knightsWithCover && b.knightsWithCover.has(p.id)) {
+          pBuffs.push(cd > 0
+            ? { id: 'bulwark_cd', icon: '🛡', label: 'Bulwark', desc: `CD: ${cd}`, cooldown: true }
+            : { id: 'bulwark', icon: '🛡', label: 'Bulwark', desc: 'Ready' });
+        }
+      }
+      // Hero Rally Cry cooldown
+      if (b.rallyCooldowns && b.rallyCooldowns[p.id] !== undefined) {
+        const cd = b.rallyCooldowns[p.id];
+        if (b.heroesWithRally && b.heroesWithRally.has(p.id)) {
+          pBuffs.push(cd > 0
+            ? { id: 'rally_cd', icon: '📣', label: 'Rally', desc: `CD: ${cd}`, cooldown: true }
+            : { id: 'rally', icon: '📣', label: 'Rally', desc: 'Ready' });
+        }
+      }
+      // Monk Ki Barrier
+      if (b.monksWithKiBarrier && b.monksWithKiBarrier.has(p.id)) {
+        pBuffs.push({ id: 'ki_barrier', icon: '🔮', label: 'Ki Barrier', desc: 'Lifesteal' });
+      }
+      // Rogue Mark available
+      if (b.roguesWithMark && b.roguesWithMark.has(p.id)) {
+        pBuffs.push({ id: 'mark', icon: '🎯', label: 'Mark', desc: 'On crit' });
+      }
+      // Mage Spell Echo
+      if (b.spellEchoRounds && b.spellEchoRounds[p.id] > 0) {
+        pBuffs.push({ id: 'spell_echo', icon: '🌀', label: 'Spell Echo', desc: `${b.spellEchoRounds[p.id]}rd — 1.5× dmg` });
+      } else if (b.magesWithSpellEcho && b.magesWithSpellEcho.has(p.id) && b.spellEchoRounds && b.spellEchoRounds[p.id] === 0) {
+        pBuffs.push({ id: 'spell_echo_ready', icon: '🌀', label: 'Echo', desc: 'Ready', cooldown: true });
+      }
+      // Ranger Camouflage
+      if (b.camoRounds && b.camoRounds[p.id] > 0) {
+        pBuffs.push({ id: 'camo', icon: '🍃', label: 'Camo', desc: `${b.camoRounds[p.id]}rd — 40% dodge` });
+      }
+      // Cleric Divine Shield (party-wide)
+      if (b.divineShieldRounds > 0) {
+        pBuffs.push({ id: 'divine_shield', icon: '⛨', label: 'D.Shield', desc: `${b.divineShieldRounds}rd — -15% dmg` });
+      }
+      return { id: p.id, name: p.name, hp: p.hp, maxHp: p.maxHp, class: p.class, buffs: pBuffs };
+    }),
+    enemies: enemies.map(e => {
+      const eDebuffs = [];
+      if (b.markedEnemies && b.markedEnemies[e.id] > 0) {
+        eDebuffs.push({ id: 'marked', icon: '🎯', label: 'Marked', desc: `${b.markedEnemies[e.id]}rd`, rounds: b.markedEnemies[e.id] });
+      }
+      return {
+        id: e.id, name: e.name, hp: Math.max(0, e.hp), maxHp: e.maxHp,
+        alive: e.alive, isReinforcement: e.isReinforcement || false,
+        debuffs: eDebuffs,
+      };
+    }),
   };
 }
 
