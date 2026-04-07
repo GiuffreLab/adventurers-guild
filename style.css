@@ -2277,7 +2277,7 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   white-space: nowrap;
 }
 
-/* ── Responsive tweaks ─────────────────────────────────────────────────── */
+/* ── Responsive: Tablet (≤800px) ──────────────────────────────────────── */
 @media (max-width: 800px) {
   .char-body { grid-template-columns: 1fr; }
   .char-header { flex-direction: column; align-items: center; text-align: center; }
@@ -2292,6 +2292,7 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   .qd-rewards-grid { grid-template-columns: repeat(2, 1fr); }
   .syn-stats-row { grid-template-columns: repeat(2, 1fr); }
   .quest-tabs { flex-wrap: wrap; }
+  .party-layout { grid-template-columns: 1fr; }
   .compendium-layout { grid-template-columns: 1fr; }
   .comp-sidebar { flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--border); padding: 8px; gap: 4px; }
   .comp-sidebar-title { display: none; }
@@ -2300,4 +2301,158 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   .comp-body { padding: 16px; max-height: none; }
   .comp-skill-row { grid-template-columns: 24px 100px 50px 1fr; }
   .comp-item-header, .comp-item-row { grid-template-columns: 140px 50px 50px 150px 1fr; font-size: 0.78rem; }
+}
+
+/* ── Responsive: Phone (≤480px) ───────────────────────────────────────── */
+@media (max-width: 480px) {
+
+  /* ── Global spacing ── */
+  .tab-content { padding: 10px; }
+  .modal-overlay { padding: 8px; }
+  .modal-box { padding: 16px; border-radius: var(--radius); }
+  .new-game-box, .results-box { gap: 14px; }
+  .modal-title { font-size: 1.3rem; }
+  .modal-flavor { font-size: 0.8rem; }
+  .modal-header-art { font-size: 2rem; }
+
+  /* ── Header ── */
+  .game-header { padding: 0 10px; height: 44px; }
+  .header-left { gap: 6px; }
+  .header-icon { font-size: 1rem; }
+  .game-title { font-size: 0.75rem; }
+  .header-right { gap: 8px; }
+  .gold-display { font-size: 0.85rem; }
+  .rank-badge { padding: 2px 7px; font-size: 0.7rem; }
+  .btn-sm { padding: 6px 10px; font-size: 0.75rem; }
+
+  /* ── Tab bar: scrollable horizontal strip ── */
+  .tab-bar {
+    padding: 6px 8px;
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+  }
+  .tab-bar::-webkit-scrollbar { display: none; }
+  .tab-btn {
+    padding: 8px 10px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-height: 36px;
+  }
+
+  /* ── Guild Hall ── */
+  .hall-grid { grid-template-columns: 1fr; gap: 10px; }
+  .hall-wide { grid-column: 1; }
+
+  /* ── Quest Board ── */
+  .quest-tabs { flex-wrap: wrap; gap: 4px; }
+  .quest-tab-btn { padding: 8px 10px; font-size: 0.78rem; min-height: 36px; }
+  .rank-filter { gap: 4px; }
+  .rank-filter-btn { padding: 6px 10px; font-size: 0.78rem; min-height: 36px; }
+  .qd-rewards-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+
+  /* ── Active Quest ── */
+  .aq-main-content { grid-template-columns: 1fr; }
+  .aq-left-col { border-right: none; border-bottom: 1px solid var(--border); }
+  .aq-combat-log { max-height: 250px; min-height: 120px; }
+  .aq-combat-log-section { padding: 10px; }
+  .combat-log-entry { padding: 4px 6px; font-size: 0.8rem; }
+
+  /* ── Party ── */
+  .party-layout { grid-template-columns: 1fr; }
+  .active-slots { grid-template-columns: repeat(2, 1fr) !important; }
+  .char-body { grid-template-columns: 1fr; }
+  .char-header { flex-direction: column; align-items: center; text-align: center; }
+
+  /* ── Shop ── */
+  .shop-grid { grid-template-columns: 1fr !important; }
+
+  /* ── Compendium ── */
+  .compendium-layout { grid-template-columns: 1fr; min-height: auto; }
+  .comp-sidebar {
+    flex-direction: row; flex-wrap: nowrap; overflow-x: auto;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    border-right: none; border-bottom: 1px solid var(--border);
+    padding: 6px; gap: 4px;
+  }
+  .comp-sidebar::-webkit-scrollbar { display: none; }
+  .comp-sidebar-title { display: none; }
+  .comp-nav-btn {
+    padding: 8px 10px; font-size: 0.72rem; white-space: nowrap; flex-shrink: 0;
+    border-left: none; border-bottom: 2px solid transparent; min-height: 36px;
+  }
+  .comp-nav-btn.active { border-left-color: transparent; border-bottom-color: var(--cyan); }
+  .comp-body { padding: 12px; max-height: none; }
+  .comp-title { font-size: 1.1rem; }
+  .comp-subtitle { font-size: 0.95rem; }
+  .comp-text { font-size: 0.85rem; }
+
+  /* Compendium: Stats */
+  .comp-stat-row { grid-template-columns: 1fr; gap: 4px; padding: 8px 0; }
+  .comp-stat-name { font-size: 0.85rem; }
+  .comp-stat-desc { font-size: 0.82rem; }
+
+  /* Compendium: Class cards */
+  .comp-class-card { padding: 12px; }
+  .comp-class-sigil { font-size: 1.5rem; width: 40px; height: 40px; }
+  .comp-class-name { font-size: 1rem; }
+  .comp-class-stats { font-size: 0.75rem; gap: 4px 10px; padding: 6px 8px; }
+  .comp-skill-row {
+    grid-template-columns: 22px 1fr;
+    gap: 2px 6px;
+  }
+  .comp-skill-name { grid-column: 2; font-size: 0.82rem; }
+  .comp-skill-type { grid-column: 2; font-size: 0.72rem; }
+  .comp-skill-desc { grid-column: 1 / -1; font-size: 0.78rem; padding-left: 28px; }
+
+  /* Compendium: Equipment table → card layout */
+  .comp-item-table { border: none; }
+  .comp-item-header { display: none; }
+  .comp-item-row {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 10px; margin-bottom: 6px;
+    background: var(--bg-card-alt); border-radius: var(--radius-sm);
+    border: 1px solid var(--border); font-size: 0.82rem;
+  }
+  .comp-item-name { font-size: 0.88rem; }
+  .comp-item-slot::before { content: 'Slot: '; color: var(--text-muted); }
+  .comp-item-class::before { content: 'Class: '; color: var(--text-muted); }
+  .comp-item-desc { font-size: 0.78rem; }
+
+  /* Compendium: Synergy table → card layout */
+  .comp-synergy-table { border: none; }
+  .comp-synergy-header { display: none; }
+  .comp-synergy-row {
+    display: flex; flex-wrap: wrap; gap: 4px 12px;
+    padding: 10px; margin-bottom: 6px;
+    background: var(--bg-card-alt); border-radius: var(--radius-sm);
+    border: 1px solid var(--border); font-size: 0.82rem;
+  }
+  .comp-synergy-quests { min-width: 80px; }
+  .comp-synergy-desc { flex-basis: 100%; }
+  .comp-synergy-status { position: absolute; right: 10px; top: 10px; }
+  .comp-synergy-row { position: relative; }
+
+  /* Compendium: Rank rows */
+  .comp-rank-row { flex-wrap: wrap; gap: 8px; padding: 8px; }
+  .comp-rank-desc { font-size: 0.82rem; flex-basis: 100%; }
+
+  /* ── Battle Highlights (results screen) ── */
+  .highlight-row { font-size: 0.82rem; }
+
+  /* ── Synergy stats ── */
+  .syn-stats-row { grid-template-columns: 1fr; }
+
+  /* ── General touch target fixes ── */
+  button, .btn, [role="button"] { min-height: 36px; }
+}
+
+/* ── iOS safe area support ────────────────────────────────────────────── */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .tab-bar { padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
+  .game-header { padding-top: env(safe-area-inset-top); }
+  .modal-overlay { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 }
