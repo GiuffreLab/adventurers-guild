@@ -236,8 +236,8 @@ export function showResultsModal() {
 
     // Extract name from start of event text (before "attacks", "activates", etc.)
     function extractName(text) {
-      // Strip HTML tags first
-      const clean = text.replace(/<[^>]+>/g, '');
+      // Strip HTML tags first, then remove any remaining angle brackets to avoid partial tags like "<script"
+      const clean = text.replace(/<[^>]+>/g, '').replace(/[<>]/g, '');
       const m = clean.match(/^([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)/);
       return m ? m[1] : null;
     }
