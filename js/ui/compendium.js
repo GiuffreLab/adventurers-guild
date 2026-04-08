@@ -1,7 +1,7 @@
 // ── Compendium — In-game encyclopedia ─────────────────────────────────────
 import Game from '../game.js';
 import { CLASSES, RANK_ORDER, EQUIPMENT, ITEM_RARITIES, getItemRarity } from '../data.js';
-import { SKILLS, getClassSkills, getClassMasteries } from '../skills.js';
+import { SKILLS, getClassSkills, getClassMasteries, HERO_SPECS, HERO_RESPEC_COSTS, getSpecSkills } from '../skills.js';
 
 let _currentSection = 'overview';
 
@@ -182,11 +182,48 @@ function renderClasses() {
     `;
   }).join('');
 
+  // Hero Specialization section
+  const specCards = Object.entries(HERO_SPECS).map(([trackId, track]) => {
+    const specSkills = getSpecSkills(trackId);
+    const skillRows = specSkills.map(s => {
+      const isPassive = s.type === 'passive' || s.procChance >= 1.0;
+      const pct = s.reactive ? 'reactive' : (isPassive ? 'passive' : `${Math.round(s.procChance * 100)}%`);
+      return `<div class="comp-skill-row">
+        <span class="comp-skill-icon">${s.icon || '•'}</span>
+        <span class="comp-skill-name">${s.name} <em style="opacity:0.5">(Lv.${s.unlockLevel})</em></span>
+        <span class="comp-skill-type">${pct}</span>
+        <span class="comp-skill-desc">${s.description || ''}</span>
+      </div>`;
+    }).join('');
+
+    return `
+      <div class="comp-class-card" style="border-left:3px solid var(--cyan)">
+        <div class="comp-class-header">
+          <span class="comp-class-sigil">${track.icon}</span>
+          <div>
+            <div class="comp-class-name">${track.label}</div>
+            <div class="comp-class-role">${track.description}</div>
+          </div>
+        </div>
+        <div class="comp-skill-section"><div class="comp-skill-header">Specialization Skills</div>${skillRows}</div>
+      </div>
+    `;
+  }).join('');
+
+  const respecCosts = Object.entries(HERO_RESPEC_COSTS)
+    .map(([rank, cost]) => `${rank}: ${cost.toLocaleString()}g`)
+    .join(' · ');
+
   return `
     <div class="comp-section">
       <h2 class="comp-title">Classes & Skills</h2>
       <p class="comp-text">All 8 classes are available from the start. Base stats show Level 1 values, with per-level growth in parentheses. Active skills show their proc chance; passives are always active.</p>
       ${cards}
+
+      <h2 class="comp-title" style="margin-top:24px">Hero Specializations</h2>
+      <p class="comp-text">At Level 10, the Hero chooses a specialization track that adds 3 new skills on top of existing abilities (at Lv.10, 14, and 18). Each track defines a distinct combat role. You can respec to a different track for gold — the cost scales with guild rank.</p>
+      <p class="comp-text" style="opacity:0.7">Respec costs: ${respecCosts}</p>
+      ${specCards}
     </div>
   `;
 }
@@ -219,7 +256,7 @@ function renderEquipment() {
   // Collect all items with procs (epic, legendary, celestial)
   const items = Object.values(EQUIPMENT);
   const procItems = items
-    .filter(it => it.grantedSkill)
+    .filter(it => it.grantedSkill || (it.grantedSkills && it.grantedSkills.length))
     .sort((a, b) => {
       const ri = rarityOrder.indexOf(a.rarity) - rarityOrder.indexOf(b.rarity);
       if (ri !== 0) return ri;
@@ -242,34 +279,37 @@ function renderEquipment() {
     }).join(', ');
   }
 
-  const procRows = procItems.map(it => {
-    const skill = SKILLS[it.grantedSkill];
-    if (!skill) return '';
+  const procRows = procItems.flatMap(it => {
+    const skillIds = [].concat(it.grantedSkill || [], it.grantedSkills || []);
     const rarity = getItemRarity(it);
     const classStr = it.classReq ? it.classReq.map(c => CLASSES[c]?.sigil || c).join('/') : 'Any';
-    const isPassive = skill.type === 'passive' || skill.procChance >= 1.0;
-    const procStr = isPassive
-      ? '<span class="comp-proc-passive">Passive</span>'
-      : `<span class="comp-proc-chance">${Math.round(skill.procChance * 100)}%</span>`;
-    const durationStr = isPassive ? 'Always active' : '1 round (2-round CD)';
-    const effectStr = formatEffects(skill.effects);
-    return `
-      <div class="comp-item-row">
-        <span class="comp-item-name" style="color:${rarity.color}">${it.name}</span>
-        <span class="comp-item-slot">${it.slot}</span>
-        <span class="comp-item-class">${classStr}</span>
-        <span class="comp-item-skill">${skill.icon || '•'} ${skill.name}</span>
-        <span class="comp-item-proc">${procStr}</span>
-        <span class="comp-item-effects">${effectStr}</span>
-        <span class="comp-item-duration">${durationStr}</span>
-      </div>
-    `;
+    return skillIds.map(skId => {
+      const skill = SKILLS[skId];
+      if (!skill) return '';
+      const isPassive = skill.type === 'passive' || skill.procChance >= 1.0;
+      const procStr = isPassive
+        ? '<span class="comp-proc-passive">Passive</span>'
+        : `<span class="comp-proc-chance">${Math.round(skill.procChance * 100)}%</span>`;
+      const durationStr = isPassive ? 'Always active' : '1 round (2-round CD)';
+      const effectStr = formatEffects(skill.effects);
+      return `
+        <div class="comp-item-row">
+          <span class="comp-item-name" style="color:${rarity.color}">${it.name}</span>
+          <span class="comp-item-slot">${it.slot}</span>
+          <span class="comp-item-class">${classStr}</span>
+          <span class="comp-item-skill">${skill.icon || '•'} ${skill.name}</span>
+          <span class="comp-item-proc">${procStr}</span>
+          <span class="comp-item-effects">${effectStr}</span>
+          <span class="comp-item-duration">${durationStr}</span>
+        </div>
+      `;
+    });
   }).join('');
 
   return `
     <div class="comp-section">
       <h2 class="comp-title">Equipment & Procs</h2>
-      <p class="comp-text">Gear comes in four slots — Weapon, Armor, Offhand, and Accessory — across six rarity tiers. Two-handed weapons (Bard instruments, some greatswords/staves) carry ~1.5× stats to compensate for the lost offhand slot.</p>
+      <p class="comp-text">Gear comes in four slots — Weapon, Armor, Offhand, and Accessory — across six rarity tiers. Two-handed weapons (Bard instruments, some greatswords/staves) carry ~1.5× stats to compensate for the lost offhand slot. The Hero's celestial set offers a unique choice: Dawnbreaker (1H sword) + Ascendant Ward (shield) for balanced builds, or the Godslayer (2H greatsword) for Champions who trade defense for devastating offensive power — it grants both an active proc and a passive aura to compensate for the lost shield slot.</p>
 
       <h3 class="comp-subtitle">Rarity Tiers</h3>
       ${rarityRows}
@@ -325,6 +365,16 @@ function renderCombat() {
       <p class="comp-text"><strong>Crescendo (Bard):</strong> Buffs the next party attack to be a guaranteed devastating critical hit at 2.5× damage (instead of the normal 1.5× crit). 3-round cooldown.</p>
       <p class="comp-text"><strong>Symphony of War (Bard):</strong> Epic passive aura — party gains +15% ATK, +12% SPD, +8% CRIT.</p>
       <p class="comp-text"><strong>Camouflage (Ranger):</strong> After using Volley, gains +40% dodge chance for 2 rounds.</p>
+
+      <h3 class="comp-subtitle">Hero Specialization Mechanics</h3>
+      <p class="comp-text"><strong>Vanguard's Oath:</strong> Reactive intercept (like Bulwark) with 40% damage reduction. Absorbs hits meant for allies. 3-round cooldown. Checked when no Knight Bulwark is available.</p>
+      <p class="comp-text"><strong>Unbreakable Will:</strong> When the Vanguard Hero would be killed, survives at 1 HP with 80% damage reduction for 2 rounds. 5-round cooldown. Checked before Divine Intervention.</p>
+      <p class="comp-text"><strong>Executioner's Mark:</strong> When any enemy drops below 30% HP, the Champion Hero delivers a bonus 2.0× ATK finishing strike. 3-round cooldown.</p>
+      <p class="comp-text"><strong>Bloodlust:</strong> After any enemy kill, the Champion's next attack deals 1.5× damage. Passive stat bonuses always active: +20% ATK, +15% CRIT chance, +12% SPD.</p>
+      <p class="comp-text"><strong>Hero's Wrath:</strong> Active skill (45% proc). Deals a guaranteed 3.0× critical hit. Devastating when combined with Bloodlust.</p>
+      <p class="comp-text"><strong>Guardian Spirit:</strong> When any ally drops below 25% HP, the Warden Hero heals them for 30% of their max HP. 3-round cooldown.</p>
+      <p class="comp-text"><strong>War Banner:</strong> Passive party aura — ATK +12%, DEF +10%, SPD +8%, CRIT +5%. Always active.</p>
+      <p class="comp-text"><strong>Last Stand:</strong> When 2+ allies are KO'd, the Warden revives ALL fallen allies at 25% HP. Once per fight.</p>
     </div>
   `;
 }

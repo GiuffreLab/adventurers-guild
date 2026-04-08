@@ -6,7 +6,7 @@ import {
 import {
   getSkill, getUnlockedClassSkills, getUnlockedClassMasteries,
   getEquipmentSkill, getMemberActiveSkills, applyPassiveSkills, rollActiveSkills,
-  collectPartyAuras
+  collectPartyAuras, HERO_SPECS, HERO_RESPEC_COSTS, getUnlockedSpecSkills
 } from './skills.js';
 import {
   calculatePartyStrength, generateQuestBoard, shouldRefreshBoard,
@@ -76,6 +76,7 @@ const Game = (() => {
         equipment: { weapon:null, armor:null, accessory:null, offhand:null },
         skills: [],
         questsCompleted: 0,
+        heroSpec: null,       // 'vanguard' | 'champion' | 'warden' | null
       },
       party: [],          // recruited members
       activeSlots: [],    // member IDs currently "in party" (max determined by partyExpansions)
@@ -204,6 +205,14 @@ const Game = (() => {
       migrateSkills(state.player);
       if (state.party) state.party.forEach(m => migrateSkills(m));
 
+      // Migration: ensure heroSpec field exists on all Heroes
+      const migrateHeroSpec = (member) => {
+        if (!member || member.class !== 'HERO') return;
+        if (member.heroSpec === undefined) member.heroSpec = null;
+      };
+      migrateHeroSpec(state.player);
+      if (state.party) state.party.forEach(m => migrateHeroSpec(m));
+
       return true;
     } catch(e) { return false; }
   }
@@ -272,6 +281,15 @@ const Game = (() => {
         member.skills.push(newMastery.id);
         logEvent(`${member.name} gained mastery: ${newMastery.name}!`);
         skillGains.push({ memberName: member.name, skillName: newMastery.name, skillIcon: newMastery.icon || '🔶', type: 'mastery' });
+      }
+      // Check for new specialization skill unlocks (Hero only)
+      if (member.class === 'HERO' && member.heroSpec) {
+        const newSpec = getUnlockedSpecSkills(member.heroSpec, member.level).find(s => !member.skills.includes(s.id));
+        if (newSpec && !member.skills.includes(newSpec.id)) {
+          member.skills.push(newSpec.id);
+          logEvent(`${member.name} learned spec skill: ${newSpec.name}!`);
+          skillGains.push({ memberName: member.name, skillName: newSpec.name, skillIcon: newSpec.icon || '⚔', type: 'spec' });
+        }
       }
       levelUps.push({ name: member.name, level: member.level });
     }
@@ -371,6 +389,77 @@ const Game = (() => {
     return { ok:true };
   }
 
+  // ── Hero Specialization ─────────────────────────────────────────────────
+
+  function setHeroSpec(memberId, specTrack) {
+    const member = memberId === 'player' ? state.player : state.party.find(m => m.id === memberId);
+    if (!member) return { ok: false, reason: 'Member not found' };
+    if (member.class !== 'HERO') return { ok: false, reason: 'Only Heroes can specialize' };
+    if (member.level < 10) return { ok: false, reason: 'Must be level 10 to specialize' };
+    if (member.heroSpec) return { ok: false, reason: 'Already specialized. Use respec to change.' };
+    if (!HERO_SPECS[specTrack]) return { ok: false, reason: 'Invalid specialization track' };
+
+    member.heroSpec = specTrack;
+    // Grant any spec skills already unlocked at current level
+    const specSkills = getUnlockedSpecSkills(specTrack, member.level);
+    for (const sk of specSkills) {
+      if (!member.skills.includes(sk.id)) {
+        member.skills.push(sk.id);
+        logEvent(`${member.name} learned spec skill: ${sk.name}!`);
+      }
+    }
+    save();
+    return { ok: true, spec: HERO_SPECS[specTrack] };
+  }
+
+  function respecHeroSpec(memberId, newSpecTrack) {
+    const member = memberId === 'player' ? state.player : state.party.find(m => m.id === memberId);
+    if (!member) return { ok: false, reason: 'Member not found' };
+    if (member.class !== 'HERO') return { ok: false, reason: 'Only Heroes can specialize' };
+    if (!member.heroSpec) return { ok: false, reason: 'No specialization to reset' };
+    if (newSpecTrack && !HERO_SPECS[newSpecTrack]) return { ok: false, reason: 'Invalid specialization track' };
+    if (newSpecTrack === member.heroSpec) return { ok: false, reason: 'Already on that track' };
+
+    const cost = getRespecCost();
+    if (state.gold < cost) return { ok: false, reason: `Need ${cost.toLocaleString()}g (have ${state.gold.toLocaleString()}g)` };
+
+    // Remove old spec skills
+    const oldSpec = HERO_SPECS[member.heroSpec];
+    if (oldSpec) {
+      member.skills = member.skills.filter(id => !oldSpec.skills.includes(id));
+    }
+
+    state.gold -= cost;
+    member.heroSpec = newSpecTrack || null;
+
+    // Grant new spec skills if switching to a new track
+    if (newSpecTrack) {
+      const specSkills = getUnlockedSpecSkills(newSpecTrack, member.level);
+      for (const sk of specSkills) {
+        if (!member.skills.includes(sk.id)) {
+          member.skills.push(sk.id);
+          logEvent(`${member.name} learned spec skill: ${sk.name}!`);
+        }
+      }
+    }
+    save();
+    return { ok: true, cost };
+  }
+
+  function getRespecCost() {
+    const rank = state.guild.rank || 'F';
+    return HERO_RESPEC_COSTS[rank] || HERO_RESPEC_COSTS.F;
+  }
+
+  /** Return an array of skill IDs granted by an item (handles both grantedSkill and grantedSkills). */
+  function getItemGrantedSkills(item) {
+    if (!item) return [];
+    const skills = [];
+    if (item.grantedSkill) skills.push(item.grantedSkill);
+    if (item.grantedSkills) skills.push(...item.grantedSkills);
+    return skills;
+  }
+
   function equipItem(memberId, itemId, targetSlot) {
     const member = memberId === 'player' ? state.player : state.party.find(m => m.id === memberId);
     if (!member) return { ok:false, reason:'Member not found' };
@@ -417,13 +506,17 @@ const Game = (() => {
     if (oldItemId) {
       addToInventory(oldItemId, 1);
       const oldItem = getItem(oldItemId);
-      if (oldItem && oldItem.grantedSkill) {
-        // Only remove skill if the item isn't also equipped in the other slot
+      const oldSkills = getItemGrantedSkills(oldItem);
+      if (oldSkills.length) {
+        // Only remove skills if they aren't also granted by the other slot's item
         const otherSlot = slot === 'weapon' ? 'offhand' : 'weapon';
         const otherItemId = member.equipment[otherSlot];
         const otherItem = otherItemId ? getItem(otherItemId) : null;
-        if (!otherItem || otherItem.grantedSkill !== oldItem.grantedSkill) {
-          member.skills = member.skills.filter(id => id !== oldItem.grantedSkill);
+        const otherSkills = new Set(getItemGrantedSkills(otherItem));
+        for (const sk of oldSkills) {
+          if (!otherSkills.has(sk)) {
+            member.skills = member.skills.filter(id => id !== sk);
+          }
         }
       }
     }
@@ -431,8 +524,8 @@ const Game = (() => {
     inv.quantity--;
     if (inv.quantity === 0) state.inventory.splice(state.inventory.indexOf(inv), 1);
     member.equipment[slot] = itemId;
-    if (item.grantedSkill && !member.skills.includes(item.grantedSkill)) {
-      member.skills.push(item.grantedSkill);
+    for (const sk of getItemGrantedSkills(item)) {
+      if (!member.skills.includes(sk)) member.skills.push(sk);
     }
     return { ok:true };
   }
@@ -442,8 +535,8 @@ const Game = (() => {
     if (!member || !member.equipment[slot]) return { ok:false, reason:'Nothing to unequip' };
     const itemId = member.equipment[slot];
     const item = getItem(itemId);
-    if (item && item.grantedSkill) {
-      member.skills = member.skills.filter(id => id !== item.grantedSkill);
+    for (const sk of getItemGrantedSkills(item)) {
+      member.skills = member.skills.filter(id => id !== sk);
     }
     addToInventory(itemId, 1);
     member.equipment[slot] = null;
@@ -1353,6 +1446,7 @@ const Game = (() => {
     // Mutations
     logEvent, addRankPoints, addExp, addToInventory, removeFromInventory,
     healTick, recruitMember, dismissMember, setActive, equipItem, unequipItem,
+    setHeroSpec, respecHeroSpec, getRespecCost,
     refreshShop, buyItem, sellItem, sellAllItems, upgradeShop, getShopUpgradeCost, getShopRarityWeights, rushRestock,
     expandParty, getPartyExpansionCost, getMaxPartySize,
 

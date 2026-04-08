@@ -95,6 +95,83 @@ export const SKILLS = {
   },
 
   // ┌──────────────────────────────────────────────────────────────────────────┐
+  // │ HERO SPECIALIZATIONS — Unlocked at Lv.10. Three tracks that layer on    │
+  // │ top of existing Hero skills.                                            │
+  // │   Vanguard: Full tank — intercept, bulk, survive                        │
+  // │   Champion: Full DPS — execute, bloodlust, nuke                         │
+  // │   Warden:   Support — emergency heal, aura, mass revive                 │
+  // └──────────────────────────────────────────────────────────────────────────┘
+
+  // ── Vanguard (Tank) ──
+  VANGUARDS_OATH: {
+    id: 'VANGUARDS_OATH', name: 'Vanguard\'s Oath', type: 'active', source: 'spec',
+    classId: 'HERO', specTrack: 'vanguard', unlockLevel: 10,
+    description: 'SPEC — Reactive intercept. Absorbs a hit meant for an ally, reducing damage taken by 40%. 3-round cooldown.',
+    icon: '🛡', effects: { dmgReduction: 0.40 }, procChance: 1.0, reactive: true, cooldown: 3,
+    narrative: 'steps forward with an oath of protection — Vanguard\'s Oath!',
+  },
+  IRON_BASTION: {
+    id: 'IRON_BASTION', name: 'Iron Bastion', type: 'passive', source: 'spec',
+    classId: 'HERO', specTrack: 'vanguard', unlockLevel: 14,
+    description: 'SPEC — Self DEF +25%, max HP +20%, party DEF +10%.',
+    icon: '🏰', effects: { defBonus: 0.25, maxHpBonus: 0.20, partyDefBonus: 0.10 }, procChance: 1.0,
+    narrative: null,
+  },
+  UNBREAKABLE_WILL: {
+    id: 'UNBREAKABLE_WILL', name: 'Unbreakable Will', type: 'active', source: 'spec',
+    classId: 'HERO', specTrack: 'vanguard', unlockLevel: 18,
+    description: 'EPIC SPEC — Survives a killing blow at 1 HP with 80% damage reduction for 2 rounds. 5-round cooldown.',
+    icon: '💎', effects: { surviveKO: true, dmgReduction: 0.80, drDuration: 2 }, procChance: 1.0, reactive: true, cooldown: 5,
+    narrative: 'refuses to fall — Unbreakable Will!',
+  },
+
+  // ── Champion (DPS) ──
+  EXECUTIONERS_MARK: {
+    id: 'EXECUTIONERS_MARK', name: 'Executioner\'s Mark', type: 'active', source: 'spec',
+    classId: 'HERO', specTrack: 'champion', unlockLevel: 10,
+    description: 'SPEC — Reactive finishing strike when any enemy drops below 30% HP. Deals 2.0× ATK damage. 3-round cooldown.',
+    icon: '🎯', effects: { executeThreshold: 0.30, executeMult: 2.0 }, procChance: 1.0, reactive: true, cooldown: 3,
+    narrative: 'marks the weakened foe — Executioner\'s Mark!',
+  },
+  BLOODLUST: {
+    id: 'BLOODLUST', name: 'Bloodlust', type: 'passive', source: 'spec',
+    classId: 'HERO', specTrack: 'champion', unlockLevel: 14,
+    description: 'SPEC — ATK +20%, CRIT chance +15%, SPD +12%. On kill, next attack deals 1.5× damage.',
+    icon: '🩸', effects: { atkBonus: 0.20, critChance: 0.15, spdBonus: 0.12 }, procChance: 1.0,
+    narrative: null,
+  },
+  HEROS_WRATH: {
+    id: 'HEROS_WRATH', name: 'Hero\'s Wrath', type: 'active', source: 'spec',
+    classId: 'HERO', specTrack: 'champion', unlockLevel: 18,
+    description: 'EPIC SPEC — Guaranteed 3.0× critical hit. 45% proc.',
+    icon: '⚡', effects: { powerMultiplier: 3.0, guaranteedCrit: true }, procChance: 0.45,
+    narrative: 'unleashes devastating fury — HERO\'S WRATH!',
+  },
+
+  // ── Warden (Support/Buffer) ──
+  GUARDIAN_SPIRIT: {
+    id: 'GUARDIAN_SPIRIT', name: 'Guardian Spirit', type: 'active', source: 'spec',
+    classId: 'HERO', specTrack: 'warden', unlockLevel: 10,
+    description: 'SPEC — Reactive heal. When an ally drops below 25% HP, heals them for 30% of their max HP. 3-round cooldown.',
+    icon: '💚', effects: { healThreshold: 0.25, healPercent: 0.30 }, procChance: 1.0, reactive: true, cooldown: 3,
+    narrative: 'calls upon a Guardian Spirit — healing light washes over the wounded!',
+  },
+  WAR_BANNER: {
+    id: 'WAR_BANNER', name: 'War Banner', type: 'passive', source: 'spec',
+    classId: 'HERO', specTrack: 'warden', unlockLevel: 14,
+    description: 'SPEC — Party aura: ATK +12%, DEF +10%, SPD +8%, CRIT +5%.',
+    icon: '🚩', effects: { partyAtkBonus: 0.12, partyDefBonus: 0.10, partySpdBonus: 0.08, partyCritBonus: 0.05 }, procChance: 1.0,
+    narrative: null,
+  },
+  LAST_STAND: {
+    id: 'LAST_STAND', name: 'Last Stand', type: 'active', source: 'spec',
+    classId: 'HERO', specTrack: 'warden', unlockLevel: 18,
+    description: 'EPIC SPEC — When 2+ allies are KO\'d, revives all fallen allies at 25% HP. Once per fight.',
+    icon: '🌅', effects: { reviveAllPercent: 0.25, koThreshold: 2 }, procChance: 1.0, reactive: true, cooldown: 999,
+    narrative: 'plants the banner and roars — LAST STAND! Fallen allies rise again!',
+  },
+
+  // ┌──────────────────────────────────────────────────────────────────────────┐
   // │ KNIGHT — Iron wall. Absorbs damage, protects the party.                 │
   // │ Role: Tank / party protector                                            │
   // └──────────────────────────────────────────────────────────────────────────┘
@@ -1173,6 +1250,22 @@ export const SKILLS = {
     narrative: null,
   },
 
+  // ── HERO "Ascendant" 2H Greatsword Procs (Champion alternative) ────────
+  CEL_WORLDSPLITTER: {
+    id: 'CEL_WORLDSPLITTER', name: 'Worldsplitter', type: 'active', source: 'equipment',
+    itemId: 'CEL_GODSLAYER', unlockLevel: null,
+    description: 'The Godslayer cleaves through reality itself, delivering a cataclysmic blow that can end any foe.',
+    icon: '💥', effects: { atkBonus: 0.50, critChance: 0.30, powerMultiplier: 2.0 }, procChance: 0.50,
+    narrative: 'swings the Godslayer with world-ending force — reality cracks beneath the blow!',
+  },
+  CEL_SLAYERS_FERVOR: {
+    id: 'CEL_SLAYERS_FERVOR', name: "Slayer's Fervor", type: 'passive', source: 'equipment',
+    itemId: 'CEL_GODSLAYER', unlockLevel: null,
+    description: 'The Godslayer demands total commitment. In return, it sharpens the wielder into a perfect weapon.',
+    icon: '🔥', effects: { atkBonus: 0.20, critChance: 0.15, spdBonus: 0.12 }, procChance: 1.0,
+    narrative: null,
+  },
+
   // ── KNIGHT "Eternal Bastion" Set Procs ─────────────────────────────────
   CEL_BASTION_SMITE: {
     id: 'CEL_BASTION_SMITE', name: 'Bastion Smite', type: 'active', source: 'equipment',
@@ -1353,6 +1446,15 @@ export const SKILLS = {
     narrative: null,
   },
 
+  // ── BARD "Cosmic Harmony" 2H Lyre Passive (Lyre of Creation dual-proc) ─
+  CEL_MUSES_INSPIRATION: {
+    id: 'CEL_MUSES_INSPIRATION', name: "Muse's Inspiration", type: 'passive', source: 'equipment',
+    itemId: 'CEL_LYRE_OF_CREATION', unlockLevel: null,
+    description: 'The Lyre of Creation hums with the voice of the First Muse. Songs heal deeper, chords strike truer, and the music never falters.',
+    icon: '✨', effects: { magBonus: 0.18, healBonus: 0.20, spdBonus: 0.15, dodgeBonus: 0.12, critBonus: 0.08 }, procChance: 1.0,
+    narrative: null,
+  },
+
   // ── MONK "Transcendence" Set Procs ─────────────────────────────────────
   CEL_TRANSCENDENT_STRIKE: {
     id: 'CEL_TRANSCENDENT_STRIKE', name: 'Transcendent Strike', type: 'active', source: 'equipment',
@@ -1382,6 +1484,33 @@ export const SKILLS = {
     icon: '☯', effects: { atkBonus: 0.20, defBonus: 0.20, spdBonus: 0.20, maxHpBonus: 0.15 }, procChance: 1.0,
     narrative: null,
   },
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// HERO SPECIALIZATIONS CONFIG
+// ══════════════════════════════════════════════════════════════════════════════
+
+export const HERO_SPECS = {
+  vanguard: {
+    id: 'vanguard', label: 'Vanguard', icon: '🛡',
+    description: 'Full tank. Intercepts hits, boosts defense, survives lethal blows.',
+    skills: ['VANGUARDS_OATH', 'IRON_BASTION', 'UNBREAKABLE_WILL'],
+  },
+  champion: {
+    id: 'champion', label: 'Champion', icon: '⚔',
+    description: 'Full DPS. Executes weakened foes, grows stronger with kills, devastating crits.',
+    skills: ['EXECUTIONERS_MARK', 'BLOODLUST', 'HEROS_WRATH'],
+  },
+  warden: {
+    id: 'warden', label: 'Warden', icon: '🚩',
+    description: 'Support/buffer. Emergency heals, powerful party aura, mass revive.',
+    skills: ['GUARDIAN_SPIRIT', 'WAR_BANNER', 'LAST_STAND'],
+  },
+};
+
+// Respec costs scale with party rank (75% of gem bag sell value)
+export const HERO_RESPEC_COSTS = {
+  F: 7500, E: 13500, D: 22500, C: 37500, B: 56250, A: 90000, S: 187500,
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1428,6 +1557,22 @@ export function getNextClassMastery(classId, currentLevel) {
 
 export function getEquipmentSkill(itemId) {
   return Object.values(SKILLS).find(s => s.source === 'equipment' && s.itemId === itemId) || null;
+}
+
+// ── Specialization Skills ──
+
+export function getSpecSkills(specTrack) {
+  if (!specTrack || !HERO_SPECS[specTrack]) return [];
+  return HERO_SPECS[specTrack].skills.map(id => SKILLS[id]).filter(Boolean)
+    .sort((a, b) => (a.unlockLevel || 0) - (b.unlockLevel || 0));
+}
+
+export function getUnlockedSpecSkills(specTrack, level) {
+  return getSpecSkills(specTrack).filter(s => s.unlockLevel && s.unlockLevel <= level);
+}
+
+export function getNextSpecSkill(specTrack, currentLevel) {
+  return getSpecSkills(specTrack).find(s => s.unlockLevel && s.unlockLevel > currentLevel) || null;
 }
 
 // ── Combined unlocks (for UI display) ──

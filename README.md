@@ -53,7 +53,7 @@ After each quest, the results screen shows a combat performance breakdown with d
 
 Every class brings a unique signature ability to the party. All classes are available from the start — build your dream roster from day one.
 
-**Hero** — Your starting character (free). A balanced all-rounder with solid stats across the board. Signature: **Rally Cry** — when any ally drops below 30% HP, the Hero rallies them with a burst heal and attack buff. The insurance policy that keeps runs from falling apart.
+**Hero** — Your starting character (free). A balanced all-rounder with solid stats across the board. Signature: **Rally Cry** — when any ally drops below 30% HP, the Hero rallies them with a burst heal and attack buff. At Level 10, the Hero chooses a **Specialization** (Vanguard, Champion, or Warden) that adds 3 new skills on top of existing abilities, defining their combat identity for the rest of the game. Respec available for gold.
 
 **Knight** — The iron wall. Massive HP and defense make the Knight the party's frontline. Signature: **Bulwark** — every 3 rounds, the Knight intercepts an attack aimed at an ally and absorbs the damage. Keeps your squishies alive. Low SPD means Knights rarely attack, but that's by design — their job is to tank.
 
@@ -68,6 +68,18 @@ Every class brings a unique signature ability to the party. All classes are avai
 **Bard** — The ultimate support. Signature: **Regen Melody + Party Buffs** — the only class that provides persistent HP regeneration each round AND boosts the entire party's ATK, DEF, and SPD through songs. Bards wield two-handed instruments with boosted stats to compensate for no offhand slot. High DODGE makes them surprisingly survivable.
 
 **Monk** — Martial arts master with perfectly balanced stats. Signature: **Ki Barrier** — heals 25% of all damage dealt back as HP, making the Monk a self-sustaining frontliner who doesn't need a healer. High SPD and balanced ATK/DEF mean Monks contribute everywhere. A late-game powerhouse worth the investment.
+
+## Hero Specializations
+
+At Level 10, the Hero unlocks a choice between three specialization tracks. Spec skills layer on top of the Hero's existing class skills and masteries — you keep everything you already have and gain 3 additional abilities at levels 10, 14, and 18.
+
+**Vanguard (Tank)** — Intercepts hits for allies with damage reduction, bulks up with massive DEF/HP buffs, and survives killing blows. The party's second frontline behind the Knight, but trades raw absorption for damage mitigation and clutch survival.
+
+**Champion (DPS)** — Executes weakened enemies, gains stacking damage from kills, and unleashes devastating critical strikes. Turns the Hero from a balanced all-rounder into a kill-chaining damage machine.
+
+**Warden (Support)** — Emergency heals for critically wounded allies, a powerful party-wide aura buffing ATK/DEF/SPD/CRIT, and a once-per-fight mass revival when things go wrong. The safety net that turns near-wipes into comeback victories.
+
+Respec costs scale with guild rank (75% of gem bag sale value): F: 7,500g through S: 187,500g.
 
 ## Equipment
 

@@ -43,7 +43,8 @@ function formatFightLog() {
   for (const m of activeMembers) {
     const cls = CLASSES[m.class];
     const eff = Game.effectiveStats(m, resultAuras);
-    lines.push(`${cls?.sigil || '?'} ${m.name} — ${cls?.label || m.class} Lv.${m.level}  (Power: ${Game.memberPower(m)})`);
+    const specLabel = m.heroSpec ? ` [${m.heroSpec.charAt(0).toUpperCase() + m.heroSpec.slice(1)}]` : '';
+    lines.push(`${cls?.sigil || '?'} ${m.name} — ${cls?.label || m.class}${specLabel} Lv.${m.level}  (Power: ${Game.memberPower(m)})`);
     lines.push(`  HP: ${eff.maxHp}  ATK: ${eff.atk}  DEF: ${eff.def}  MAG: ${eff.mag}  SPD: ${eff.spd}  CRT: ${eff.crit}  DDG: ${eff.dodge}`);
     // Special percentage bonuses
     const specials = [];

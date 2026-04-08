@@ -288,9 +288,9 @@ const T_CRESCENDO_STRIKE = [
 
 // ── Bard Discord DoT templates ────────────────────────────────────
 const T_DISCORD_DOT = [
-  (dmg, count) => `The dissonant echoes rattle <span class="dmg-num">${count}</span> enemies for <span class="dmg-num" style="color:#c4a">${dmg}</span> sonic damage each!`,
-  (dmg, count) => `Discord reverberates — <span class="dmg-num">${count}</span> foes take <span class="dmg-num" style="color:#c4a">${dmg}</span> damage from the jarring sound!`,
-  (dmg, count) => `The lingering Discord tears at <span class="dmg-num">${count}</span> enemies — <span class="dmg-num" style="color:#c4a">${dmg}</span> sonic damage each!`,
+  (dmg, count) => `The dissonant echoes rattle <span class="dmg-num">${count}</span> ${count === 1 ? 'enemy' : 'enemies'} for <span class="dmg-num" style="color:#c4a">${dmg}</span> sonic damage${count === 1 ? '' : ' each'}!`,
+  (dmg, count) => `Discord reverberates — <span class="dmg-num">${count}</span> ${count === 1 ? 'foe takes' : 'foes take'} <span class="dmg-num" style="color:#c4a">${dmg}</span> damage from the jarring sound!`,
+  (dmg, count) => `The lingering Discord tears at <span class="dmg-num">${count}</span> ${count === 1 ? 'enemy' : 'enemies'} — <span class="dmg-num" style="color:#c4a">${dmg}</span> sonic damage${count === 1 ? '' : ' each'}!`,
 ];
 
 const T_DEFEND = [
@@ -331,6 +331,43 @@ const MONSTER_SKILLS = [
   'Frenzy', 'Poison Spit', 'Dark Slash', 'Tail Whip', 'Shadow Bolt',
   'Bone Crush', 'Howl', 'Venomous Bite', 'Fire Breath', 'Rock Throw',
   'Ice Spike', 'Thunder Claw', 'Cursed Touch', 'War Cry', 'Berserker Rage',
+];
+
+// ── Hero Specialization combat templates ─────────────────────────────
+// Vanguard
+const T_VANGUARD_OATH = [
+  (hero, ally, dmg) => `${hero} intercepts the blow meant for ${ally} — <span class="dmg-num" style="color:#4af">Vanguard's Oath</span> absorbs <span class="dmg-num dmg-block">${dmg}</span> damage!`,
+  (hero, ally, dmg) => `"I stand between you and harm!" ${hero}'s <span class="dmg-num" style="color:#4af">Vanguard's Oath</span> shields ${ally} — <span class="dmg-num dmg-block">${dmg}</span> taken!`,
+  (hero, ally, dmg) => `${hero} throws up a guard — <span class="dmg-num" style="color:#4af">Vanguard's Oath</span> redirects <span class="dmg-num dmg-block">${dmg}</span> damage from ${ally}!`,
+];
+const T_UNBREAKABLE = [
+  (hero) => `${hero} refuses to fall — <span class="dmg-num" style="color:#4af">Unbreakable Will</span>! 1 HP, 80% damage reduction!`,
+  (hero) => `"I... won't... die!" ${hero} activates <span class="dmg-num" style="color:#4af">Unbreakable Will</span> — surviving at 1 HP!`,
+  (hero) => `A golden aura erupts around ${hero} — <span class="dmg-num" style="color:#4af">Unbreakable Will</span>! Death denied!`,
+];
+// Champion
+const T_EXECUTIONER = [
+  (hero, target, dmg) => `${hero} sees the opening — <span class="dmg-num" style="color:#f44">Executioner's Mark</span>! ${target} takes <span class="dmg-num dmg-crit">${dmg}</span> finishing damage!`,
+  (hero, target, dmg) => `"Your time is up!" ${hero}'s <span class="dmg-num" style="color:#f44">Executioner's Mark</span> strikes ${target} for <span class="dmg-num dmg-crit">${dmg}</span>!`,
+  (hero, target, dmg) => `${hero} delivers the <span class="dmg-num" style="color:#f44">Executioner's Mark</span> — ${target} staggers from <span class="dmg-num dmg-crit">${dmg}</span> damage!`,
+];
+const T_HEROS_WRATH = [
+  (hero, target, dmg) => `${hero} channels pure fury — <span class="dmg-num" style="color:#f80">HERO'S WRATH</span>! ${target} takes <span class="dmg-num dmg-crit">${dmg}</span> devastating damage!`,
+  (hero, target, dmg) => `Rage incarnate! ${hero}'s <span class="dmg-num" style="color:#f80">HERO'S WRATH</span> annihilates ${target} for <span class="dmg-num dmg-crit">${dmg}</span>!`,
+];
+const T_BLOODLUST_KILL = [
+  (hero) => `${hero}'s eyes burn red — <span class="dmg-num" style="color:#f44">Bloodlust</span>! Next attack deals 1.5× damage!`,
+  (hero) => `The kill fuels ${hero}'s <span class="dmg-num" style="color:#f44">Bloodlust</span> — 1.5× damage on the next strike!`,
+];
+// Warden
+const T_GUARDIAN_SPIRIT = [
+  (hero, ally, hp) => `${hero} calls a <span class="dmg-num" style="color:#4f4">Guardian Spirit</span> — ${ally} is healed for <span class="dmg-num dmg-heal">+${hp}</span> HP!`,
+  (hero, ally, hp) => `Warm light wraps around ${ally} — ${hero}'s <span class="dmg-num" style="color:#4f4">Guardian Spirit</span> restores <span class="dmg-num dmg-heal">+${hp}</span> HP!`,
+  (hero, ally, hp) => `${hero} invokes a <span class="dmg-num" style="color:#4f4">Guardian Spirit</span> — healing ${ally} for <span class="dmg-num dmg-heal">+${hp}</span>!`,
+];
+const T_LAST_STAND = [
+  (hero, count) => `${hero} plants the banner — <span class="dmg-num" style="color:#ffd700">LAST STAND</span>! ${count} fallen allies rise again at 25% HP!`,
+  (hero, count) => `"We're not done yet!" ${hero}'s <span class="dmg-num" style="color:#ffd700">LAST STAND</span> revives ${count} fallen allies!`,
 ];
 
 // ── Battle simulation state ────────────────────────────────────────────
@@ -585,6 +622,26 @@ function buildSimulation(aq, quest) {
   const clericsWithResurrection = new Set();
   const resurrectionCooldowns = {}; // { memberId: roundsRemaining }
 
+  // ── Hero Specialization combat tracking ──
+  // Vanguard
+  const heroesWithVanguard = new Set();
+  const vanguardCooldowns = {}; // { memberId: roundsRemaining }
+  const heroesWithUnbreakable = new Set();
+  const unbreakableCooldowns = {}; // { memberId: roundsRemaining }
+  const unbreakableDR = {}; // { memberId: roundsRemaining } — active DR after proc
+  // Champion
+  const heroesWithExecutioner = new Set();
+  const executionerCooldowns = {}; // { memberId: roundsRemaining }
+  const heroesWithBloodlust = new Set();
+  const bloodlustActive = {}; // { memberId: true } — next attack deals 1.5× damage
+  const heroesWithWrath = new Set();
+  const wrathCooldowns = {}; // { memberId: roundsRemaining }
+  // Warden
+  const heroesWithGuardian = new Set();
+  const guardianCooldowns = {}; // { memberId: roundsRemaining }
+  const heroesWithLastStand = new Set();
+  const lastStandUsed = {}; // { memberId: true } — once per fight
+
   for (const m of members) {
     const memberData = Game.getMember(m.id);
     const memberSkills = memberData && memberData.skills ? memberData.skills : [];
@@ -627,6 +684,36 @@ function buildSimulation(aq, quest) {
     if (m.class === 'CLERIC' && memberSkills.includes('RESURRECTION')) {
       clericsWithResurrection.add(m.id);
       resurrectionCooldowns[m.id] = 0;
+    }
+    // Hero Specialization skills
+    if (m.class === 'HERO') {
+      if (memberSkills.includes('VANGUARDS_OATH')) {
+        heroesWithVanguard.add(m.id);
+        vanguardCooldowns[m.id] = 0;
+      }
+      if (memberSkills.includes('UNBREAKABLE_WILL')) {
+        heroesWithUnbreakable.add(m.id);
+        unbreakableCooldowns[m.id] = 0;
+      }
+      if (memberSkills.includes('EXECUTIONERS_MARK')) {
+        heroesWithExecutioner.add(m.id);
+        executionerCooldowns[m.id] = 0;
+      }
+      if (memberSkills.includes('BLOODLUST')) {
+        heroesWithBloodlust.add(m.id);
+      }
+      if (memberSkills.includes('HEROS_WRATH')) {
+        heroesWithWrath.add(m.id);
+        wrathCooldowns[m.id] = 0;
+      }
+      if (memberSkills.includes('GUARDIAN_SPIRIT')) {
+        heroesWithGuardian.add(m.id);
+        guardianCooldowns[m.id] = 0;
+      }
+      if (memberSkills.includes('LAST_STAND')) {
+        heroesWithLastStand.add(m.id);
+        lastStandUsed[m.id] = false;
+      }
     }
   }
 
@@ -787,6 +874,26 @@ function buildSimulation(aq, quest) {
       _bufState.divineShieldRounds = divineShieldRounds;
       _bufState.divineShieldSource = divineShieldRounds > 0 ? divineShieldSource : null;
     }
+    // Tick down Hero spec cooldowns
+    for (const id of Object.keys(vanguardCooldowns)) {
+      if (vanguardCooldowns[id] > 0) vanguardCooldowns[id]--;
+    }
+    for (const id of Object.keys(unbreakableCooldowns)) {
+      if (unbreakableCooldowns[id] > 0) unbreakableCooldowns[id]--;
+    }
+    for (const id of Object.keys(unbreakableDR)) {
+      if (unbreakableDR[id] > 0) unbreakableDR[id]--;
+      if (unbreakableDR[id] <= 0) delete unbreakableDR[id];
+    }
+    for (const id of Object.keys(executionerCooldowns)) {
+      if (executionerCooldowns[id] > 0) executionerCooldowns[id]--;
+    }
+    for (const id of Object.keys(wrathCooldowns)) {
+      if (wrathCooldowns[id] > 0) wrathCooldowns[id]--;
+    }
+    for (const id of Object.keys(guardianCooldowns)) {
+      if (guardianCooldowns[id] > 0) guardianCooldowns[id]--;
+    }
 
     const es = seed + (i + 10) * 7919;
     const roll = sRand(es + 3);
@@ -799,6 +906,11 @@ function buildSimulation(aq, quest) {
       const attacker = sPickWeighted(livingParty, es + 10);
       const target = sPick(livingEnemies, es + 11);
       let baseDmg = calcPartyDmg(attacker, es + 12, dmgBonus);
+      // Bloodlust (Champion) — 1.5× on next attack after a kill
+      if (bloodlustActive[attacker.id]) {
+        baseDmg = Math.floor(baseDmg * 1.5);
+        delete bloodlustActive[attacker.id];
+      }
       // Mage Spell Echo amplification
       if (spellEchoRounds[attacker.id] > 0) baseDmg = Math.floor(baseDmg * 1.50);
       // Mark for Death amplification
@@ -862,10 +974,37 @@ function buildSimulation(aq, quest) {
         icon = '🎯'; type = 'debuff';
       }
 
+      // Champion Executioner's Mark — bonus strike on low-HP enemy
+      if (target.hp > 0 && target.hp < target.maxHp * 0.30) {
+        const executioner = partyHp.find(p =>
+          p.hp > 0 && heroesWithExecutioner.has(p.id) && executionerCooldowns[p.id] === 0
+        );
+        if (executioner) {
+          const execDmg = Math.floor((executioner.atk || 10) * 2.0 * dmgBonus);
+          target.hp = Math.max(0, target.hp - execDmg);
+          if (combatStats[executioner.id]) combatStats[executioner.id].dmgDealt += execDmg;
+          executionerCooldowns[executioner.id] = 3;
+          events.push({ text, type, icon, phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+          text = sPick(T_EXECUTIONER, es + 95)(executioner.name, target.name, execDmg);
+          icon = '🎯'; type = 'crit';
+          if (target.hp <= 0) target.alive = false;
+        }
+      }
+
       if (target.hp <= 0) {
         target.alive = false;
-        events.push({ text, type, icon, phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        // Champion Bloodlust — on kill, next attack is 1.5×
+        const bloodlustHero = partyHp.find(p => p.hp > 0 && heroesWithBloodlust.has(p.id));
+        if (bloodlustHero) {
+          bloodlustActive[bloodlustHero.id] = true;
+          events.push({ text, type, icon, phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+          text = sPick(T_BLOODLUST_KILL, es + 96)(bloodlustHero.name);
+          icon = '🩸'; type = 'buff';
+          events.push({ text, type, icon, phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        }
         text = sPick(T_ENEMY_DEFEAT, es + 50)(target.name, attacker.name);
         icon = '💥'; type = 'defeat';
       }
@@ -951,9 +1090,32 @@ function buildSimulation(aq, quest) {
               text = killed.map(e => `${e.name} falls!`).join(' ');
               icon = '💥'; type = 'defeat';
             }
+          } else if (skillId === 'HEROS_WRATH') {
+            // Champion Hero's Wrath — guaranteed 3.0× crit
+            let baseDmg = Math.max(3, Math.floor(calcPartyDmg(attacker, es + 23, dmgBonus) * 3.0));
+            if (bloodlustActive[attacker.id]) {
+              baseDmg = Math.floor(baseDmg * 1.5);
+              delete bloodlustActive[attacker.id];
+            }
+            if (spellEchoRounds[attacker.id] > 0) baseDmg = Math.floor(baseDmg * 1.50);
+            if (markedEnemies[target.id]) baseDmg = Math.floor(baseDmg * 1.20);
+            target.hp = Math.max(0, target.hp - baseDmg);
+            if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += baseDmg;
+            text = sPick(T_HEROS_WRATH, es)(attacker.name, target.name, baseDmg);
+            icon = '⚡'; type = 'crit';
+
+            if (target.hp <= 0) {
+              target.alive = false;
+              if (heroesWithBloodlust.has(attacker.id)) bloodlustActive[attacker.id] = true;
+            }
           } else {
             // Standard skill attack — 25% stronger than basic attack
             let baseDmg = Math.max(3, Math.floor(calcPartyDmg(attacker, es + 23, dmgBonus) * 1.25));
+            // Bloodlust bonus on standard skill attacks too
+            if (bloodlustActive[attacker.id]) {
+              baseDmg = Math.floor(baseDmg * 1.5);
+              delete bloodlustActive[attacker.id];
+            }
             // Mage Spell Echo amplification on skill damage
             if (spellEchoRounds[attacker.id] > 0) baseDmg = Math.floor(baseDmg * 1.50);
             if (markedEnemies[target.id]) baseDmg = Math.floor(baseDmg * 1.20);
@@ -1052,50 +1214,53 @@ function buildSimulation(aq, quest) {
       const baseDmg = Math.max(1, Math.floor(afterDef * (1 - dmgReduction) * (1 - shieldReduction)));
       const isSkill = sRand(es + 33) < 0.35;
 
+      // Unbreakable Will DR — reduce incoming damage while active
+      let actualDmg = isSkill ? Math.floor(baseDmg * 1.5) : baseDmg;
+      if (unbreakableDR[target.id] > 0) {
+        actualDmg = Math.max(1, Math.floor(actualDmg * 0.20)); // 80% DR
+      }
+
       if (isSkill) {
         const skillName = sPick(MONSTER_SKILLS, es + 34);
-        const dmg = Math.floor(baseDmg * 1.5);
-        target.hp = Math.max(0, target.hp - dmg);
-        if (combatStats[target.id]) combatStats[target.id].dmgTaken += dmg;
-        text = sPick(T_ENEMY_SKILL, es)(attacker.name, skillName, target.name, dmg);
+        target.hp = Math.max(0, target.hp - actualDmg);
+        if (combatStats[target.id]) combatStats[target.id].dmgTaken += actualDmg;
+        text = sPick(T_ENEMY_SKILL, es)(attacker.name, skillName, target.name, actualDmg);
         icon = '🔥'; type = 'enemy';
       } else {
-        target.hp = Math.max(0, target.hp - baseDmg);
-        if (combatStats[target.id]) combatStats[target.id].dmgTaken += baseDmg;
-        text = sPick(T_ENEMY_ATK, es)(attacker.name, target.name, baseDmg);
+        target.hp = Math.max(0, target.hp - actualDmg);
+        if (combatStats[target.id]) combatStats[target.id].dmgTaken += actualDmg;
+        text = sPick(T_ENEMY_ATK, es)(attacker.name, target.name, actualDmg);
         icon = '💀'; type = 'enemy';
       }
 
       // Knight Bulwark — intercept ANY hit on an ally every 3 rounds
-      const dmgTaken = isSkill ? Math.floor(baseDmg * 1.3) : baseDmg;
+      const dmgTaken = actualDmg;
       const availableBulwark = partyHp.filter(p =>
         p.hp > 0 && p.id !== target.id && knightsWithCover.has(p.id) && coverCooldowns[p.id] === 0
       );
+      // Vanguard's Oath — same intercept but with 40% DR, checked when no Bulwark
+      const availableVanguard = partyHp.filter(p =>
+        p.hp > 0 && p.id !== target.id && heroesWithVanguard.has(p.id) && vanguardCooldowns[p.id] === 0
+      );
+
       if (availableBulwark.length > 0) {
         const knight = sPick(availableBulwark, es + 80);
-        // Undo damage to target, redirect to knight — fix stat tracking
         if (combatStats[target.id]) combatStats[target.id].dmgTaken -= dmgTaken;
-        target.hp = Math.min(target.hp + dmgTaken, target.maxHp); // restore target
-        knight.hp = Math.max(0, knight.hp - dmgTaken); // knight absorbs it
+        target.hp = Math.min(target.hp + dmgTaken, target.maxHp);
+        knight.hp = Math.max(0, knight.hp - dmgTaken);
         if (combatStats[knight.id]) combatStats[knight.id].dmgTaken += dmgTaken;
-        coverCooldowns[knight.id] = 3; // 3-round cooldown
-
-        // Push the original attack event first
+        coverCooldowns[knight.id] = 3;
         events.push({ text, type, icon, phase: 'battle' });
         snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-
-        // Then the Bulwark intercept event
         text = sPick(T_BULWARK, es + 81)(knight.name, target.name, dmgTaken);
         icon = '🛡'; type = 'cover';
 
-        // Check if the knight was KO'd from absorbing the hit
         if (knight.hp <= 0) {
-          // Try Divine Intervention to save the knight
           const diSaveKnight = partyHp.find(p =>
             p.hp > 0 && p.id !== knight.id && clericsWithIntervention.has(p.id) && interventionCooldowns[p.id] === 0
           );
           if (diSaveKnight) {
-            knight.hp = 1; // saved at 1 HP
+            knight.hp = 1;
             interventionCooldowns[diSaveKnight.id] = 4;
             if (combatStats[diSaveKnight.id]) combatStats[diSaveKnight.id].healingDone += 1;
             events.push({ text, type, icon, phase: 'battle' });
@@ -1109,25 +1274,100 @@ function buildSimulation(aq, quest) {
             icon = '💀'; type = 'ko';
           }
         }
+      } else if (availableVanguard.length > 0) {
+        // Vanguard's Oath — intercept with 40% DR
+        const hero = sPick(availableVanguard, es + 80);
+        const reducedDmg = Math.max(1, Math.floor(dmgTaken * 0.60)); // 40% DR = take 60%
+        if (combatStats[target.id]) combatStats[target.id].dmgTaken -= dmgTaken;
+        target.hp = Math.min(target.hp + dmgTaken, target.maxHp);
+        hero.hp = Math.max(0, hero.hp - reducedDmg);
+        if (combatStats[hero.id]) combatStats[hero.id].dmgTaken += reducedDmg;
+        vanguardCooldowns[hero.id] = 3;
+        events.push({ text, type, icon, phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        text = sPick(T_VANGUARD_OATH, es + 81)(hero.name, target.name, reducedDmg);
+        icon = '🛡'; type = 'cover';
+
+        if (hero.hp <= 0) {
+          // Try Unbreakable Will on self first
+          if (heroesWithUnbreakable.has(hero.id) && unbreakableCooldowns[hero.id] === 0) {
+            hero.hp = 1;
+            unbreakableCooldowns[hero.id] = 5;
+            unbreakableDR[hero.id] = 2;
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            text = sPick(T_UNBREAKABLE, es + 84)(hero.name);
+            icon = '💎'; type = 'divine';
+          } else {
+            const diSave = partyHp.find(p =>
+              p.hp > 0 && p.id !== hero.id && clericsWithIntervention.has(p.id) && interventionCooldowns[p.id] === 0
+            );
+            if (diSave) {
+              hero.hp = 1;
+              interventionCooldowns[diSave.id] = 4;
+              if (combatStats[diSave.id]) combatStats[diSave.id].healingDone += 1;
+              events.push({ text, type, icon, phase: 'battle' });
+              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+              text = sPick(T_DIVINE_INTERVENTION, es + 83)(diSave.name, hero.name);
+              icon = '🕊'; type = 'divine';
+            } else {
+              events.push({ text, type, icon, phase: 'battle' });
+              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+              text = sPick(T_PARTY_KO, es + 82)(hero.name, attacker.name);
+              icon = '💀'; type = 'ko';
+            }
+          }
+        }
       } else if (target.hp <= 0) {
-        // Try Divine Intervention before KO
-        const diSave = partyHp.find(p =>
-          p.hp > 0 && p.id !== target.id && clericsWithIntervention.has(p.id) && interventionCooldowns[p.id] === 0
-        );
-        if (diSave) {
-          target.hp = 1; // saved at 1 HP
-          interventionCooldowns[diSave.id] = 4;
-          if (combatStats[diSave.id]) combatStats[diSave.id].healingDone += 1;
+        // Target KO'd — try Unbreakable Will (self), then Divine Intervention, then KO
+        if (heroesWithUnbreakable.has(target.id) && unbreakableCooldowns[target.id] === 0) {
+          target.hp = 1;
+          unbreakableCooldowns[target.id] = 5;
+          unbreakableDR[target.id] = 2;
           events.push({ text, type, icon, phase: 'battle' });
           snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-          text = sPick(T_DIVINE_INTERVENTION, es + 71)(diSave.name, target.name);
-          icon = '🕊'; type = 'divine';
+          text = sPick(T_UNBREAKABLE, es + 84)(target.name);
+          icon = '💎'; type = 'divine';
         } else {
-          // No Divine Intervention available — normal KO
+          const diSave = partyHp.find(p =>
+            p.hp > 0 && p.id !== target.id && clericsWithIntervention.has(p.id) && interventionCooldowns[p.id] === 0
+          );
+          if (diSave) {
+            target.hp = 1;
+            interventionCooldowns[diSave.id] = 4;
+            if (combatStats[diSave.id]) combatStats[diSave.id].healingDone += 1;
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            text = sPick(T_DIVINE_INTERVENTION, es + 71)(diSave.name, target.name);
+            icon = '🕊'; type = 'divine';
+          } else {
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            text = sPick(T_PARTY_KO, es + 70)(target.name, attacker.name);
+            icon = '💀'; type = 'ko';
+          }
+        }
+      }
+
+      // Warden Last Stand — when 2+ allies KO'd, revive all at 25% HP (once per fight)
+      const koCount = partyHp.filter(p => p.hp <= 0).length;
+      if (koCount >= 2) {
+        const lastStandHero = partyHp.find(p =>
+          p.hp > 0 && heroesWithLastStand.has(p.id) && !lastStandUsed[p.id]
+        );
+        if (lastStandHero) {
+          lastStandUsed[lastStandHero.id] = true;
+          const fallen = partyHp.filter(p => p.hp <= 0);
+          fallen.forEach(p => {
+            const reviveHp = Math.max(1, Math.floor(p.maxHp * 0.25));
+            p.hp = reviveHp;
+            if (combatStats[lastStandHero.id]) combatStats[lastStandHero.id].healingDone += reviveHp;
+            if (combatStats[p.id]) combatStats[p.id].healingReceived += reviveHp;
+          });
           events.push({ text, type, icon, phase: 'battle' });
           snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-          text = sPick(T_PARTY_KO, es + 70)(target.name, attacker.name);
-          icon = '💀'; type = 'ko';
+          text = sPick(T_LAST_STAND, es + 88)(lastStandHero.name, fallen.length);
+          icon = '🌅'; type = 'divine';
         }
       }
 
@@ -1152,6 +1392,30 @@ function buildSimulation(aq, quest) {
             snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
             text = sPick(T_RALLY_CRY, es + 85)(availableHero.name, woundedAlly.name, actual);
             icon = '📣'; type = 'buff';
+          }
+        }
+      }
+
+      // Warden Guardian Spirit — reactive heal when ally drops below 25% HP
+      const criticalAlly = partyHp.find(p => p.hp > 0 && p.hp < p.maxHp * 0.25);
+      if (criticalAlly) {
+        const guardian = partyHp.find(p =>
+          p.hp > 0 && heroesWithGuardian.has(p.id) && guardianCooldowns[p.id] === 0
+        );
+        if (guardian) {
+          const healAmt = Math.max(1, Math.floor(criticalAlly.maxHp * 0.30));
+          const before = criticalAlly.hp;
+          criticalAlly.hp = Math.min(criticalAlly.maxHp, criticalAlly.hp + healAmt);
+          const actual = criticalAlly.hp - before;
+          guardianCooldowns[guardian.id] = 3;
+
+          if (actual > 0) {
+            if (combatStats[guardian.id]) combatStats[guardian.id].healingDone += actual;
+            if (combatStats[criticalAlly.id]) combatStats[criticalAlly.id].healingReceived += actual;
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            text = sPick(T_GUARDIAN_SPIRIT, es + 87)(guardian.name, criticalAlly.name, actual);
+            icon = '💚'; type = 'heal';
           }
         }
       }

@@ -3,7 +3,8 @@ import { getClass, getItem, getAvailableClasses, getRecruitCost, EQUIPMENT, canC
 import {
   getSkill, getClassSkills, getUnlockedClassSkills, getNextClassSkill,
   getClassMasteries, getUnlockedClassMasteries, getNextClassMastery,
-  getAllClassUnlocks, getNextUnlock, getEquipmentSkill
+  getAllClassUnlocks, getNextUnlock, getEquipmentSkill,
+  HERO_SPECS, HERO_RESPEC_COSTS, getSpecSkills, getUnlockedSpecSkills
 } from '../skills.js';
 import { hpClass, fmtTime, showToast } from './helpers.js';
 import { esc } from '../util.js';
@@ -325,7 +326,8 @@ function renderEquipmentPanel(m, s) {
     const item = itemId ? getItem(itemId) : null;
     const isOpen = pickingSlot === slot;
     const bonusStr = item ? formatBonuses(item.statBonus) : '';
-    const grantedSkill = item && item.grantedSkill ? getSkill(item.grantedSkill) : null;
+    const grantedSkillIds = item ? [].concat(item.grantedSkill || [], item.grantedSkills || []) : [];
+    const grantedSkillObjs = grantedSkillIds.map(id => getSkill(id)).filter(Boolean);
     const rarity = item ? getItemRarity(item) : null;
 
     let slotHtml = `
@@ -342,7 +344,7 @@ function renderEquipmentPanel(m, s) {
           ${item ? `<button class="btn btn-sm btn-ghost equip-unequip-btn" data-unequip="${slot}" title="Unequip">✕</button>` : ''}
         </div>
         ${item ? `<div class="equip-slot-class-req">${item.classReq ? item.classReq.map(cid => CLASSES[cid]?.label || cid).join(', ') : 'Any class'}</div>` : ''}
-        ${grantedSkill ? `<div class="equip-skill-grant">${grantedSkill.icon} Grants: ${grantedSkill.name}</div>` : ''}
+        ${grantedSkillObjs.length ? grantedSkillObjs.map(gs => `<div class="equip-skill-grant">${gs.icon} Grants: ${gs.name}</div>`).join('') : ''}
     `;
 
     // Inline item picker when this slot is open
@@ -372,7 +374,8 @@ function renderEquipmentPanel(m, s) {
         const items = slotItems.map(e => {
           const it = getItem(e.itemId);
           const bStr = formatBonuses(it.statBonus);
-          const gs = it.grantedSkill ? getSkill(it.grantedSkill) : null;
+          const gsIds = [].concat(it.grantedSkill || [], it.grantedSkills || []);
+          const gsArr = gsIds.map(id => getSkill(id)).filter(Boolean);
           const qtyTag = e.quantity > 1 ? ` <span class="equip-picker-qty">x${e.quantity}</span>` : '';
           const iRarity = getItemRarity(it);
           const classOk = canClassEquip(m.class, it);
@@ -393,7 +396,7 @@ function renderEquipmentPanel(m, s) {
               ${isDualWield ? `<div class="equip-picker-dual-wield">${dwLabel}</div>` : ''}
               ${is2h ? `<div class="equip-picker-two-handed">🔒 Two-Handed (blocks offhand)</div>` : ''}
               ${!classOk ? `<div class="equip-picker-class-warn">Requires: ${classReqStr}</div>` : ''}
-              ${gs ? `<div class="equip-picker-item-skill">${gs.icon} ${gs.name}</div>` : ''}
+              ${gsArr.length ? gsArr.map(gs => `<div class="equip-picker-item-skill">${gs.icon} ${gs.name}</div>`).join('') : ''}
               ${it.desc ? `<div class="equip-picker-item-desc">${it.desc}</div>` : ''}
             </div>`;
         }).join('');
@@ -459,8 +462,9 @@ function renderSkillsPanel(m) {
   for (const slot of Object.values(m.equipment || {})) {
     if (!slot) continue;
     const item = getItem(slot);
-    if (item && item.grantedSkill) {
-      const sk = getSkill(item.grantedSkill);
+    const skIds = [].concat(item && item.grantedSkill || [], item && item.grantedSkills || []);
+    for (const skId of skIds) {
+      const sk = getSkill(skId);
       if (sk) eqSkills.push({ skill: sk, source: item.name });
     }
   }
@@ -479,6 +483,11 @@ function renderSkillsPanel(m) {
   for (const sk of allClassSkills) {
     const unlocked = unlockedIds.has(sk.id);
     html += renderSkillRow(sk, unlocked, unlocked ? null : `Unlocks at Lv.${sk.unlockLevel}`);
+  }
+
+  // Hero Specialization section
+  if (m.class === 'HERO') {
+    html += renderSpecSection(m);
   }
 
   // Class masteries
@@ -500,6 +509,54 @@ function renderSkillsPanel(m) {
   }
 
   return `<div class="skills-panel">${html}</div>`;
+}
+
+function renderSpecSection(m) {
+  let html = '';
+
+  // Not yet level 10 — show locked teaser
+  if (m.level < 10) {
+    html += `<div class="skills-category-label" style="margin-top:12px">Specialization</div>`;
+    html += `<div class="skill-empty-note" style="opacity:0.6">🔒 Unlocks at Level 10 — Choose a path: Vanguard, Champion, or Warden.</div>`;
+    return html;
+  }
+
+  // Level 10+ but no spec chosen — show picker
+  if (!m.heroSpec) {
+    html += `<div class="skills-category-label" style="margin-top:12px">Choose Specialization</div>`;
+    html += `<div class="spec-picker">`;
+    for (const [trackId, track] of Object.entries(HERO_SPECS)) {
+      const specSkills = getSpecSkills(trackId);
+      const skillList = specSkills.map(s => `<span class="spec-skill-preview">${s.icon} ${s.name} (Lv.${s.unlockLevel})</span>`).join('');
+      html += `
+        <div class="spec-card" data-spec="${trackId}">
+          <div class="spec-card-header">
+            <span class="spec-card-icon">${track.icon}</span>
+            <span class="spec-card-name">${track.label}</span>
+          </div>
+          <div class="spec-card-desc">${track.description}</div>
+          <div class="spec-card-skills">${skillList}</div>
+          <button class="btn btn-sm btn-primary btn-choose-spec" data-spec="${trackId}">Choose ${track.label}</button>
+        </div>`;
+    }
+    html += `</div>`;
+    return html;
+  }
+
+  // Spec chosen — show spec skills + respec button
+  const track = HERO_SPECS[m.heroSpec];
+  const allSpecSkills = getSpecSkills(m.heroSpec);
+  const unlockedSpecIds = new Set(getUnlockedSpecSkills(m.heroSpec, m.level).map(s => s.id));
+
+  html += `<div class="skills-category-label" style="margin-top:12px">
+    ${track.icon} ${track.label} Specialization
+    <button class="btn btn-xs btn-ghost btn-respec" title="Change specialization">⟳ Respec</button>
+  </div>`;
+  for (const sk of allSpecSkills) {
+    const unlocked = unlockedSpecIds.has(sk.id);
+    html += renderSkillRow(sk, unlocked, unlocked ? null : `Unlocks at Lv.${sk.unlockLevel}`);
+  }
+  return html;
 }
 
 function renderSkillRow(skill, unlocked, lockMsg, itemSource) {
@@ -600,6 +657,55 @@ function bindCharSheetEvents(el, s, m) {
       renderParty();
     });
   });
+
+  // Hero specialization — choose spec
+  el.querySelectorAll('.btn-choose-spec').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const specTrack = btn.dataset.spec;
+      const track = HERO_SPECS[specTrack];
+      if (!confirm(`Choose the ${track.label} specialization?\n\n${track.description}\n\nThis can be changed later with a respec.`)) return;
+      const result = Game.setHeroSpec(selectedMemberId, specTrack);
+      if (result.ok) {
+        showToast(`${track.icon} ${track.label} specialization chosen!`, 'success');
+      } else {
+        showToast(result.reason, 'error');
+      }
+      renderParty();
+    });
+  });
+
+  // Hero specialization — respec
+  el.querySelector('.btn-respec')?.addEventListener('click', () => {
+    const cost = Game.getRespecCost();
+    const currentTrack = m.heroSpec ? HERO_SPECS[m.heroSpec] : null;
+    const otherTracks = Object.entries(HERO_SPECS).filter(([id]) => id !== m.heroSpec);
+    const options = otherTracks.map(([id, t]) => `${t.icon} ${t.label}`).join(', ');
+    if (!confirm(`Respec from ${currentTrack?.label || '?'} to another track?\n\nCost: ${cost.toLocaleString()}g\nAvailable: ${options}\n\nYou'll choose your new track after confirming.`)) return;
+
+    if (Game.state.gold < cost) {
+      showToast(`Need ${cost.toLocaleString()}g to respec`, 'error');
+      return;
+    }
+
+    // Show second prompt for which track
+    const trackChoices = otherTracks.map(([id, t], i) => `${i + 1}. ${t.icon} ${t.label} — ${t.description}`).join('\n');
+    const choice = prompt(`Choose your new specialization:\n\n${trackChoices}\n\nEnter 1 or 2:`);
+    if (!choice) return;
+    const idx = parseInt(choice) - 1;
+    if (isNaN(idx) || idx < 0 || idx >= otherTracks.length) {
+      showToast('Invalid choice', 'error');
+      return;
+    }
+    const [newSpecId, newTrack] = otherTracks[idx];
+    const result = Game.respecHeroSpec(selectedMemberId, newSpecId);
+    if (result.ok) {
+      showToast(`${newTrack.icon} Respecced to ${newTrack.label}! (${result.cost.toLocaleString()}g)`, 'success');
+      document.getElementById('header-gold').textContent = Game.state.gold.toLocaleString();
+    } else {
+      showToast(result.reason, 'error');
+    }
+    renderParty();
+  });
 }
 
 
@@ -682,11 +788,24 @@ function formatSkillEffects(skill) {
     else if (key === 'healRate') parts.push(`+${Math.round(val * 100)}% heal rate`);
     else if (key === 'partyAtkBonus') parts.push(`+${Math.round(val * 100)}% party ATK`);
     else if (key === 'partyDefBonus') parts.push(`+${Math.round(val * 100)}% party DEF`);
+    else if (key === 'partySpdBonus') parts.push(`+${Math.round(val * 100)}% party SPD`);
+    else if (key === 'partyCritBonus') parts.push(`+${Math.round(val * 100)}% party CRIT`);
+    else if (key === 'partyHealBonus' || key === 'partyHealPct') parts.push(`+${Math.round(val * 100)}% party heal`);
+    else if (key === 'maxHpBonus') parts.push(`+${Math.round(val * 100)}% max HP`);
+    else if (key === 'healBonus') parts.push(`+${Math.round(val * 100)}% heal`);
+    else if (key === 'critBonus') parts.push(`+${Math.round(val * 100)}% CRIT`);
+    else if (key === 'dodgeBonus') parts.push(`+${Math.round(val * 100)}% DODGE`);
     else if (key === 'goldBonus') parts.push(`+${Math.round(val * 100)}% gold`);
     else if (key === 'expBonus') parts.push(`+${Math.round(val * 100)}% EXP`);
-    else if (key === 'critChance') parts.push(`${Math.round(val * 100)}% crit`);
-    else if (key === 'dodgeChance') parts.push(`${Math.round(val * 100)}% dodge`);
+    else if (key === 'critChance') parts.push(`${Math.round(val * 100)}% crit chance`);
+    else if (key === 'dodgeChance') parts.push(`${Math.round(val * 100)}% dodge chance`);
     else if (key === 'powerMultiplier') parts.push(`${val}x power`);
+    else if (key === 'dmgReduction') parts.push(`${Math.round(val * 100)}% DR`);
+    else if (key === 'executeThreshold') parts.push(`execute <${Math.round(val * 100)}% HP`);
+    else if (key === 'executeMult') parts.push(`${val}x execute dmg`);
+    else if (key === 'healThreshold') parts.push(`heal at <${Math.round(val * 100)}% HP`);
+    else if (key === 'healPercent') parts.push(`${Math.round(val * 100)}% HP heal`);
+    else if (key === 'reviveAllPercent') parts.push(`revive at ${Math.round(val * 100)}% HP`);
   }
   if (skill.procChance && skill.procChance < 1 && skill.type === 'active') {
     parts.push(`${Math.round(skill.procChance * 100)}% proc`);
