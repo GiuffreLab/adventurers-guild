@@ -131,29 +131,44 @@ function formatFightLog() {
     }
     lines.push(`  TOTAL DAMAGE: ${totalDmg}`);
 
-    // Defense, Healing & Support table
-    const hasDefStats = combatStats.some(c => (c.dmgMitigated||0) > 0 || (c.dmgAbsorbed||0) > 0 || (c.dmgDodged||0) > 0 || (c.dmgReflected||0) > 0 || (c.healingDone||0) > 0 || (c.healingReceived||0) > 0 || (c.dmgTaken||0) > 0);
+    // Defense & Support table
+    const defTotal = c => (c.dmgMitigated||0) + (c.dmgAbsorbed||0) + (c.dmgReflected||0) + (c.dmgDodged||0);
+    const hasDefStats = combatStats.some(c => defTotal(c) > 0);
     if (hasDefStats) {
       lines.push('');
-      lines.push('── DEFENSE, HEALING & SUPPORT ────────────');
-      lines.push('  Member              Mitigated  Absorbed  Healed  Rcvd    Reflected  Dodged   Total    Taken');
-      lines.push('  ──────────────────  ─────────  ────────  ──────  ──────  ─────────  ──────   ─────    ─────');
-      const defTotal = c => (c.dmgMitigated||0) + (c.dmgAbsorbed||0) + (c.healingDone||0) + (c.dmgReflected||0) + (c.dmgDodged||0);
-      const sorted = [...combatStats].sort((a, b) => defTotal(b) - defTotal(a));
+      lines.push('── DEFENSE & SUPPORT ─────────────────────');
+      lines.push('  Member              Mitigated  Absorbed  Reflected  Dodged   Total');
+      lines.push('  ──────────────────  ─────────  ────────  ─────────  ──────   ─────');
+      const sorted = [...combatStats].filter(c => defTotal(c) > 0).sort((a, b) => defTotal(b) - defTotal(a));
       for (const c of sorted) {
-        const total = defTotal(c);
-        if (total === 0 && (c.healingReceived||0) === 0 && (c.dmgTaken||0) === 0) continue;
         const cls = CLASSES[c.class];
         const label = `${cls?.sigil || '?'} ${c.name}`.padEnd(20);
         const mit = (c.dmgMitigated || 0).toString().padStart(9);
         const abs = (c.dmgAbsorbed || 0).toString().padStart(8);
-        const heal = (c.healingDone || 0).toString().padStart(6);
-        const rcvd = (c.healingReceived || 0).toString().padStart(6);
         const ref = (c.dmgReflected || 0).toString().padStart(9);
         const dodge = (c.dmgDodged || 0).toString().padStart(6);
-        const tot = total.toString().padStart(7);
+        const tot = defTotal(c).toString().padStart(7);
+        lines.push(`  ${label}${mit}${abs}${ref}${dodge}${tot}`);
+      }
+    }
+
+    // Healing & Damage Taken table
+    const hasHealStats = combatStats.some(c => (c.healingDone||0) > 0 || (c.healingReceived||0) > 0 || (c.dmgTaken||0) > 0);
+    if (hasHealStats) {
+      lines.push('');
+      lines.push('── HEALING & DAMAGE TAKEN ────────────────');
+      lines.push('  Member              Healed  Received   Taken');
+      lines.push('  ──────────────────  ──────  ────────   ─────');
+      const sorted = [...combatStats]
+        .filter(c => (c.healingDone||0) > 0 || (c.healingReceived||0) > 0 || (c.dmgTaken||0) > 0)
+        .sort((a, b) => ((b.healingDone||0) + (b.healingReceived||0)) - ((a.healingDone||0) + (a.healingReceived||0)));
+      for (const c of sorted) {
+        const cls = CLASSES[c.class];
+        const label = `${cls?.sigil || '?'} ${c.name}`.padEnd(20);
+        const heal = (c.healingDone || 0).toString().padStart(6);
+        const rcvd = (c.healingReceived || 0).toString().padStart(8);
         const taken = (c.dmgTaken || 0).toString().padStart(7);
-        lines.push(`  ${label}${mit}${abs}${heal}${rcvd}${ref}${dodge}${tot}${taken}`);
+        lines.push(`  ${label}${heal}${rcvd}${taken}`);
       }
     }
     lines.push('');
@@ -460,50 +475,71 @@ export function showResultsModal() {
     </div>`;
   })() : '';
 
-  // Defense & Support table
+  // Defense & Support table (mitigation, absorption, reflect, dodge)
   const defStatsHtml = combatStats && combatStats.length > 0 ? (() => {
-    const hasAny = combatStats.some(c =>
-      (c.dmgMitigated||0) + (c.dmgAbsorbed||0) + (c.dmgDodged||0) + (c.dmgReflected||0) +
-      (c.healingDone||0) + (c.healingReceived||0) + (c.dmgTaken||0) > 0);
+    const defTotal = c => (c.dmgMitigated||0) + (c.dmgAbsorbed||0) + (c.dmgReflected||0) + (c.dmgDodged||0);
+    const hasAny = combatStats.some(c => defTotal(c) > 0);
     if (!hasAny) return '';
-    // Sort by total defensive + healing contribution
-    const defTotal = c => (c.dmgMitigated||0) + (c.dmgAbsorbed||0) + (c.healingDone||0) + (c.dmgReflected||0) + (c.dmgDodged||0);
-    const sorted = [...combatStats].sort((a, b) => defTotal(b) - defTotal(a))
-      .filter(c => defTotal(c) > 0 || (c.healingReceived||0) > 0 || (c.dmgTaken||0) > 0);
-    // Find best-in-class for highlighting
+    const sorted = [...combatStats].filter(c => defTotal(c) > 0).sort((a, b) => defTotal(b) - defTotal(a));
     const maxMit = Math.max(...sorted.map(c => c.dmgMitigated || 0));
     const maxAbs = Math.max(...sorted.map(c => c.dmgAbsorbed || 0));
-    const maxHealD = Math.max(...sorted.map(c => c.healingDone || 0));
-    const maxHealR = Math.max(...sorted.map(c => c.healingReceived || 0));
     const maxRef = Math.max(...sorted.map(c => c.dmgReflected || 0));
     const maxDodge = Math.max(...sorted.map(c => c.dmgDodged || 0));
-    const maxTaken = Math.max(...sorted.map(c => c.dmgTaken || 0));
     const tableRows = sorted.map(c => {
       const cls = CLASSES[c.class];
       const sigil = cls ? cls.sigil : '?';
       const total = defTotal(c);
       const hi = (val, max) => val > 0 && val === max ? ' class="ds-best"' : '';
-      // MVP badge for top defensive contributor
-      const isTop = c === sorted[0] && total > 0;
+      const isTop = c === sorted[0];
       const badge = isTop ? '<span class="ds-mvp">MVP</span>' : '';
       const cell = (val, max) => `<td${hi(val, max)}>${val > 0 ? val.toLocaleString() : '—'}</td>`;
       return `<tr>
         <td class="ds-name">${sigil} ${esc(c.name.split(' ')[0])}${badge}</td>
         ${cell(c.dmgMitigated||0, maxMit)}
         ${cell(c.dmgAbsorbed||0, maxAbs)}
-        ${cell(c.healingDone||0, maxHealD)}
-        ${cell(c.healingReceived||0, maxHealR)}
         ${cell(c.dmgReflected||0, maxRef)}
         ${cell(c.dmgDodged||0, maxDodge)}
-        <td class="ds-total">${total > 0 ? total.toLocaleString() : '—'}</td>
+        <td class="ds-total">${total.toLocaleString()}</td>
+      </tr>`;
+    }).join('');
+    return `<div class="result-section">
+      <div class="result-section-title">Defense & Support</div>
+      <table class="ds-table">
+        <thead><tr>
+          <th>Member</th><th>🛡 Mitigated</th><th>🏰 Absorbed</th><th>💜 Reflected</th><th>💨 Dodged</th><th>Total</th>
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>`;
+  })() : '';
+
+  // Healing & Damage Taken table
+  const healStatsHtml = combatStats && combatStats.length > 0 ? (() => {
+    const hasAny = combatStats.some(c => (c.healingDone||0) > 0 || (c.healingReceived||0) > 0 || (c.dmgTaken||0) > 0);
+    if (!hasAny) return '';
+    const sorted = [...combatStats]
+      .filter(c => (c.healingDone||0) > 0 || (c.healingReceived||0) > 0 || (c.dmgTaken||0) > 0)
+      .sort((a, b) => ((b.healingDone||0) + (b.healingReceived||0)) - ((a.healingDone||0) + (a.healingReceived||0)));
+    const maxHealD = Math.max(...sorted.map(c => c.healingDone || 0));
+    const maxHealR = Math.max(...sorted.map(c => c.healingReceived || 0));
+    const maxTaken = Math.max(...sorted.map(c => c.dmgTaken || 0));
+    const tableRows = sorted.map(c => {
+      const cls = CLASSES[c.class];
+      const sigil = cls ? cls.sigil : '?';
+      const hi = (val, max) => val > 0 && val === max ? ' class="ds-best"' : '';
+      const cell = (val, max) => `<td${hi(val, max)}>${val > 0 ? val.toLocaleString() : '—'}</td>`;
+      return `<tr>
+        <td class="ds-name">${sigil} ${esc(c.name.split(' ')[0])}</td>
+        ${cell(c.healingDone||0, maxHealD)}
+        ${cell(c.healingReceived||0, maxHealR)}
         <td class="ds-taken${(c.dmgTaken||0) > 0 && (c.dmgTaken||0) === maxTaken ? ' ds-best' : ''}">${(c.dmgTaken||0) > 0 ? (c.dmgTaken||0).toLocaleString() : '—'}</td>
       </tr>`;
     }).join('');
     return `<div class="result-section">
-      <div class="result-section-title">Defense, Healing & Support</div>
+      <div class="result-section-title">Healing & Damage Taken</div>
       <table class="ds-table">
         <thead><tr>
-          <th>Member</th><th>🛡 Mitigated</th><th>🏰 Absorbed</th><th>⚕ Done</th><th>💚 Rcvd</th><th>💜 Reflected</th><th>💨 Dodged</th><th>Total</th><th>💔 Taken</th>
+          <th>Member</th><th>⚕ Healed</th><th>💚 Received</th><th>💔 Taken</th>
         </tr></thead>
         <tbody>${tableRows}</tbody>
       </table>
@@ -554,6 +590,7 @@ export function showResultsModal() {
     ${highlightsHtml}
     ${combatStatsHtml}
     ${defStatsHtml}
+    ${healStatsHtml}
     ${rewardsHtml}
     ${levelUpHtml}
     ${skillGainHtml}
