@@ -186,45 +186,13 @@ const Game = (() => {
         state.activeSlots = state.activeSlots.slice(0, maxSlots);
       }
 
-      // Migration: Cleric skill rework — replace old skill IDs with new ones
-      const skillRenames = {
-        'PURIFY': 'DIVINE_INTERVENTION',
-        'SANCTIFY': 'RESURRECTION',
-        'DIVINE_INTERVENTION': 'DIVINE_PRESENCE', // old epic → new passive aura
-      };
-      const migrateSkills = (member) => {
+      // Deduplicate skills on all members (cleans up any prior migration damage)
+      const dedupeSkills = (member) => {
         if (!member || !member.skills) return;
-        // Must process in order: DIVINE_INTERVENTION (old) → DIVINE_PRESENCE first,
-        // then PURIFY → DIVINE_INTERVENTION, to avoid double-renaming
-        const oldDI = member.skills.indexOf('DIVINE_INTERVENTION');
-        if (oldDI !== -1 && member.class === 'CLERIC') {
-          // Only rename old DI if it's a level 18 skill (Cleric at level 18+)
-          if (member.level >= 18) {
-            member.skills[oldDI] = 'DIVINE_PRESENCE';
-          }
-        }
-        for (let i = 0; i < member.skills.length; i++) {
-          if (member.skills[i] === 'PURIFY') member.skills[i] = 'DIVINE_INTERVENTION';
-          if (member.skills[i] === 'SANCTIFY') member.skills[i] = 'RESURRECTION';
-          // Bard rework: Battle Hymn → Crescendo (Symphony of War keeps ID but changed to passive)
-          if (member.skills[i] === 'BATTLE_HYMN') member.skills[i] = 'CRESCENDO';
-        }
+        member.skills = [...new Set(member.skills)];
       };
-      migrateSkills(state.player);
-      if (state.party) state.party.forEach(m => migrateSkills(m));
-
-      // Migration: ensure heroSpec field exists on all Heroes + fix LAST_STAND key collision
-      const migrateHeroSpec = (member) => {
-        if (!member || member.class !== 'HERO') return;
-        if (member.heroSpec === undefined) member.heroSpec = null;
-        // Rename old LAST_STAND → WARDENS_LAST_STAND for Warden Heroes
-        if (member.heroSpec === 'warden' && member.skills) {
-          const idx = member.skills.indexOf('LAST_STAND');
-          if (idx !== -1) member.skills[idx] = 'SECOND_DAWN';
-        }
-      };
-      migrateHeroSpec(state.player);
-      if (state.party) state.party.forEach(m => migrateHeroSpec(m));
+      dedupeSkills(state.player);
+      if (state.party) state.party.forEach(m => dedupeSkills(m));
 
       return true;
     } catch(e) { return false; }
