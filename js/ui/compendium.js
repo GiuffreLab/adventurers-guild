@@ -113,7 +113,7 @@ function renderStats() {
 
 // ── Classes & Skills ──────────────────────────────────────────────────────
 function renderClasses() {
-  const classOrder = ['HERO', 'KNIGHT', 'MAGE', 'ROGUE', 'CLERIC', 'RANGER', 'BARD', 'MONK'];
+  const classOrder = ['HERO', 'KNIGHT', 'MAGE', 'ROGUE', 'CLERIC', 'RANGER', 'BARD', 'MONK', 'NECROMANCER'];
   const roleMap = {
     HERO: 'Balanced DPS / Support',
     KNIGHT: 'Tank / Protector',
@@ -123,6 +123,7 @@ function renderClasses() {
     RANGER: 'Ranged DPS / AoE',
     BARD: 'Support / Regen',
     MONK: 'Hybrid / Self-Sustain',
+    NECROMANCER: 'Summoner / Drain Caster',
   };
 
   const cards = classOrder.map(cid => {

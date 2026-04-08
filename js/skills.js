@@ -687,6 +687,47 @@ export const SKILLS = {
     narrative: 'enters a trance and unleashes Fists of Fury — a storm of blows!',
   },
 
+  // ── Necromancer ──
+  RAISE_DEAD: {
+    id: 'RAISE_DEAD', name: 'Raise Dead', type: 'active', source: 'class',
+    classId: 'NECROMANCER', unlockLevel: 2,
+    description: 'Tears a fallen enemy from death\'s embrace, raising it as a thrall. The minion attacks each round as a living DoT and can absorb hits. 2-round cooldown.',
+    icon: '💀', effects: { raiseMinion: true }, procChance: 0.70,
+    cooldown: 2, reactive: true,
+    narrative: null,
+  },
+  LIFE_TAP: {
+    id: 'LIFE_TAP', name: 'Life Tap', type: 'active', source: 'class',
+    classId: 'NECROMANCER', unlockLevel: 6,
+    description: 'Drains life force from an enemy, dealing MAG-scaled damage and healing the Necromancer for a portion of damage dealt. 55% proc.',
+    icon: '🩸', effects: { magBonus: 0.35, lifesteal: 0.40 }, procChance: 0.55,
+    narrative: 'drains the life force from {target}, dark energy flowing back!',
+  },
+  BLIGHT: {
+    id: 'BLIGHT', name: 'Blight', type: 'active', source: 'class',
+    classId: 'NECROMANCER', unlockLevel: 10,
+    description: 'CLASS SKILL — Unleashes a wave of necrotic decay across all enemies. Deals MAG-scaled AoE DoT over 3 rounds. 45% proc.',
+    icon: '☠', effects: { necroticDot: true, powerMultiplier: 1.2 }, procChance: 0.45,
+    cooldown: 4,
+    narrative: 'unleashes a wave of Blight — necrotic decay spreads through the enemy ranks!',
+  },
+  FORGO_DEATH: {
+    id: 'FORGO_DEATH', name: 'Forgo Death', type: 'active', source: 'class',
+    classId: 'NECROMANCER', unlockLevel: 14,
+    description: 'When the Necromancer takes a killing blow and a raised minion exists, the minion is destroyed instead and the Necromancer survives at 20% HP.',
+    icon: '🛡', effects: { minionSacrifice: true, survivePercent: 0.20 }, procChance: 1.0,
+    reactive: true,
+    narrative: null,
+  },
+  ARMY_OF_THE_DAMNED: {
+    id: 'ARMY_OF_THE_DAMNED', name: 'Army of the Damned', type: 'active', source: 'class',
+    classId: 'NECROMANCER', unlockLevel: 18,
+    description: 'EPIC — All fallen enemies rise as one, attacking for 3 rounds and spreading Blight. 35% proc, 2.5× power.',
+    icon: '👻', effects: { raiseArmy: true, powerMultiplier: 2.5, necroticDot: true }, procChance: 0.35,
+    cooldown: 5,
+    narrative: 'tears open the veil — the fallen rise as one in an Army of the Damned!',
+  },
+
   // ── Monk Masteries ──
   MONK_M_BALANCE: {
     id: 'MONK_M_BALANCE', name: 'Balance', type: 'passive', source: 'mastery',
@@ -721,6 +762,43 @@ export const SKILLS = {
     classId: 'MONK', unlockLevel: 20,
     description: 'EPIC — All core stats +15%, dodge +15%. Perfect martial enlightenment.',
     icon: '🌅', effects: { atkBonus: 0.15, defBonus: 0.15, spdBonus: 0.15, magBonus: 0.15, dodgeBonus: 0.15, dodgeChance: 0.15 }, procChance: 1.0,
+    narrative: null,
+  },
+
+  // ── Necromancer Masteries ──
+  NECRO_M_GRAVE_CHILL: {
+    id: 'NECRO_M_GRAVE_CHILL', name: 'Grave Chill', type: 'passive', source: 'mastery',
+    classId: 'NECROMANCER', unlockLevel: 4,
+    description: 'MAG +8%, SPD +5%. Early power ramp — the cold of the grave seeps into every spell.',
+    icon: '🥶', effects: { magBonus: 0.08, spdBonus: 0.05 }, procChance: 1.0,
+    narrative: null,
+  },
+  NECRO_M_SOUL_HARVEST: {
+    id: 'NECRO_M_SOUL_HARVEST', name: 'Soul Harvest', type: 'passive', source: 'mastery',
+    classId: 'NECROMANCER', unlockLevel: 8,
+    description: 'MAG +12%, CRIT +8%. Feeding on the energy of fallen souls.',
+    icon: '👁', effects: { magBonus: 0.12, critChance: 0.08 }, procChance: 1.0,
+    narrative: null,
+  },
+  NECRO_M_SHROUD_OF_DECAY: {
+    id: 'NECRO_M_SHROUD_OF_DECAY', name: 'Shroud of Decay', type: 'passive', source: 'mastery',
+    classId: 'NECROMANCER', unlockLevel: 12,
+    description: 'PARTY MASTERY — All allies gain +6% MAG, +4% CRIT. Enemies that strike party members take necrotic reflect damage scaled from the Necromancer\'s MAG.',
+    icon: '💜', effects: { partyMagBonus: 0.06, partyCritBonus: 0.04, necroticReflect: true }, procChance: 1.0,
+    narrative: null,
+  },
+  NECRO_M_UNDYING_WILL: {
+    id: 'NECRO_M_UNDYING_WILL', name: 'Undying Will', type: 'passive', source: 'mastery',
+    classId: 'NECROMANCER', unlockLevel: 16,
+    description: 'MAG +18%, DEF +10%, maxHP +8%. Growing harder to put down.',
+    icon: '🦴', effects: { magBonus: 0.18, defBonus: 0.10, maxHpBonus: 0.08 }, procChance: 1.0,
+    narrative: null,
+  },
+  NECRO_M_LORD_OF_THE_DEAD: {
+    id: 'NECRO_M_LORD_OF_THE_DEAD', name: 'Lord of the Dead', type: 'passive', source: 'mastery',
+    classId: 'NECROMANCER', unlockLevel: 20,
+    description: 'EPIC — MAG +30%, CRIT +12%, ATK +10%, maxHP +10%. Raised minions deal 25% more damage.',
+    icon: '👑', effects: { magBonus: 0.30, critChance: 0.12, atkBonus: 0.10, maxHpBonus: 0.10, minionDamageBonus: 0.25 }, procChance: 1.0,
     narrative: null,
   },
 
@@ -1216,6 +1294,57 @@ export const SKILLS = {
     narrative: 'channels Grace Eternal!',
   },
 
+  // ── Necromancer Equipment Procs ──
+  WHISPER_DRAIN: {
+    id: 'WHISPER_DRAIN', name: 'Whisper Drain', type: 'active', source: 'equipment',
+    itemId: 'STAFF_OF_WHISPERS', unlockLevel: null,
+    description: 'Staff of Whispers siphons life from the target. Deals MAG damage and heals.',
+    icon: '🌑', effects: { magBonus: 0.40, lifesteal: 0.30 }, procChance: 0.45,
+    narrative: 'channels the Staff of Whispers — life force flows from the wound!',
+  },
+  DEATHRATTLE: {
+    id: 'DEATHRATTLE', name: 'Deathrattle', type: 'active', source: 'equipment',
+    itemId: 'DEATHRATTLE_STAFF', unlockLevel: null,
+    description: 'Deathrattle Staff unleashes a death scream that damages all enemies.',
+    icon: '📯', effects: { magBonus: 0.50, powerMultiplier: 1.3 }, procChance: 0.45,
+    narrative: 'slams the Deathrattle Staff — a piercing death scream echoes across the battlefield!',
+  },
+  SOUL_REAP: {
+    id: 'SOUL_REAP', name: 'Soul Reap', type: 'active', source: 'equipment',
+    itemId: 'SOUL_HARVESTER', unlockLevel: null,
+    description: 'Soul Harvester reaps a sliver of the target\'s soul for devastating damage.',
+    icon: '👤', effects: { magBonus: 0.55, critChance: 0.20 }, procChance: 0.45,
+    narrative: 'reaps with the Soul Harvester — a ghostly echo tears free from the target!',
+  },
+  ABYSSAL_HARVEST: {
+    id: 'ABYSSAL_HARVEST', name: 'Abyssal Harvest', type: 'active', source: 'equipment',
+    itemId: 'ABYSSAL_SCYTHE', unlockLevel: null,
+    description: 'Abyssal Scythe tears open a rift, dealing massive damage and draining life.',
+    icon: '🌀', effects: { magBonus: 0.60, lifesteal: 0.35, powerMultiplier: 1.4 }, procChance: 0.45,
+    narrative: 'sweeps the Abyssal Scythe — reality tears open and devours the target!',
+  },
+  SKULL_WHISPER: {
+    id: 'SKULL_WHISPER', name: 'Skull Whisper', type: 'passive', source: 'equipment',
+    itemId: 'WHISPERING_SKULL', unlockLevel: null,
+    description: 'Whispering Skull grants +12% MAG and +6% CRIT.',
+    icon: '💬', effects: { magBonus: 0.12, critChance: 0.06 }, procChance: 1.0,
+    narrative: null,
+  },
+  SOUL_SIPHON: {
+    id: 'SOUL_SIPHON', name: 'Soul Siphon', type: 'active', source: 'equipment',
+    itemId: 'GRIMOIRE_OF_SOULS', unlockLevel: null,
+    description: 'Grimoire of Souls siphons soul energy for a burst of dark power.',
+    icon: '📖', effects: { magBonus: 0.45, spdBonus: 0.15 }, procChance: 0.45,
+    narrative: 'opens the Grimoire of Souls — spectral chains lash out and drain the target!',
+  },
+  DAMNED_CHORUS: {
+    id: 'DAMNED_CHORUS', name: 'Damned Chorus', type: 'active', source: 'equipment',
+    itemId: 'SKULL_OF_THE_DAMNED', unlockLevel: null,
+    description: 'Skull of the Damned unleashes a chorus of anguished souls.',
+    icon: '🗣', effects: { magBonus: 0.50, critChance: 0.15, powerMultiplier: 1.3 }, procChance: 0.45,
+    narrative: 'raises the Skull of the Damned — a chorus of anguished souls wails across the battlefield!',
+  },
+
   // ══════════════════════════════════════════════════════════════════════════
   // ██ CELESTIAL EQUIPMENT PROCS — God-tier set bonuses ████████████████████
   // ══════════════════════════════════════════════════════════════════════════
@@ -1482,6 +1611,43 @@ export const SKILLS = {
     itemId: 'CEL_CHAKRA_OF_ENLIGHTENMENT', unlockLevel: null,
     description: 'True enlightenment achieved. Body, mind, and spirit in absolute harmony.',
     icon: '☯', effects: { atkBonus: 0.20, defBonus: 0.20, spdBonus: 0.20, maxHpBonus: 0.15 }, procChance: 1.0,
+    narrative: null,
+  },
+
+  // ── NECROMANCER "Dominion of the Dead" Set Procs ────────────────────────
+  CEL_DEATHS_DOMINION: {
+    id: 'CEL_DEATHS_DOMINION', name: "Death's Dominion", type: 'active', source: 'equipment',
+    itemId: 'CEL_MORTALITYS_END', unlockLevel: null,
+    description: "Mortality's End scythes through the boundary between life and death, dealing catastrophic necrotic damage to all enemies.",
+    icon: '💀', effects: { magBonus: 0.50, powerMultiplier: 2.0, critChance: 0.25 }, procChance: 0.50,
+    narrative: "sweeps Mortality's End through the veil — Death's Dominion claims the battlefield!",
+  },
+  CEL_REAPERS_PRESENCE: {
+    id: 'CEL_REAPERS_PRESENCE', name: "Reaper's Presence", type: 'passive', source: 'equipment',
+    itemId: 'CEL_MORTALITYS_END', unlockLevel: null,
+    description: "The scythe's mere presence weakens the boundary between life and death. MAG +25%, CRIT +15%, party MAG +8%.",
+    icon: '⚰', effects: { magBonus: 0.25, critChance: 0.15, partyMagBonus: 0.08 }, procChance: 1.0,
+    narrative: null,
+  },
+  CEL_LICHBORNE: {
+    id: 'CEL_LICHBORNE', name: 'Lichborne', type: 'active', source: 'equipment',
+    itemId: 'CEL_SHROUD_OF_THE_LICH', unlockLevel: null,
+    description: 'The Shroud remembers undeath. Grants massive DEF and HP, channeling lich-like resilience.',
+    icon: '🧟', effects: { defBonus: 0.45, maxHpBonus: 0.30, magBonus: 0.15 }, procChance: 0.50,
+    narrative: 'wraps in the Shroud of the Lich — flesh hardens, eyes glow with undying power!',
+  },
+  CEL_ETERNAL_WHISPER: {
+    id: 'CEL_ETERNAL_WHISPER', name: 'Eternal Whisper', type: 'active', source: 'equipment',
+    itemId: 'CEL_SKULL_OF_ETERNAL_WHISPERS', unlockLevel: null,
+    description: 'The Skull reveals the exact moment of each enemy\'s death, dealing devastating targeted damage.',
+    icon: '👁', effects: { magBonus: 0.60, critChance: 0.30, powerMultiplier: 1.6 }, procChance: 0.50,
+    narrative: 'holds aloft the Skull of Eternal Whispers — it speaks the true name of death!',
+  },
+  CEL_SOUL_ANCHOR: {
+    id: 'CEL_SOUL_ANCHOR', name: 'Soul Anchor', type: 'passive', source: 'equipment',
+    itemId: 'CEL_PHYLACTERY_OF_SOULS', unlockLevel: null,
+    description: 'The Phylactery anchors the Necromancer\'s soul. MAG +20%, maxHP +15%, DEF +10%. Minion damage +15%.',
+    icon: '⚓', effects: { magBonus: 0.20, maxHpBonus: 0.15, defBonus: 0.10, minionDamageBonus: 0.15 }, procChance: 1.0,
     narrative: null,
   },
 };

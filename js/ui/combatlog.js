@@ -132,7 +132,7 @@ const CLASS_ATTACK_TEMPLATES = {
   BARD: T_ATTACK_BARD, MONK: T_ATTACK_MONK,
 };
 // Magic-style classes (use ✨ icon instead of ⚔)
-const MAGIC_CLASSES = new Set(['MAGE', 'CLERIC', 'BARD']);
+const MAGIC_CLASSES = new Set(['MAGE', 'CLERIC', 'BARD', 'NECROMANCER']);
 
 function getAttackTemplate(classId, seed) {
   const templates = CLASS_ATTACK_TEMPLATES[classId] || T_ATTACK;
@@ -230,6 +230,39 @@ const AOE_SKILLS = {
   ARCANE_CATACLYSM_EQ:  { dmgScale: 0.60, templates: T_MAGE_AOE, icon: '💥', type: 'equip',     triggerCamo: false },
   CEL_ARCANUM_CATACLYSM:{ dmgScale: 0.75, templates: T_MAGE_AOE, icon: '💥', type: 'celestial', triggerCamo: false },
 };
+// ── Necromancer templates ───────────────────────────────────────────
+const T_RAISE_DEAD = [
+  (name, minion) => `${name} tears a fallen ${minion} from death's embrace — <span class="dmg-num" style="color:#9b59b6">it rises as a thrall!</span>`,
+  (name, minion) => `${name} commands the corpse of ${minion} to rise — <span class="dmg-num" style="color:#9b59b6">the dead obey!</span>`,
+];
+const T_MINION_ATTACK = [
+  (minion, target, dmg) => `The risen ${minion} claws at ${target} — <span class="dmg-num dmg-mag">${dmg}</span> damage!`,
+  (minion, target, dmg) => `${minion} shambles toward ${target} and strikes — <span class="dmg-num dmg-mag">${dmg}</span>!`,
+];
+const T_MINION_DEATH = [
+  (minion) => `The risen ${minion} crumbles to dust — its stolen life spent.`,
+];
+const T_BLIGHT_DOT = [
+  (dmg, count) => `Necrotic Blight corrodes <span class="dmg-num">${count}</span> enemies for <span class="dmg-num dmg-mag">${dmg}</span> each!`,
+  (dmg, count) => `Blight eats away at <span class="dmg-num">${count}</span> foes — <span class="dmg-num dmg-mag">${dmg}</span> necrotic damage each!`,
+];
+const T_LIFE_TAP = [
+  (name, target, dmg, heal) => `${name} drains the life force from ${target} — <span class="dmg-num dmg-mag">${dmg}</span> damage, <span class="dmg-num dmg-heal">+${heal}</span> HP!`,
+  (name, target, dmg, heal) => `Dark energy flows from ${target} to ${name} — <span class="dmg-num dmg-mag">${dmg}</span> dealt, <span class="dmg-num dmg-heal">+${heal}</span> restored!`,
+];
+const T_FORGO_DEATH = [
+  (minion, name) => `${minion} hurls itself before the killing blow — it crumbles to dust, but <span class="dmg-num" style="color:#9b59b6">${name} endures!</span>`,
+];
+const T_ARMY_OF_DAMNED = [
+  (name, count) => `${name} tears open the veil — <span class="dmg-num" style="color:#9b59b6">${count} fallen rise as one</span> in an Army of the Damned!`,
+];
+const T_ARMY_TICK = [
+  (dmg, count) => `The risen army tears into <span class="dmg-num">${count}</span> enemies — <span class="dmg-num dmg-mag">${dmg}</span> each!`,
+  (dmg, count) => `Risen corpses claw at the living — <span class="dmg-num">${count}</span> foes take <span class="dmg-num dmg-mag">${dmg}</span> each!`,
+];
+const T_NECROTIC_REFLECT = [
+  (dmg, name) => `Necrotic decay lashes back at ${name} — <span class="dmg-num dmg-mag">${dmg}</span> reflected!`,
+];
 // ── Monk Ki Barrier templates ───────────────────────────────────────
 const T_KI_BARRIER = [
   (monk, hp) => `${monk}'s Ki Barrier pulses — <span class="dmg-num dmg-heal">+${hp}</span> HP drained from the enemy!`,
@@ -642,6 +675,23 @@ function buildSimulation(aq, quest) {
   const heroesWithLastStand = new Set();
   const lastStandUsed = {}; // { memberId: true } — once per fight
 
+  // Necromancer — minions, DoTs, reactive death save, damage reflect
+  const necrosWithRaiseDead = new Set();
+  const raiseDeadCooldowns = {}; // { memberId: roundsRemaining }
+  const necrosWithLifeTap = new Set();
+  const necrosWithBlight = new Set();
+  const necrosWithForgoDeath = new Set();
+  const necrosWithArmy = new Set();
+  const necroMinions = []; // { id, name, hp, maxHp, def, dmgPerTick, ownerId }
+  const fallenEnemies = []; // names of enemies that died (for Raise Dead / Army)
+  let blightRounds = 0;
+  let blightSource = null; // necro obj who cast it (for MAG scaling)
+  let armyRounds = 0;
+  let armyDmgPerTick = 0;
+  let armySource = null;
+  let necroticReflectMag = 0; // MAG of necro with Shroud of Decay (0 = no reflect)
+  let minionDmgBonusTotal = 0; // accumulated from Lord of the Dead + Soul Anchor
+
   for (const m of members) {
     const memberData = Game.getMember(m.id);
     const memberSkills = memberData && memberData.skills ? memberData.skills : [];
@@ -715,6 +765,36 @@ function buildSimulation(aq, quest) {
         lastStandUsed[m.id] = false;
       }
     }
+    // Necromancer skill detection
+    if (m.class === 'NECROMANCER') {
+      if (memberSkills.includes('RAISE_DEAD')) {
+        necrosWithRaiseDead.add(m.id);
+        raiseDeadCooldowns[m.id] = 0;
+      }
+      if (memberSkills.includes('LIFE_TAP')) {
+        necrosWithLifeTap.add(m.id);
+      }
+      if (memberSkills.includes('BLIGHT')) {
+        necrosWithBlight.add(m.id);
+      }
+      if (memberSkills.includes('FORGO_DEATH')) {
+        necrosWithForgoDeath.add(m.id);
+      }
+      if (memberSkills.includes('ARMY_OF_THE_DAMNED')) {
+        necrosWithArmy.add(m.id);
+      }
+      // Check for Shroud of Decay (party aura with necrotic reflect)
+      if (memberSkills.includes('NECRO_M_SHROUD_OF_DECAY')) {
+        necroticReflectMag = m.mag || 10;
+      }
+      // Accumulate minionDamageBonus from Lord of the Dead and Soul Anchor
+      const mSkills = memberSkills.map(sid => getSkill(sid)).filter(Boolean);
+      for (const sk of mSkills) {
+        if (sk.effects && sk.effects.minionDamageBonus) {
+          minionDmgBonusTotal += sk.effects.minionDamageBonus;
+        }
+      }
+    }
   }
 
   // ── Per-member active skill pools & cooldowns (round-robin) ──
@@ -750,6 +830,10 @@ function buildSimulation(aq, quest) {
     clericsWithResurrection, resurrectionCooldowns,
     bardsWithDiscord, discordCooldowns, discordRounds: 0, discordSource: null,
     bardsWithCrescendo, crescendoCooldowns, crescendoActive: false,
+    // Necromancer state
+    necroMinions, necrosWithRaiseDead, raiseDeadCooldowns,
+    necrosWithForgoDeath, blightRounds: 0, armyRounds: 0,
+    necroticReflectMag,
   };
 
   for (let i = 0; i < MAX_BATTLE_EVENTS; i++) {
@@ -759,6 +843,8 @@ function buildSimulation(aq, quest) {
     _bufState.discordRounds = discordRounds;
     _bufState.discordSource = discordRounds > 0 ? discordSource : null;
     _bufState.crescendoActive = crescendoActive;
+    _bufState.blightRounds = blightRounds;
+    _bufState.armyRounds = armyRounds;
     const livingEnemies = enemies.filter(e => e.alive);
     const livingParty = partyHp.filter(p => p.hp > 0);
 
@@ -777,6 +863,12 @@ function buildSimulation(aq, quest) {
           anyHealed = true;
           if (regenSourceId && combatStats[regenSourceId]) combatStats[regenSourceId].healingDone += actual;
           if (combatStats[p.id]) combatStats[p.id].healingReceived += actual;
+        }
+      });
+      // Minions also receive regen
+      necroMinions.forEach(m => {
+        if (m.hp > 0 && m.hp < m.maxHp) {
+          m.hp = Math.min(m.maxHp, m.hp + regenPerTick);
         }
       });
       if (anyHealed) {
@@ -813,6 +905,80 @@ function buildSimulation(aq, quest) {
           }
         }
         // Check if all enemies dead
+        if (enemies.filter(e => e.alive).length === 0) { battleOutcome = 'victory'; break; }
+      }
+    }
+
+    // Necromancer Minion tick — each living minion deals damage to a random enemy
+    if (necroMinions.length > 0) {
+      const livingMinionTargets = enemies.filter(e => e.alive);
+      if (livingMinionTargets.length > 0) {
+        for (let mi = necroMinions.length - 1; mi >= 0; mi--) {
+          const minion = necroMinions[mi];
+          if (minion.hp <= 0) { necroMinions.splice(mi, 1); continue; }
+          const mTarget = sPick(livingMinionTargets, seed + i * 5555 + mi);
+          const mDmg = Math.max(1, Math.floor(minion.dmgPerTick * (1 + minionDmgBonusTotal)));
+          mTarget.hp = Math.max(0, mTarget.hp - mDmg);
+          if (combatStats[minion.ownerId]) combatStats[minion.ownerId].dmgDealt += mDmg;
+          const mText = sPick(T_MINION_ATTACK, seed + i * 5556 + mi)(minion.name, mTarget.name, mDmg);
+          events.push({ text: mText, type: 'magic', icon: '💀', phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+          if (mTarget.hp <= 0) {
+            mTarget.alive = false;
+            fallenEnemies.push(mTarget.name);
+          }
+        }
+        if (enemies.filter(e => e.alive).length === 0) { battleOutcome = 'victory'; break; }
+      }
+    }
+
+    // Blight DoT — necrotic damage to all living enemies while active
+    if (blightRounds > 0) {
+      const blightMag = blightSource ? (blightSource.mag || 5) : 5;
+      const blightDmg = Math.max(1, Math.floor(blightMag * (0.35 + sRand(seed + i * 6666) * 0.2)));
+      const blightTargets = enemies.filter(e => e.alive);
+      if (blightTargets.length > 0) {
+        let anyKilled = false;
+        blightTargets.forEach(e => {
+          e.hp = Math.max(0, e.hp - blightDmg);
+          if (blightSource && combatStats[blightSource.id]) combatStats[blightSource.id].dmgDealt += blightDmg;
+          if (e.hp <= 0) { e.alive = false; anyKilled = true; }
+        });
+        const bText = sPick(T_BLIGHT_DOT, seed + i * 6667)(blightDmg, blightTargets.length);
+        events.push({ text: bText, type: 'debuff', icon: '☠', phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        if (anyKilled) {
+          const killed = blightTargets.filter(e => !e.alive);
+          killed.forEach(e => fallenEnemies.push(e.name));
+          const killText = killed.map(e => `${e.name} succumbs to the Blight!`).join(' ');
+          events.push({ text: killText, type: 'defeat', icon: '💥', phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        }
+        if (enemies.filter(e => e.alive).length === 0) { battleOutcome = 'victory'; break; }
+      }
+    }
+
+    // Army of the Damned tick — risen army damages all enemies while active
+    if (armyRounds > 0) {
+      const armyTargets = enemies.filter(e => e.alive);
+      if (armyTargets.length > 0) {
+        const perTargetDmg = Math.max(1, Math.floor(armyDmgPerTick / Math.max(1, armyTargets.length)));
+        let anyKilled = false;
+        armyTargets.forEach(e => {
+          e.hp = Math.max(0, e.hp - perTargetDmg);
+          if (armySource && combatStats[armySource.id]) combatStats[armySource.id].dmgDealt += perTargetDmg;
+          if (e.hp <= 0) { e.alive = false; anyKilled = true; }
+        });
+        const aText = sPick(T_ARMY_TICK, seed + i * 7777)(perTargetDmg, armyTargets.length);
+        events.push({ text: aText, type: 'magic', icon: '👻', phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        if (anyKilled) {
+          const killed = armyTargets.filter(e => !e.alive);
+          killed.forEach(e => fallenEnemies.push(e.name));
+          const killText = killed.map(e => `${e.name} is dragged down by the risen dead!`).join(' ');
+          events.push({ text: killText, type: 'defeat', icon: '💥', phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        }
         if (enemies.filter(e => e.alive).length === 0) { battleOutcome = 'victory'; break; }
       }
     }
@@ -893,6 +1059,18 @@ function buildSimulation(aq, quest) {
     }
     for (const id of Object.keys(guardianCooldowns)) {
       if (guardianCooldowns[id] > 0) guardianCooldowns[id]--;
+    }
+    // Tick down Necromancer cooldowns & durations
+    for (const id of Object.keys(raiseDeadCooldowns)) {
+      if (raiseDeadCooldowns[id] > 0) raiseDeadCooldowns[id]--;
+    }
+    if (blightRounds > 0) {
+      blightRounds--;
+      _bufState.blightRounds = blightRounds;
+    }
+    if (armyRounds > 0) {
+      armyRounds--;
+      _bufState.armyRounds = armyRounds;
     }
 
     const es = seed + (i + 10) * 7919;
@@ -1007,6 +1185,28 @@ function buildSimulation(aq, quest) {
         }
         text = sPick(T_ENEMY_DEFEAT, es + 50)(target.name, attacker.name);
         icon = '💥'; type = 'defeat';
+        fallenEnemies.push(target.name);
+
+        // Necromancer Raise Dead — try to raise the fallen enemy as a minion
+        if (necroMinions.length === 0) {
+          const availableNecro = partyHp.find(p =>
+            p.hp > 0 && necrosWithRaiseDead.has(p.id) && raiseDeadCooldowns[p.id] === 0
+          );
+          if (availableNecro && sRand(es + 888) < 0.70) {
+            const minionHp = Math.max(10, Math.floor(target.maxHp * 0.60));
+            const minionDmg = Math.max(2, Math.floor(availableNecro.mag * 0.8));
+            const minionDef = Math.max(1, Math.floor(availableNecro.mag * 0.25));
+            necroMinions.push({
+              id: `minion_${i}`, name: target.name, hp: minionHp, maxHp: minionHp,
+              def: minionDef, dmgPerTick: minionDmg, ownerId: availableNecro.id,
+            });
+            raiseDeadCooldowns[availableNecro.id] = 2;
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            text = sPick(T_RAISE_DEAD, es + 889)(availableNecro.name, target.name);
+            icon = '💀'; type = 'magic';
+          }
+        }
       }
 
     } else if (roll < 0.44) {
@@ -1108,6 +1308,44 @@ function buildSimulation(aq, quest) {
               target.alive = false;
               if (heroesWithBloodlust.has(attacker.id)) bloodlustActive[attacker.id] = true;
             }
+          } else if (skillId === 'LIFE_TAP') {
+            // Necromancer Life Tap — deals damage and heals self
+            let baseDmg = Math.max(3, Math.floor(calcPartyDmg(attacker, es + 23, dmgBonus) * 1.35));
+            if (markedEnemies[target.id]) baseDmg = Math.floor(baseDmg * 1.20);
+            target.hp = Math.max(0, target.hp - baseDmg);
+            if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += baseDmg;
+            const healAmt = Math.max(1, Math.floor(baseDmg * 0.40));
+            const before = attacker.hp;
+            attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmt);
+            const actualHeal = attacker.hp - before;
+            if (combatStats[attacker.id]) combatStats[attacker.id].healingDone += actualHeal;
+            text = sPick(T_LIFE_TAP, es)(attacker.name, target.name, baseDmg, actualHeal);
+            icon = '🩸'; type = 'magic';
+            if (target.hp <= 0) {
+              target.alive = false;
+              fallenEnemies.push(target.name);
+            }
+          } else if (skillId === 'BLIGHT') {
+            // Necromancer Blight — start AoE DoT for 3 rounds
+            blightRounds = 3;
+            blightSource = attacker;
+            _bufState.blightRounds = blightRounds;
+            text = `${attacker.name} unleashes a wave of Blight — <span class="dmg-num" style="color:#9b59b6">necrotic decay spreads through the enemy ranks!</span>`;
+            icon = '☠'; type = 'debuff';
+          } else if (skillId === 'ARMY_OF_THE_DAMNED') {
+            // Necromancer Army of the Damned — 3 rounds of risen army + auto-Blight
+            const armyCount = Math.max(1, fallenEnemies.length);
+            const armyBaseDmg = Math.max(2, Math.floor(attacker.mag * 0.8));
+            armyDmgPerTick = armyCount * Math.floor(armyBaseDmg * (1 + minionDmgBonusTotal) * 2.5);
+            armyRounds = 3;
+            armySource = attacker;
+            _bufState.armyRounds = armyRounds;
+            // Auto-apply Blight alongside the army
+            blightRounds = 3;
+            blightSource = attacker;
+            _bufState.blightRounds = blightRounds;
+            text = sPick(T_ARMY_OF_DAMNED, es)(attacker.name, armyCount);
+            icon = '👻'; type = 'magic';
           } else {
             // Standard skill attack — 25% stronger than basic attack
             let baseDmg = Math.max(3, Math.floor(calcPartyDmg(attacker, es + 23, dmgBonus) * 1.25));
@@ -1185,9 +1423,48 @@ function buildSimulation(aq, quest) {
       }
 
     } else if (roll < 0.74) {
-      // ── Enemy attacks party member ──
+      // ── Enemy attacks party member (or minion) ──
       const attacker = sPick(livingEnemies, es + 30);
-      const target = sPick(livingParty, es + 31);
+      // Minions can be targeted with 33% weight vs party members
+      const livingMinions = necroMinions.filter(m => m.hp > 0);
+      let target;
+      let targetIsMinion = false;
+      if (livingMinions.length > 0 && sRand(es + 99) < 0.25) {
+        target = sPick(livingMinions, es + 31);
+        targetIsMinion = true;
+      } else {
+        target = sPick(livingParty, es + 31);
+      }
+      // Minion targeted — simplified damage, no dodge/cover/lethal chain
+      if (targetIsMinion) {
+        const discordAtkMult = discordRounds > 0 ? 0.80 : 1.0;
+        const rawDmg = Math.max(1, Math.floor(attacker.atk * discordAtkMult * (0.5 + sRand(es + 32) * 0.7)));
+        const minionAfterDef = Math.max(1, Math.floor(rawDmg * (1 - target.def / (target.def + 60))));
+        target.hp = Math.max(0, target.hp - minionAfterDef);
+        text = sPick(T_ENEMY_ATK, es)(attacker.name, `risen ${target.name}`, minionAfterDef);
+        icon = '💀'; type = 'enemy';
+        // Necrotic reflect
+        if (necroticReflectMag > 0) {
+          const reflectDmg = Math.max(1, Math.floor(necroticReflectMag * 0.12));
+          attacker.hp = Math.max(0, attacker.hp - reflectDmg);
+          events.push({ text, type, icon, phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+          text = sPick(T_NECROTIC_REFLECT, es + 98)(reflectDmg, attacker.name);
+          icon = '💜'; type = 'debuff';
+          if (attacker.hp <= 0) attacker.alive = false;
+        }
+        if (target.hp <= 0) {
+          events.push({ text, type, icon, phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+          text = sPick(T_MINION_DEATH, es + 100)(target.name);
+          icon = '💀'; type = 'defeat';
+          necroMinions.splice(necroMinions.indexOf(target), 1);
+        }
+        events.push({ text, type, icon, phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        continue;
+      }
+
       // Discord FUMBLE check — 25% chance enemies miss entirely while debuffed
       if (discordRounds > 0 && sRand(es + 96) < 0.25) {
         text = `${attacker.name} staggers from the Discord — the attack goes wide!`;
@@ -1231,6 +1508,20 @@ function buildSimulation(aq, quest) {
         if (combatStats[target.id]) combatStats[target.id].dmgTaken += actualDmg;
         text = sPick(T_ENEMY_ATK, es)(attacker.name, target.name, actualDmg);
         icon = '💀'; type = 'enemy';
+      }
+
+      // Necrotic reflect — Shroud of Decay damages attacker when party member is hit
+      if (necroticReflectMag > 0) {
+        const reflectDmg = Math.max(1, Math.floor(necroticReflectMag * 0.12));
+        attacker.hp = Math.max(0, attacker.hp - reflectDmg);
+        events.push({ text, type, icon, phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        text = sPick(T_NECROTIC_REFLECT, es + 98)(reflectDmg, attacker.name);
+        icon = '💜'; type = 'debuff';
+        if (attacker.hp <= 0) {
+          attacker.alive = false;
+          fallenEnemies.push(attacker.name);
+        }
       }
 
       // Knight Bulwark — intercept ANY hit on an ally every 3 rounds
@@ -1319,8 +1610,16 @@ function buildSimulation(aq, quest) {
           }
         }
       } else if (target.hp <= 0) {
-        // Target KO'd — try Unbreakable Will (self), then Divine Intervention, then KO
-        if (heroesWithUnbreakable.has(target.id) && unbreakableCooldowns[target.id] === 0) {
+        // Target KO'd — try Forgo Death (Necromancer), Unbreakable Will, Divine Intervention, then KO
+        // Forgo Death — sacrifice a minion to survive at 20% HP
+        if (necrosWithForgoDeath.has(target.id) && necroMinions.length > 0) {
+          const sacrificed = necroMinions.pop();
+          target.hp = Math.max(1, Math.floor(target.maxHp * 0.20));
+          events.push({ text, type, icon, phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+          text = sPick(T_FORGO_DEATH, es + 85)(sacrificed.name, target.name);
+          icon = '💀'; type = 'divine';
+        } else if (heroesWithUnbreakable.has(target.id) && unbreakableCooldowns[target.id] === 0) {
           target.hp = 1;
           unbreakableCooldowns[target.id] = 5;
           unbreakableDR[target.id] = 2;
@@ -1468,6 +1767,12 @@ function buildSimulation(aq, quest) {
             if (combatStats[healer.id]) combatStats[healer.id].healingDone += actual;
             if (combatStats[p.id]) combatStats[p.id].healingReceived += actual;
             if (p.id !== healer.id) healed.push({ name: p.name, amt: actual });
+          }
+        });
+        // Minions also receive group heals
+        necroMinions.forEach(m => {
+          if (m.hp > 0 && m.hp < m.maxHp) {
+            m.hp = Math.min(m.maxHp, m.hp + perMemberHeal);
           }
         });
 
@@ -1743,6 +2048,36 @@ function makeSnapshot(party, enemies, buffs) {
       if (b.crescendoActive) {
         pBuffs.push({ id: 'cresc_active', icon: '🎶', label: 'Crescendo', desc: 'Next atk: 2.5× CRIT' });
       }
+      // Necromancer Raise Dead cooldown
+      if (b.raiseDeadCooldowns && b.raiseDeadCooldowns[p.id] !== undefined) {
+        const cd = b.raiseDeadCooldowns[p.id];
+        if (b.necrosWithRaiseDead && b.necrosWithRaiseDead.has(p.id)) {
+          pBuffs.push(cd > 0
+            ? { id: 'raise_cd', icon: '💀', label: 'Raise', desc: `CD: ${cd}`, cooldown: true }
+            : { id: 'raise', icon: '💀', label: 'Raise', desc: 'Ready' });
+        }
+      }
+      // Necromancer active minion indicator
+      if (b.necroMinions && b.necroMinions.length > 0 && b.necrosWithRaiseDead && b.necrosWithRaiseDead.has(p.id)) {
+        const m = b.necroMinions[0];
+        pBuffs.push({ id: 'minion', icon: '👻', label: 'Thrall', desc: `${m.name} (${m.hp}/${m.maxHp})` });
+      }
+      // Necromancer Forgo Death available
+      if (b.necrosWithForgoDeath && b.necrosWithForgoDeath.has(p.id) && b.necroMinions && b.necroMinions.length > 0) {
+        pBuffs.push({ id: 'forgo_death', icon: '🛡', label: 'Forgo Death', desc: 'Minion shield' });
+      }
+      // Blight active (party-wide)
+      if (b.blightRounds > 0) {
+        pBuffs.push({ id: 'blight', icon: '☠', label: 'Blight', desc: `${b.blightRounds}rd — AoE DoT` });
+      }
+      // Army of the Damned active (party-wide)
+      if (b.armyRounds > 0) {
+        pBuffs.push({ id: 'army', icon: '👻', label: 'Army', desc: `${b.armyRounds}rd — risen dead` });
+      }
+      // Necrotic reflect (party-wide when Necro has Shroud of Decay)
+      if (b.necroticReflectMag > 0) {
+        pBuffs.push({ id: 'nec_reflect', icon: '💜', label: 'Decay', desc: 'Dmg reflect' });
+      }
       // Passive bonus indicators (from items, passive skills, auras)
       if (p.dodgeChance > 0) {
         pBuffs.push({ id: 'dodge_bonus', icon: '💨', label: 'Dodge+', desc: `+${Math.round(p.dodgeChance * 100)}% dodge` });
@@ -1763,6 +2098,10 @@ function makeSnapshot(party, enemies, buffs) {
       // Discord debuff on enemies
       if (b.discordRounds > 0) {
         eDebuffs.push({ id: 'discord', icon: '🎸', label: 'Discord', desc: `${b.discordRounds}rd — -20% ATK, fumble, DoT` });
+      }
+      // Blight debuff on enemies
+      if (b.blightRounds > 0) {
+        eDebuffs.push({ id: 'blight', icon: '☠', label: 'Blight', desc: `${b.blightRounds}rd — necrotic DoT` });
       }
       return {
         id: e.id, name: e.name, hp: Math.max(0, e.hp), maxHp: e.maxHp,
