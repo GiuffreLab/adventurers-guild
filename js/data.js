@@ -2629,6 +2629,14 @@ export const EQUIPMENT = {
   },
 
   // === CELESTIAL SET: Dominion of the Dead (Necromancer) ===
+  CEL_SOULWEAVER: {
+    id: 'CEL_SOULWEAVER', name: 'Soulweaver', slot: 'weapon', tier: 6,
+    rarity: 'celestial', classReq: ['NECROMANCER'],
+    statBonus: { mag: 58, spd: 14, crit: 18, dodge: 6, def: 8, maxHp: 12 },
+    grantedSkill: 'CEL_SIPHON_OF_SOULS',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'A staff woven from threads of stolen life force. Each strike drains the essence of the living and feeds it back to the wielder.'
+  },
   CEL_MORTALITYS_END: {
     id: 'CEL_MORTALITYS_END', name: "Mortality's End", slot: 'weapon', tier: 6,
     rarity: 'celestial', classReq: ['NECROMANCER'],

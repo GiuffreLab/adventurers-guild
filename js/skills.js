@@ -1624,6 +1624,13 @@ export const SKILLS = {
   },
 
   // ── NECROMANCER "Dominion of the Dead" Set Procs ────────────────────────
+  CEL_SIPHON_OF_SOULS: {
+    id: 'CEL_SIPHON_OF_SOULS', name: 'Siphon of Souls', type: 'active', source: 'equipment',
+    itemId: 'CEL_SOULWEAVER', unlockLevel: null,
+    description: 'The Soulweaver drains the life force of enemies and channels it back to the caster, dealing enhanced necrotic damage with potent lifesteal.',
+    icon: '🩸', effects: { magBonus: 0.35, lifesteal: 0.50, powerMultiplier: 1.5 }, procChance: 0.55,
+    narrative: 'channels the Soulweaver — threads of stolen life surge from the enemy into the caster!',
+  },
   CEL_DEATHS_DOMINION: {
     id: 'CEL_DEATHS_DOMINION', name: "Death's Dominion", type: 'active', source: 'equipment',
     itemId: 'CEL_MORTALITYS_END', unlockLevel: null,
