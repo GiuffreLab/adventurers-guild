@@ -387,21 +387,17 @@ function buildSimulation(aq, quest) {
     healBonus += Math.max(...memberHealBonuses);
   }
 
-  // ── Debug: dump effective combat stats (check console to verify bonuses) ──
-  if (typeof console !== 'undefined' && console.debug) {
-    console.debug('[Combat Sim] Heal bonus breakdown:',
-      `synergy=${(Game.getHealBonus ? Game.getHealBonus(aq.questId) : 0).toFixed(2)}`,
-      `partyAura=${partyHealAura.toFixed(2)}`,
-      `bestMemberItem=${memberHealBonuses.length ? Math.max(...memberHealBonuses).toFixed(2) : '0.00'}`,
-      `→ total=${healBonus.toFixed(2)}×`);
-    for (const p of partyHp) {
-      const extras = [];
-      if (p.dodgeChance > 0) extras.push(`dodgeChance+${(p.dodgeChance * 100).toFixed(0)}%`);
-      if (p.critChance > 0) extras.push(`critChance+${(p.critChance * 100).toFixed(0)}%`);
-      if (p.healBonus > 0) extras.push(`healBonus+${(p.healBonus * 100).toFixed(0)}%`);
-      console.debug(`[Combat Sim] ${p.name} (${p.class}) — ATK:${p.atk} DEF:${p.def} MAG:${p.mag} SPD:${p.spd} CRIT:${p.crit} DODGE:${p.dodge} HP:${p.hp}/${p.maxHp}${extras.length ? ' | ' + extras.join(', ') : ''}`);
-    }
-  }
+  // ── Capture initial combat stats for debug display ──
+  const _combatDebug = {
+    healBonus: { synergy: Game.getHealBonus ? Game.getHealBonus(aq.questId) : 0, partyAura: partyHealAura, memberItem: memberHealBonuses.length ? Math.max(...memberHealBonuses) : 0, total: healBonus },
+    dmgBonus, dmgReduction, atkSpeedBonus,
+    partyAuras: simAuras,
+    members: partyHp.map(p => ({
+      name: p.name, class: p.class, level: p.level,
+      atk: p.atk, def: p.def, mag: p.mag, spd: p.spd, crit: p.crit, dodge: p.dodge,
+      maxHp: p.maxHp, dodgeChance: p.dodgeChance || 0, critChance: p.critChance || 0, healBonus: p.healBonus || 0,
+    })),
+  };
 
   // ── SPD-weighted random pick helper ──
   // Higher SPD → more likely to be chosen to act, but using sqrt curve
@@ -1393,7 +1389,7 @@ function buildSimulation(aq, quest) {
   }
 
   const totalEvents = events.length;
-  return { events, snapshots, partyHp, enemies, totalEvents, battleOutcome, effectiveInterval, combatStats };
+  return { events, snapshots, partyHp, enemies, totalEvents, battleOutcome, effectiveInterval, combatStats, combatDebug: _combatDebug };
 }
 
 function makeSnapshot(party, enemies, buffs) {
@@ -1577,6 +1573,12 @@ export function getCombatStats() {
   const sim = ensureSim();
   if (!sim || !sim.combatStats) return null;
   return Object.values(sim.combatStats);
+}
+
+// Get the combat debug info (effective stats, bonuses, aura breakdown)
+export function getCombatDebug() {
+  const sim = ensureSim();
+  return sim ? sim.combatDebug : null;
 }
 
 // Get all simulation events (call before resetCombatLog to capture for export)

@@ -44,7 +44,13 @@ function formatFightLog() {
     const cls = CLASSES[m.class];
     const eff = Game.effectiveStats(m, resultAuras);
     lines.push(`${cls?.sigil || '?'} ${m.name} — ${cls?.label || m.class} Lv.${m.level}  (Power: ${Game.memberPower(m)})`);
-    lines.push(`  HP: ${eff.maxHp}  ATK: ${eff.atk}  DEF: ${eff.def}  MAG: ${eff.mag}  SPD: ${eff.spd}`);
+    lines.push(`  HP: ${eff.maxHp}  ATK: ${eff.atk}  DEF: ${eff.def}  MAG: ${eff.mag}  SPD: ${eff.spd}  CRT: ${eff.crit}  DDG: ${eff.dodge}`);
+    // Special percentage bonuses
+    const specials = [];
+    if (eff.dodgeChance > 0) specials.push(`DDG%+${Math.round(eff.dodgeChance * 100)}%`);
+    if (eff.critChance > 0) specials.push(`CRT%+${Math.round(eff.critChance * 100)}%`);
+    if (eff.healBonus > 0) specials.push(`HEAL+${Math.round(eff.healBonus * 100)}%`);
+    if (specials.length > 0) lines.push(`  Bonuses: ${specials.join(', ')}`);
 
     // Equipment
     const slots = ['weapon', 'armor', 'offhand', 'accessory'];
@@ -69,6 +75,46 @@ function formatFightLog() {
         return sk ? `${sk.name} [${sk.source}${sk.procChance < 1 ? ` ${Math.round(sk.procChance*100)}%` : ' passive'}]` : sid;
       });
       lines.push(`  Skills: ${skillNames.join(', ')}`);
+    }
+    lines.push('');
+  }
+
+  // Combat debug info (bonuses, auras, effective stats at sim start)
+  const debugData = pr.combatDebug;
+  if (debugData) {
+    lines.push('── COMBAT DEBUG ──────────────────────────');
+    const hb = debugData.healBonus;
+    const healParts = [];
+    if (hb.synergy > 0) healParts.push(`synergy=${(hb.synergy * 100).toFixed(0)}%`);
+    if (hb.partyAura > 0) healParts.push(`aura=${(hb.partyAura * 100).toFixed(0)}%`);
+    if (hb.memberItem > 0) healParts.push(`item/skill=${(hb.memberItem * 100).toFixed(0)}%`);
+    lines.push(`  Heal Multiplier: ${hb.total.toFixed(2)}× ${healParts.length ? '(' + healParts.join(' + ') + ')' : ''}`);
+    if (debugData.dmgBonus > 1) lines.push(`  Damage Multiplier: ${debugData.dmgBonus.toFixed(2)}×`);
+    if (debugData.dmgReduction > 0) lines.push(`  Damage Reduction: -${Math.round(debugData.dmgReduction * 100)}%`);
+    if (debugData.atkSpeedBonus > 0) lines.push(`  Attack Speed: +${Math.round(debugData.atkSpeedBonus * 100)}%`);
+
+    const auras = debugData.partyAuras;
+    if (auras) {
+      const auraParts = [];
+      if (auras.atk > 0) auraParts.push(`ATK+${Math.round(auras.atk * 100)}%`);
+      if (auras.def > 0) auraParts.push(`DEF+${Math.round(auras.def * 100)}%`);
+      if (auras.mag > 0) auraParts.push(`MAG+${Math.round(auras.mag * 100)}%`);
+      if (auras.spd > 0) auraParts.push(`SPD+${Math.round(auras.spd * 100)}%`);
+      if (auras.crit > 0) auraParts.push(`CRT+${Math.round(auras.crit * 100)}%`);
+      if (auras.dodge > 0) auraParts.push(`DDG+${Math.round(auras.dodge * 100)}%`);
+      if (auras.maxHp > 0) auraParts.push(`HP+${Math.round(auras.maxHp * 100)}%`);
+      if (auras.heal > 0) auraParts.push(`HEAL+${Math.round(auras.heal * 100)}%`);
+      if (auraParts.length > 0) lines.push(`  Party Auras: ${auraParts.join(', ')}`);
+    }
+
+    lines.push('  ── Effective Combat Stats (at sim start) ──');
+    for (const m of debugData.members) {
+      const cls = CLASSES[m.class];
+      const extras = [];
+      if (m.dodgeChance > 0) extras.push(`DDG%+${Math.round(m.dodgeChance * 100)}%`);
+      if (m.critChance > 0) extras.push(`CRT%+${Math.round(m.critChance * 100)}%`);
+      if (m.healBonus > 0) extras.push(`HEAL+${Math.round(m.healBonus * 100)}%`);
+      lines.push(`  ${cls?.sigil || '?'} ${m.name} (${cls?.label || m.class} Lv.${m.level}) — ATK:${m.atk} DEF:${m.def} MAG:${m.mag} SPD:${m.spd} CRT:${m.crit} DDG:${m.dodge} HP:${m.maxHp}${extras.length ? ' | ' + extras.join(', ') : ''}`);
     }
     lines.push('');
   }
@@ -422,6 +468,69 @@ export function showResultsModal() {
     </div>
   ` : '';
 
+  // Collapsible Combat Debug section (effective stats, bonuses, auras)
+  const debugData = pr.combatDebug;
+  const combatDebugHtml = debugData ? (() => {
+    const hb = debugData.healBonus;
+    const bonusLines = [];
+    // Heal bonus breakdown
+    const healParts = [];
+    if (hb.synergy > 0) healParts.push(`Synergy +${Math.round(hb.synergy * 100)}%`);
+    if (hb.partyAura > 0) healParts.push(`Aura +${Math.round(hb.partyAura * 100)}%`);
+    if (hb.memberItem > 0) healParts.push(`Item/Skill +${Math.round(hb.memberItem * 100)}%`);
+    const healTotal = `${hb.total.toFixed(2)}×`;
+    bonusLines.push(`<div class="dbg-row"><span class="dbg-label">Heal Mult</span><span class="dbg-value">${healTotal}${healParts.length ? ' (' + healParts.join(' + ') + ')' : ''}</span></div>`);
+
+    // Synergy bonuses
+    if (debugData.dmgBonus > 1) bonusLines.push(`<div class="dbg-row"><span class="dbg-label">Dmg Mult</span><span class="dbg-value">${debugData.dmgBonus.toFixed(2)}×</span></div>`);
+    if (debugData.dmgReduction > 0) bonusLines.push(`<div class="dbg-row"><span class="dbg-label">Dmg Reduction</span><span class="dbg-value">-${Math.round(debugData.dmgReduction * 100)}%</span></div>`);
+    if (debugData.atkSpeedBonus > 0) bonusLines.push(`<div class="dbg-row"><span class="dbg-label">Atk Speed</span><span class="dbg-value">+${Math.round(debugData.atkSpeedBonus * 100)}%</span></div>`);
+
+    // Party auras
+    const auras = debugData.partyAuras;
+    if (auras) {
+      const auraParts = [];
+      if (auras.atk > 0) auraParts.push(`ATK+${Math.round(auras.atk * 100)}%`);
+      if (auras.def > 0) auraParts.push(`DEF+${Math.round(auras.def * 100)}%`);
+      if (auras.mag > 0) auraParts.push(`MAG+${Math.round(auras.mag * 100)}%`);
+      if (auras.spd > 0) auraParts.push(`SPD+${Math.round(auras.spd * 100)}%`);
+      if (auras.crit > 0) auraParts.push(`CRT+${Math.round(auras.crit * 100)}%`);
+      if (auras.dodge > 0) auraParts.push(`DDG+${Math.round(auras.dodge * 100)}%`);
+      if (auras.maxHp > 0) auraParts.push(`HP+${Math.round(auras.maxHp * 100)}%`);
+      if (auras.heal > 0) auraParts.push(`HEAL+${Math.round(auras.heal * 100)}%`);
+      if (auraParts.length > 0) {
+        bonusLines.push(`<div class="dbg-row"><span class="dbg-label">Party Auras</span><span class="dbg-value">${auraParts.join(', ')}</span></div>`);
+      }
+    }
+
+    // Per-member effective stats
+    const memberRows = debugData.members.map(m => {
+      const cls = CLASSES[m.class];
+      const extras = [];
+      if (m.dodgeChance > 0) extras.push(`DDG%+${Math.round(m.dodgeChance * 100)}`);
+      if (m.critChance > 0) extras.push(`CRT%+${Math.round(m.critChance * 100)}`);
+      if (m.healBonus > 0) extras.push(`HEAL+${Math.round(m.healBonus * 100)}%`);
+      const extrasStr = extras.length ? `<span class="dbg-extras">${extras.join(' ')}</span>` : '';
+      return `<div class="dbg-member">
+        <span class="dbg-name">${cls?.sigil || '?'} ${esc(m.name)}</span>
+        <span class="dbg-stats">ATK:${m.atk} DEF:${m.def} MAG:${m.mag} SPD:${m.spd} CRT:${m.crit} DDG:${m.dodge} HP:${m.maxHp}</span>
+        ${extrasStr}
+      </div>`;
+    }).join('');
+
+    return `<div class="result-section result-debug-section">
+      <div class="result-section-title dbg-toggle" id="dbg-toggle" style="cursor:pointer;user-select:none">
+        ▸ Combat Stats Debug
+      </div>
+      <div class="dbg-content" id="dbg-content" style="display:none">
+        ${bonusLines.join('')}
+        <div class="dbg-divider"></div>
+        <div class="dbg-subtitle">Effective Stats (with items, passives, auras)</div>
+        ${memberRows}
+      </div>
+    </div>`;
+  })() : '';
+
   const powerPct = Math.round(result.ratio * 100);
   const powerColor = result.ratio >= 1.2 ? 'var(--green)' : result.ratio >= 0.8 ? 'var(--orange)' : 'var(--red)';
 
@@ -436,6 +545,7 @@ export function showResultsModal() {
     ${secretBossHtml}
     ${highlightsHtml}
     ${combatStatsHtml}
+    ${combatDebugHtml}
     ${rewardsHtml}
     ${levelUpHtml}
     ${skillGainHtml}
@@ -446,6 +556,17 @@ export function showResultsModal() {
   `;
 
   document.getElementById('modal-results').classList.remove('hidden');
+
+  // Wire up the debug toggle
+  const dbgToggle = document.getElementById('dbg-toggle');
+  const dbgContent = document.getElementById('dbg-content');
+  if (dbgToggle && dbgContent) {
+    dbgToggle.addEventListener('click', () => {
+      const open = dbgContent.style.display !== 'none';
+      dbgContent.style.display = open ? 'none' : 'block';
+      dbgToggle.textContent = (open ? '▸' : '▾') + ' Combat Stats Debug';
+    });
+  }
 
   // Wire up the copy button
   const copyBtn = document.getElementById('btn-copy-fight-log');
