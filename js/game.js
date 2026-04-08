@@ -496,6 +496,9 @@ const Game = (() => {
 
     const loot = [];
     if (success) {
+      // Track failed entries for boss loot guarantee
+      const failedEntries = [];
+
       for (const entry of questDef.lootTable) {
         // Guaranteed drops (chance === 1.0) always drop — skip RNG entirely
         if (entry.chance >= 1.0) {
@@ -507,6 +510,27 @@ const Game = (() => {
         const chance = Math.min(0.95, baseChance * (1 + itemFindBonus) * questRarityMult);
         if (Math.random() < chance) {
           loot.push({ itemId: entry.itemId, quantity: randInt(entry.quantity[0], entry.quantity[1]) });
+        } else {
+          failedEntries.push({ entry, chance });
+        }
+      }
+
+      // Boss loot guarantee: bosses always drop 4-8 items
+      // If natural rolls gave fewer than 4, fill from failed entries (highest chance first)
+      if (questDef.boss) {
+        const bossMinLoot = 4;
+        const bossMaxLoot = 8;
+        // Cap at max even if natural rolls exceeded it (unlikely but safety)
+        while (loot.length > bossMaxLoot) loot.pop();
+        // Fill up to minimum from failed rolls, sorted by drop chance (most likely first)
+        if (loot.length < bossMinLoot && failedEntries.length > 0) {
+          failedEntries.sort((a, b) => b.chance - a.chance);
+          for (const { entry } of failedEntries) {
+            if (loot.length >= bossMinLoot) break;
+            // Avoid duplicates — don't force an item that already dropped
+            if (loot.some(l => l.itemId === entry.itemId)) continue;
+            loot.push({ itemId: entry.itemId, quantity: randInt(entry.quantity[0], entry.quantity[1]) });
+          }
         }
       }
     }

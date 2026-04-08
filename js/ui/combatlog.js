@@ -407,11 +407,15 @@ function buildSimulation(aq, quest) {
   const difficultyRatio = partyPower / Math.max(1, questPower);
   // Clamp the scaling factor: 0.6x (very overleveled) to 2.0x (very underleveled)
   const difficultyScale = Math.min(2.0, Math.max(0.6, 1.0 / Math.max(0.5, difficultyRatio)));
+  // Boss fights: enemies are tougher — 40% more HP pool, 30% more ATK
+  const isBoss = !!quest.boss;
+  const bossHpMult = isBoss ? 1.4 : 1.0;
+  const bossAtkMult = isBoss ? 1.3 : 1.0;
 
-  const totalEnemyHpPool = Math.max(80, Math.floor(totalPartyHp * 1.6 * difficultyScale));
+  const totalEnemyHpPool = Math.max(80, Math.floor(totalPartyHp * 1.6 * difficultyScale * bossHpMult));
   const perEnemyBaseHp = Math.floor(totalEnemyHpPool / Math.max(1, fullEnemyNames.length));
-  const baseAtkScale = 0.09 * difficultyScale;
-  const atkRange = 0.12 * difficultyScale;
+  const baseAtkScale = 0.09 * difficultyScale * bossAtkMult;
+  const atkRange = 0.12 * difficultyScale * bossAtkMult;
 
   let enemies = fullEnemyNames.map((name, i) => ({
     id: `enemy_${i}`, name: esc(name),
@@ -699,7 +703,21 @@ function buildSimulation(aq, quest) {
       // If all on cooldown, allow any active (reset effective cooldowns)
       const skillPool = readySkills.length > 0 ? readySkills : allActives;
       if (skillPool.length > 0) {
-        const skillId = sPick(skillPool, es + 22);
+        // AoE preference: when 3+ enemies alive, weight AoE skills 3× higher in selection
+        // This simulates tactical awareness — use AoE against groups, single-target vs lone foes
+        let skillId;
+        const enemyCount = livingEnemies.length;
+        if (enemyCount >= 3) {
+          const aoeSkills = skillPool.filter(sid => AOE_SKILLS[sid]);
+          const stSkills = skillPool.filter(sid => !AOE_SKILLS[sid]);
+          // Build weighted pool: each AoE skill gets 3 entries, single-target gets 1
+          const weightedPool = [];
+          for (const sid of aoeSkills) { weightedPool.push(sid, sid, sid); }
+          for (const sid of stSkills) { weightedPool.push(sid); }
+          skillId = sPick(weightedPool.length > 0 ? weightedPool : skillPool, es + 22);
+        } else {
+          skillId = sPick(skillPool, es + 22);
+        }
         const skill = getSkill(skillId);
         // Put the used skill on cooldown
         if (!skillCooldowns[attacker.id]) skillCooldowns[attacker.id] = {};

@@ -755,8 +755,8 @@ export function generateQuestBoard(rank, partyStrength, seed) {
     if (!quest) return null;
 
     if (boss) {
-      // Boss quests: significantly harder (2.2-3.2x) with boosted rewards
-      const bossBoost = 2.2 + seededRand(seed + 300 + i) * 1.0;
+      // Boss quests: significantly harder (2.5-3.7x) with boosted rewards
+      const bossBoost = 2.5 + seededRand(seed + 300 + i) * 1.2;
       quest.difficulty = Math.round(quest.difficulty * bossBoost * 100) / 100;
       quest.recommendedPower = Math.floor(quest.recommendedPower * bossBoost);
       quest.goldReward.min = Math.floor(quest.goldReward.min * bossBoost * 1.5);
