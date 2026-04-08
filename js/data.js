@@ -2362,11 +2362,12 @@ export const EQUIPMENT = {
     desc: 'The fabric shows a living star map. Constellations dance across it, harmonizing with the wearer\'s music.'
   },
   CEL_DRUM_OF_ETERNITY: {
-    id: 'CEL_DRUM_OF_ETERNITY', name: 'Drum of Eternity', slot: 'offhand', tier: 6,
+    id: 'CEL_DRUM_OF_ETERNITY', name: 'Drum of Eternity', slot: 'weapon', tier: 6,
     rarity: 'celestial', classReq: ['BARD'],
-    statBonus: { mag: 30, crit: 20, dodge: 30, spd: 15, def: 12 },
-    grantedSkill: 'CEL_RHYTHM_OF_WORLDS',
+    statBonus: { mag: 82, def: 30, spd: 32, crit: 24, dodge: 28, maxHp: 52 },
+    grantedSkills: ['CEL_RHYTHM_OF_WORLDS', 'CEL_ETERNAL_CADENCE'],
     sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    twoHanded: true,
     desc: 'The drum beats with the heartbeat of the universe. Each strike synchronizes the rhythm of every living thing nearby.'
   },
   CEL_MAESTROS_SIGNET: {

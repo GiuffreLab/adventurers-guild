@@ -1564,8 +1564,17 @@ export const SKILLS = {
     id: 'CEL_RHYTHM_OF_WORLDS', name: 'Rhythm of Worlds', type: 'active', source: 'equipment',
     itemId: 'CEL_DRUM_OF_ETERNITY', unlockLevel: null,
     description: 'The Drum beats with the heartbeat of infinite worlds, synchronizing and empowering all allies.',
-    icon: '🥁', effects: { partyAtkBonus: 0.15, partyDefBonus: 0.15, partyMagBonus: 0.15, partySpdBonus: 0.15 }, procChance: 0.45,
+    icon: '🥁', effects: { partyAtkBonus: 0.18, partyDefBonus: 0.18, partyMagBonus: 0.18, partySpdBonus: 0.18, powerMultiplier: 1.5 }, procChance: 0.50,
     narrative: 'strikes the Rhythm of Worlds — the heartbeat of infinite worlds empowers every ally!',
+  },
+
+  // ── BARD "Eternal Cadence" 2H Drum Passive (Drum of Eternity dual-proc) ─
+  CEL_ETERNAL_CADENCE: {
+    id: 'CEL_ETERNAL_CADENCE', name: 'Eternal Cadence', type: 'passive', source: 'equipment',
+    itemId: 'CEL_DRUM_OF_ETERNITY', unlockLevel: null,
+    description: 'The Drum of Eternity resonates with an unbreakable cadence. Its rhythm steadies every heartbeat, mending wounds and hardening resolve.',
+    icon: '💫', effects: { magBonus: 0.15, defBonus: 0.18, healBonus: 0.15, maxHpBonus: 0.10, partyDefBonus: 0.06, partyMaxHpBonus: 0.05 }, procChance: 1.0,
+    narrative: null,
   },
   CEL_SYMPHONY_AURA: {
     id: 'CEL_SYMPHONY_AURA', name: 'Eternal Symphony', type: 'passive', source: 'equipment',
