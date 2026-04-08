@@ -21,9 +21,12 @@ const Game = (() => {
   const SHOP_QUEST_REFRESH = 2; // refresh shop every N completed quests
 
   // ── Party Expansion ───────────────────────────────────────────────────────
-  const BASE_PARTY_SIZE = 4;      // default max active party (including player)
-  const MAX_PARTY_SIZE = 7;       // ultimate max after all expansions
-  const PARTY_EXPANSION_COSTS = [50000, 100000, 150000]; // cost for slots 5, 6, 7
+  // Active slots (NOT including the Hero/player who is always present)
+  // Default: 4 active members + Hero = 5 in combat
+  // Expansion: 5 active members + Hero = 6 in combat (endgame unlock)
+  const BASE_PARTY_SIZE = 4;      // default max active slots (Hero always present separately)
+  const MAX_PARTY_SIZE = 5;       // ultimate max after expansion
+  const PARTY_EXPANSION_COSTS = [1000000]; // 1M gold for the 5th active slot
 
   function getMaxPartySize() {
     const expansions = state.partyExpansions || 0;
@@ -137,6 +140,17 @@ const Game = (() => {
       const parsed = JSON.parse(raw);
       if (parsed.version !== 1) return false;
       state = parsed;
+
+      // Migration: cap partyExpansions to new max (1 expansion available)
+      if ((state.partyExpansions || 0) > PARTY_EXPANSION_COSTS.length) {
+        state.partyExpansions = PARTY_EXPANSION_COSTS.length;
+      }
+      // Migration: trim active slots to current max party size
+      const maxSlots = getMaxPartySize();
+      if (state.activeSlots && state.activeSlots.length > maxSlots) {
+        state.activeSlots = state.activeSlots.slice(0, maxSlots);
+      }
+
       return true;
     } catch(e) { return false; }
   }

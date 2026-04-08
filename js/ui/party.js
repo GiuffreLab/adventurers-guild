@@ -124,32 +124,27 @@ export function renderParty() {
   }).join('');
 
   // Guild hall expansion panel
+  // Party is Hero + active slots: base 4 slots (5 total), expandable to 5 slots (6 total)
   const expansionCost = Game.getPartyExpansionCost();
   const expansionMaxed = expansionCost === null;
   const canAffordExpansion = !expansionMaxed && s.gold >= expansionCost;
-  const expansionPips = Array.from({ length: 3 }, (_, i) =>
-    `<div class="party-expand-pip${i < (s.partyExpansions || 0) ? ' filled' : ''}"></div>`
-  ).join('');
-  const expansionPanel = maxParty < 7 ? `
+  const totalPartyMax = maxParty + 1; // +1 for the Hero who is always present
+  const totalPartyCap = 6; // Hero + 5 active slots (max after expansion)
+  const expansionPanel = !expansionMaxed ? `
     <div class="party-expand-panel">
       <div class="party-expand-header">
-        <span class="party-expand-title">Guild Hall Capacity ${maxParty}/7</span>
-        ${expansionMaxed
-          ? '<span class="party-expand-maxed">MAX</span>'
-          : `<button class="btn btn-sm${canAffordExpansion ? ' btn-expand' : ''}" id="btn-expand-party" ${canAffordExpansion ? '' : 'disabled'}>
-              Expand — ${expansionCost.toLocaleString()}g
-            </button>`
-        }
+        <span class="party-expand-title">Party Capacity ${totalPartyMax}/${totalPartyCap}</span>
+        <button class="btn btn-sm${canAffordExpansion ? ' btn-expand' : ''}" id="btn-expand-party" ${canAffordExpansion ? '' : 'disabled'}>
+          Expand — ${expansionCost.toLocaleString()}g
+        </button>
       </div>
-      <div class="party-expand-pips">${expansionPips}</div>
     </div>
   ` : `
     <div class="party-expand-panel">
       <div class="party-expand-header">
-        <span class="party-expand-title">Guild Hall Capacity 7/7</span>
+        <span class="party-expand-title">Party Capacity ${totalPartyCap}/${totalPartyCap}</span>
         <span class="party-expand-maxed">MAX</span>
       </div>
-      <div class="party-expand-pips">${expansionPips}</div>
     </div>
   `;
 
@@ -163,7 +158,7 @@ export function renderParty() {
     </div>
     <div class="card">
       <div class="section-header">
-        <div class="card-title" style="margin:0">Roster <span style="font-weight:400;color:var(--text-muted)">(${s.party.length}/12)</span></div>
+        <div class="card-title" style="margin:0">Roster <span style="font-weight:400;color:var(--text-muted)">(${s.party.length}/8)</span></div>
         <button class="btn btn-sm btn-success" id="btn-recruit">+ Recruit</button>
       </div>
       <div class="roster-grid">${rosterRows}</div>
