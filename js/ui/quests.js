@@ -740,24 +740,40 @@ function renderQuestHistory(s) {
         lootHtml = `<div class="qh-detail-section"><div class="qh-detail-section-title">Loot Obtained</div><div class="qh-loot-grid">${lootItems}</div></div>`;
       }
 
-      // Skills activated
+      // Skills activated — consolidated: count per member's skill, show top uses
       let skillsHtml = '';
       const skills = h.activatedSkills || [];
       if (skills.length > 0) {
-        const skillItems = skills.map(a =>
-          `<span class="qh-skill-item">${a.memberName}: <em>${a.skill.name}</em></span>`
+        // Count uses per skill per member
+        const skillCounts = {};
+        for (const a of skills) {
+          const key = `${a.memberName}::${a.skill.name}`;
+          if (!skillCounts[key]) skillCounts[key] = { name: a.memberName, skill: a.skill.name, icon: a.skill.icon || '⚡', count: 0 };
+          skillCounts[key].count++;
+        }
+        const sorted = Object.values(skillCounts).sort((a, b) => b.count - a.count);
+        const topSkills = sorted.slice(0, 5); // show top 5
+        const skillRows = topSkills.map(s =>
+          `<div class="highlight-row"><span class="highlight-icon">${s.icon}</span><span class="highlight-label">${esc(s.name)}</span><span class="highlight-value">${esc(s.skill)} — <strong>×${s.count}</strong></span></div>`
         ).join('');
-        skillsHtml = `<div class="qh-detail-section"><div class="qh-detail-section-title">Skills Activated</div><div class="qh-skills-list">${skillItems}</div></div>`;
+        skillsHtml = `<div class="qh-detail-section"><div class="qh-detail-section-title">Top Skills Used</div>${skillRows}</div>`;
       }
 
-      // Level ups
+      // Level ups — consolidated per character
       let levelUpsHtml = '';
       const levelUps = h.levelUps || [];
       if (levelUps.length > 0) {
-        const luItems = levelUps.map(lu =>
-          `<span class="qh-levelup-item text-gold">${esc(lu.name)} → Lv.${lu.level}</span>`
-        ).join('');
-        levelUpsHtml = `<div class="qh-detail-section"><div class="qh-detail-section-title">Level Ups</div><div class="qh-levelup-list">${luItems}</div></div>`;
+        const byName = {};
+        for (const lu of levelUps) {
+          if (!byName[lu.name]) byName[lu.name] = [];
+          byName[lu.name].push(lu.level);
+        }
+        const luRows = Object.entries(byName).map(([name, levels]) => {
+          const from = Math.min(...levels) - 1;
+          const to = Math.max(...levels);
+          return `<div class="result-levelup-entry"><span class="levelup-name">⭐ ${esc(name)}</span><span class="levelup-levels">${from} → ${to}</span></div>`;
+        }).join('');
+        levelUpsHtml = `<div class="qh-detail-section"><div class="qh-detail-section-title">Level Ups</div>${luRows}</div>`;
       }
 
       // Secret boss

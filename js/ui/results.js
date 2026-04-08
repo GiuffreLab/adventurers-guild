@@ -141,12 +141,19 @@ function formatFightLog() {
     lines.push('  Gold / Rank Points: None');
   }
 
-  // Level ups
+  // Level ups (consolidated per character)
   if (levelUps?.length > 0) {
     lines.push('');
     lines.push('── LEVEL UPS ─────────────────────────────');
+    const byName = {};
     for (const lu of levelUps) {
-      lines.push(`  ⭐ ${lu.name} → Level ${lu.level}`);
+      if (!byName[lu.name]) byName[lu.name] = [];
+      byName[lu.name].push(lu.level);
+    }
+    for (const [name, levels] of Object.entries(byName)) {
+      const from = Math.min(...levels) - 1;
+      const to = Math.max(...levels);
+      lines.push(`  ⭐ ${name} ${from} → ${to}`);
     }
   }
 
@@ -198,9 +205,26 @@ export function showResultsModal() {
     `;
   }
 
-  const levelUpHtml = levelUps.length > 0 ? levelUps.map(lu =>
-    `<div class="result-levelup">⭐ ${esc(lu.name)} reached Level ${lu.level}!</div>`
-  ).join('') : '';
+  // Consolidate level-ups: one row per character showing startLevel → endLevel
+  let levelUpHtml = '';
+  if (levelUps.length > 0) {
+    const byName = {};
+    for (const lu of levelUps) {
+      if (!byName[lu.name]) byName[lu.name] = { name: lu.name, levels: [] };
+      byName[lu.name].levels.push(lu.level);
+    }
+    const entries = Object.values(byName).map(entry => {
+      const startLvl = Math.min(...entry.levels) - 1;
+      const endLvl = Math.max(...entry.levels);
+      return `<div class="result-levelup-entry"><span class="levelup-name">⭐ ${esc(entry.name)}</span><span class="levelup-levels">${startLvl} → ${endLvl}</span></div>`;
+    }).join('');
+    levelUpHtml = `
+      <div class="result-levelup-section">
+        <div class="levelup-title">Level Up!</div>
+        ${entries}
+      </div>
+    `;
+  }
 
   const skillGainHtml = skillGains && skillGains.length > 0 ? skillGains.map(sg => {
     const verb = sg.type === 'mastery' ? 'gained mastery' : 'learned skill';
