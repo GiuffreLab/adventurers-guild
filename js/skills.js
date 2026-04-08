@@ -344,12 +344,12 @@ export const SKILLS = {
     icon: '✨', effects: { partyHealPct: 0.15, magBonus: 0.10 }, procChance: 0.80,
     narrative: 'calls down Holy Light — wounds close and spirits lift!',
   },
-  PURIFY: {
-    id: 'PURIFY', name: 'Purify', type: 'active', source: 'class',
+  DIVINE_INTERVENTION: {
+    id: 'DIVINE_INTERVENTION', name: 'Divine Intervention', type: 'active', source: 'class',
     classId: 'CLERIC', unlockLevel: 6,
-    description: 'Cleanses and restores. 65% proc, party heal 12%, party DEF +8%.',
-    icon: '💧', effects: { partyHealPct: 0.12, partyDefBonus: 0.08 }, procChance: 0.65,
-    narrative: 'channels Purify — a wave of holy water washes over the party!',
+    description: 'Intercepts a killing blow on an ally, saving them at 1 HP. 4-round cooldown.',
+    icon: '🕊', effects: { savesAlly: true }, procChance: 1.0, cooldown: 4,
+    narrative: 'calls upon Divine Intervention — a holy light shields {target} from death!',
   },
   DIVINE_SHIELD: {
     id: 'DIVINE_SHIELD', name: 'Divine Shield', type: 'active', source: 'class',
@@ -358,19 +358,19 @@ export const SKILLS = {
     icon: '⛑', effects: { partyDefBonus: 0.18, partyHealPct: 0.10 }, procChance: 0.55,
     narrative: 'calls forth a Divine Shield — holy light protects all!',
   },
-  SANCTIFY: {
-    id: 'SANCTIFY', name: 'Sanctify', type: 'passive', source: 'class',
+  RESURRECTION: {
+    id: 'RESURRECTION', name: 'Resurrection', type: 'active', source: 'class',
     classId: 'CLERIC', unlockLevel: 14,
-    description: 'Holy presence strengthens all. MAG +15%, party DEF +6%, party heal +5%.',
-    icon: '⛪', effects: { magBonus: 0.15, partyDefBonus: 0.06, partyHealPct: 0.05 }, procChance: 1.0,
-    narrative: null,
+    description: 'Revives a fallen party member at 40% HP. 3-round cooldown.',
+    icon: '🌟', effects: { revivePct: 0.40 }, procChance: 1.0, cooldown: 3,
+    narrative: 'channels holy power — {target} rises from the fallen!',
   },
-  DIVINE_INTERVENTION: {
-    id: 'DIVINE_INTERVENTION', name: 'Divine Intervention', type: 'active', source: 'class',
+  DIVINE_PRESENCE: {
+    id: 'DIVINE_PRESENCE', name: 'Divine Presence', type: 'passive', source: 'class',
     classId: 'CLERIC', unlockLevel: 18,
-    description: 'EPIC — The heavens answer. 35% proc, 1.6× power, party heal 25%, party DEF +20%.',
-    icon: '🕊', effects: { powerMultiplier: 1.6, partyHealPct: 0.25, partyDefBonus: 0.20 }, procChance: 0.35,
-    narrative: 'calls upon Divine Intervention — the heavens answer!',
+    description: 'EPIC — A radiant aura surrounds the Cleric. Party MAG +15%, party DEF +12%, party MAX HP +10%, party heal +8%.',
+    icon: '👼', effects: { partyMagBonus: 0.15, partyDefBonus: 0.12, partyHpBonus: 0.10, partyHealBonus: 0.08 }, procChance: 1.0,
+    narrative: null,
   },
 
   // ── Cleric Masteries ──
@@ -505,8 +505,8 @@ export const SKILLS = {
   DISCORD: {
     id: 'DISCORD', name: 'Discord', type: 'active', source: 'class',
     classId: 'BARD', unlockLevel: 6,
-    description: 'A discordant blast that weakens enemies. 60% proc, party ATK +12%, party DEF +8%.',
-    icon: '🎸', effects: { partyAtkBonus: 0.12, partyDefBonus: 0.08 }, procChance: 0.60,
+    description: 'A jarring melody that devastates enemies. Reduces enemy ATK by 20%, 25% chance enemies fumble attacks, and deals sonic damage each round. Lasts 3 rounds, 4-round cooldown.',
+    icon: '🎸', effects: { enemyAtkReduction: 0.20, fumbleChance: 0.25, sonicDot: true }, procChance: 1.0, cooldown: 4,
     narrative: 'strikes a jarring Discord — enemies stagger and falter!',
   },
   MAGNUM_OPUS: {
@@ -516,19 +516,19 @@ export const SKILLS = {
     icon: '🎼', effects: { partyAtkBonus: 0.15, partyDefBonus: 0.10, partySpdBonus: 0.10 }, procChance: 0.50,
     narrative: 'performs their Magnum Opus — the entire party transcends their limits!',
   },
-  BATTLE_HYMN: {
-    id: 'BATTLE_HYMN', name: 'Battle Hymn', type: 'passive', source: 'class',
+  CRESCENDO: {
+    id: 'CRESCENDO', name: 'Crescendo', type: 'active', source: 'class',
     classId: 'BARD', unlockLevel: 14,
-    description: 'An ongoing battle hymn. Party ATK +8%, party SPD +6%, CRIT +5%, DODGE +7%.',
-    icon: '🎶', effects: { partyAtkBonus: 0.08, partySpdBonus: 0.06, critBonus: 0.05, dodgeBonus: 0.07 }, procChance: 1.0,
-    narrative: null,
+    description: 'An inspiring surge that pushes an ally to their absolute limit. Grants the next party attack a guaranteed devastating critical hit (2.5× damage). 3-round cooldown.',
+    icon: '🎶', effects: { devastatingCrit: true }, procChance: 1.0, cooldown: 3,
+    narrative: 'builds to a Crescendo — the next strike will be devastating!',
   },
   SYMPHONY_OF_WAR: {
-    id: 'SYMPHONY_OF_WAR', name: 'Symphony of War', type: 'active', source: 'class',
+    id: 'SYMPHONY_OF_WAR', name: 'Symphony of War', type: 'passive', source: 'class',
     classId: 'BARD', unlockLevel: 18,
-    description: 'EPIC — A symphony that drives the whole party to peak form. 35% proc, 1.8× power, party ATK +20%, party DEF +12%, party SPD +12%.',
-    icon: '🎻', effects: { powerMultiplier: 1.8, partyAtkBonus: 0.20, partyDefBonus: 0.12, partySpdBonus: 0.12 }, procChance: 0.35,
-    narrative: 'conducts the Symphony of War — the party becomes an unstoppable force!',
+    description: 'EPIC — A relentless war anthem empowers the party. Party ATK +15%, party SPD +12%, party CRIT +8%.',
+    icon: '🎻', effects: { partyAtkBonus: 0.15, partySpdBonus: 0.12, partyCritBonus: 0.08 }, procChance: 1.0,
+    narrative: null,
   },
 
   // ── Bard Masteries ──
@@ -1466,6 +1466,41 @@ export function getMemberPassiveSkills(member, _party) {
     .filter(skill => skill.type === 'passive');
 }
 
+/**
+ * Collect all party-wide aura bonuses from all members' passive skills.
+ * Returns an object like { atk: 0.15, def: 0.08, mag: 0.06, spd: 0.10, ... }
+ * where each value is the total multiplicative bonus from all party auras.
+ * Only considers passive skills (type === 'passive' or procChance === 1.0).
+ */
+export function collectPartyAuras(members) {
+  const auras = { atk: 0, def: 0, mag: 0, spd: 0, crit: 0, dodge: 0, maxHp: 0, heal: 0 };
+  if (!members || !Array.isArray(members)) return auras;
+  for (const member of members) {
+    if (!member || !member.skills) continue;
+    const skills = member.skills.map(sid => getSkill(sid)).filter(Boolean);
+    for (const skill of skills) {
+      // Only passive skills contribute party auras (always-on)
+      if (skill.type !== 'passive' && skill.procChance < 1.0) continue;
+      if (!skill.effects) continue;
+      for (const [key, value] of Object.entries(skill.effects)) {
+        if (!key.startsWith('party')) continue;
+        // Map partyAtkBonus → atk, partyDefBonus → def, etc.
+        const stat = key.replace(/^party/, '').replace(/Bonus$/, '').replace(/Pct$/, '').toLowerCase();
+        // Normalize: 'maxhp' → 'maxHp', 'healpct' → 'heal'
+        if (stat === 'atk') auras.atk += value;
+        else if (stat === 'def') auras.def += value;
+        else if (stat === 'mag') auras.mag += value;
+        else if (stat === 'spd') auras.spd += value;
+        else if (stat === 'crit') auras.crit += value;
+        else if (stat === 'dodge') auras.dodge += value;
+        else if (stat === 'hp' || stat === 'maxhp') auras.maxHp += value;
+        else if (stat === 'heal') auras.heal += value;
+      }
+    }
+  }
+  return auras;
+}
+
 export function applyPassiveSkills(stats, member, party) {
   const passives = getMemberPassiveSkills(member, party);
   for (const skill of passives) {
@@ -1474,14 +1509,30 @@ export function applyPassiveSkills(stats, member, party) {
       // Skip party-wide bonuses here (applied separately)
       if (key.startsWith('party')) continue;
       if (key === 'powerMultiplier') continue;
-      // Map effect key → stat key
+      // Handle special keys before generic stat mapping
+      if (key === 'dodgeChance') {
+        // Flat dodge chance bonus — accumulate for combat sim (distinct from dodgeBonus)
+        stats.dodgeChance = (stats.dodgeChance || 0) + value;
+        continue;
+      }
+      if (key === 'critChance') {
+        // Flat crit chance bonus — accumulate for combat sim
+        stats.critChance = (stats.critChance || 0) + value;
+        continue;
+      }
+      if (key === 'healBonus') {
+        // Accumulate heal bonus for the combat sim to consume
+        stats.healBonus = (stats.healBonus || 0) + value;
+        continue;
+      }
+      // Map effect key → stat key (atkBonus→atk, defBonus→def, etc.)
       const statKey = key.replace(/Bonus$/, '').replace(/Chance$/, '');
       if (['atk', 'def', 'spd', 'mag', 'crit', 'dodge'].includes(statKey)) {
         stats[statKey] = Math.floor((stats[statKey] || 0) * (1 + value));
       } else if (statKey === 'maxHp') {
         stats.maxHp = Math.floor((stats.maxHp || 100) * (1 + value));
       }
-      // dodgeChance, critChance, goldBonus, expBonus tracked separately by combat/quest system
+      // goldBonus, expBonus tracked separately by quest system
     }
   }
   return stats;

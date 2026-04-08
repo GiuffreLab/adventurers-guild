@@ -317,7 +317,13 @@ function renderCombat() {
       <p class="comp-text"><strong>Mark for Death (Rogue):</strong> On a critical hit, marks the target. All party members deal +20% damage to marked enemies for 2 rounds.</p>
       <p class="comp-text"><strong>Ki Barrier (Monk):</strong> 25% of all damage dealt is returned as HP. Self-sustain without a healer.</p>
       <p class="comp-text"><strong>Spell Echo (Mage):</strong> After casting a skill, the Mage gains 1.5× damage for 2 rounds.</p>
+      <p class="comp-text"><strong>Divine Intervention (Cleric):</strong> When an ally would be killed, the Cleric intercepts the killing blow and saves them at 1 HP. 4-round cooldown.</p>
+      <p class="comp-text"><strong>Resurrection (Cleric):</strong> After a group heal, if any party members are KO'd, the Cleric revives one at 40% HP. 3-round cooldown.</p>
       <p class="comp-text"><strong>Divine Shield (Cleric):</strong> After a group heal, the entire party takes 15% less damage for 3 rounds.</p>
+      <p class="comp-text"><strong>Divine Presence (Cleric):</strong> Epic passive aura — party gains +15% MAG, +12% DEF, +10% MAX HP, and +8% healing.</p>
+      <p class="comp-text"><strong>Discord (Bard):</strong> A devastating debuff on all enemies for 3 rounds: -20% ATK, 25% chance to fumble attacks entirely, and sonic damage each round (scales off MAG). 4-round cooldown. Casts automatically after regen.</p>
+      <p class="comp-text"><strong>Crescendo (Bard):</strong> Buffs the next party attack to be a guaranteed devastating critical hit at 2.5× damage (instead of the normal 1.5× crit). 3-round cooldown.</p>
+      <p class="comp-text"><strong>Symphony of War (Bard):</strong> Epic passive aura — party gains +15% ATK, +12% SPD, +8% CRIT.</p>
       <p class="comp-text"><strong>Camouflage (Ranger):</strong> After using Volley, gains +40% dodge chance for 2 rounds.</p>
     </div>
   `;

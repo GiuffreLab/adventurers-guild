@@ -255,6 +255,44 @@ const T_DIVINE_SHIELD = [
   (cleric) => `${cleric} channels sacred energy — <span class="dmg-num" style="color:#ff0">Divine Shield</span> guards the party!`,
 ];
 
+// ── Cleric Divine Intervention templates (killing-blow intercept) ──
+const T_DIVINE_INTERVENTION = [
+  (cleric, ally) => `${cleric} calls upon <span class="dmg-num" style="color:#ffe066">Divine Intervention</span> — ${ally} is saved from death at 1 HP!`,
+  (cleric, ally) => `A holy light erupts from ${cleric}! <span class="dmg-num" style="color:#ffe066">Divine Intervention</span> shields ${ally} from the killing blow!`,
+  (cleric, ally) => `"Not yet!" ${cleric}'s <span class="dmg-num" style="color:#ffe066">Divine Intervention</span> pulls ${ally} back from the brink — 1 HP!`,
+];
+// ── Cleric Resurrection templates ─────────────────────────────────
+const T_RESURRECTION = [
+  (cleric, ally) => `${cleric} channels holy power — <span class="dmg-num" style="color:#ffd700">Resurrection</span>! ${ally} rises from the fallen!`,
+  (cleric, ally) => `Divine light engulfs ${ally}'s body! ${cleric}'s <span class="dmg-num" style="color:#ffd700">Resurrection</span> restores them to life!`,
+  (cleric, ally) => `${cleric} calls upon the divine — ${ally} is <span class="dmg-num" style="color:#ffd700">Resurrected</span> and returns to the fight!`,
+];
+
+// ── Bard Discord templates (enemy debuff) ─────────────────────────
+const T_DISCORD = [
+  (bard) => `${bard} strikes a jarring <span class="dmg-num" style="color:#c4a">Discord</span> — enemies stagger, their attacks weakened!`,
+  (bard) => `A dissonant chord from ${bard} rattles the enemy ranks — <span class="dmg-num" style="color:#c4a">Discord</span>: -20% ATK & SPD!`,
+  (bard) => `${bard}'s <span class="dmg-num" style="color:#c4a">Discord</span> shrieks across the battlefield — enemies flinch and slow!`,
+];
+// ── Bard Crescendo templates (devastating crit buff) ──────────────
+const T_CRESCENDO = [
+  (bard) => `${bard} builds to a thundering <span class="dmg-num" style="color:#fa0">Crescendo</span> — the next strike will be devastating!`,
+  (bard) => `The air trembles as ${bard} channels a <span class="dmg-num" style="color:#fa0">Crescendo</span> — an ally is pushed to their limit!`,
+  (bard) => `${bard}'s music swells to a <span class="dmg-num" style="color:#fa0">Crescendo</span> — raw power surges into the party!`,
+];
+const T_CRESCENDO_STRIKE = [
+  (attacker, target, dmg) => `Empowered by the Crescendo, ${attacker} unleashes a <span class="dmg-num" style="color:#fa0">DEVASTATING</span> blow on ${target} for <span class="dmg-num dmg-crit">${dmg}</span> damage!`,
+  (attacker, target, dmg) => `${attacker} channels the Crescendo into a <span class="dmg-num" style="color:#fa0">DEVASTATING STRIKE</span> — ${target} takes <span class="dmg-num dmg-crit">${dmg}</span>!`,
+  (attacker, target, dmg) => `The Crescendo peaks! ${attacker} delivers a <span class="dmg-num" style="color:#fa0">DEVASTATING CRITICAL</span> to ${target} — <span class="dmg-num dmg-crit">${dmg}</span> damage!`,
+];
+
+// ── Bard Discord DoT templates ────────────────────────────────────
+const T_DISCORD_DOT = [
+  (dmg, count) => `The dissonant echoes rattle <span class="dmg-num">${count}</span> enemies for <span class="dmg-num" style="color:#c4a">${dmg}</span> sonic damage each!`,
+  (dmg, count) => `Discord reverberates — <span class="dmg-num">${count}</span> foes take <span class="dmg-num" style="color:#c4a">${dmg}</span> damage from the jarring sound!`,
+  (dmg, count) => `The lingering Discord tears at <span class="dmg-num">${count}</span> enemies — <span class="dmg-num" style="color:#c4a">${dmg}</span> sonic damage each!`,
+];
+
 const T_DEFEND = [
   (m, e, dmg) => `${m} blocks ${e}'s attack — only <span class="dmg-num dmg-block">${dmg}</span> damage taken!`,
   (m, e, dmg) => `${m} parries ${e} — <span class="dmg-num dmg-block">${dmg}</span> damage absorbed!`,
@@ -311,14 +349,16 @@ function buildSimulation(aq, quest) {
   const dmgBonus = 1 + (Game.getDmgBonus ? Game.getDmgBonus(aq.questId) : 0);
   const dmgReduction = Game.getDmgReduction ? Game.getDmgReduction(aq.questId) : 0;
   const atkSpeedBonus = Game.getAtkSpeedBonus ? Game.getAtkSpeedBonus(aq.questId) : 0;
-  const healBonus = 1 + (Game.getHealBonus ? Game.getHealBonus(aq.questId) : 0);
+  // Initialize party auras early so healBonus can include partyHealBonus
+  const simAuras = Game.getPartyAuras ? Game.getPartyAuras() : null;
+  const partyHealAura = simAuras ? simAuras.heal : 0;
+  // healBonus computed after partyHp is built (needs per-member item/skill healBonus)
+  let healBonus = 1 + (Game.getHealBonus ? Game.getHealBonus(aq.questId) : 0) + partyHealAura;
   // Compute effective event interval (faster with ATK speed synergy)
   const effectiveInterval = EVENT_INTERVAL * (1 - atkSpeedBonus);
-
-  // Initialize party HP using effective stats (includes equipment bonuses)
   const partyHp = members.map(m => {
     const member = Game.getMember(m.id);
-    const eff = member ? Game.effectiveStats(member) : m.stats;
+    const eff = member ? Game.effectiveStats(member, simAuras) : m.stats;
     return {
       id: m.id, name: esc(m.name), class: m.class,
       maxHp: eff.maxHp || m.stats.maxHp || 100,
@@ -331,8 +371,37 @@ function buildSimulation(aq, quest) {
       spd: eff.spd || m.stats.spd || 10,
       crit: eff.crit || m.stats.crit || 0,
       dodge: eff.dodge || m.stats.dodge || 0,
+      // Special percentage bonuses from items/passives — consumed by combat calculations
+      dodgeChance: eff.dodgeChance || 0,   // flat additional dodge % (e.g. 0.15 = +15%)
+      critChance: eff.critChance || 0,     // flat additional crit % from skills
+      healBonus: eff.healBonus || 0,        // healing output multiplier from items/skills
     };
   });
+
+  // Aggregate per-member item/skill healBonus into the global healBonus
+  // (highest individual healBonus from a healer class applies, to avoid stacking from non-healers)
+  const memberHealBonuses = partyHp
+    .filter(p => p.class === 'CLERIC' || p.class === 'BARD')
+    .map(p => p.healBonus || 0);
+  if (memberHealBonuses.length > 0) {
+    healBonus += Math.max(...memberHealBonuses);
+  }
+
+  // ── Debug: dump effective combat stats (check console to verify bonuses) ──
+  if (typeof console !== 'undefined' && console.debug) {
+    console.debug('[Combat Sim] Heal bonus breakdown:',
+      `synergy=${(Game.getHealBonus ? Game.getHealBonus(aq.questId) : 0).toFixed(2)}`,
+      `partyAura=${partyHealAura.toFixed(2)}`,
+      `bestMemberItem=${memberHealBonuses.length ? Math.max(...memberHealBonuses).toFixed(2) : '0.00'}`,
+      `→ total=${healBonus.toFixed(2)}×`);
+    for (const p of partyHp) {
+      const extras = [];
+      if (p.dodgeChance > 0) extras.push(`dodgeChance+${(p.dodgeChance * 100).toFixed(0)}%`);
+      if (p.critChance > 0) extras.push(`critChance+${(p.critChance * 100).toFixed(0)}%`);
+      if (p.healBonus > 0) extras.push(`healBonus+${(p.healBonus * 100).toFixed(0)}%`);
+      console.debug(`[Combat Sim] ${p.name} (${p.class}) — ATK:${p.atk} DEF:${p.def} MAG:${p.mag} SPD:${p.spd} CRIT:${p.crit} DODGE:${p.dodge} HP:${p.hp}/${p.maxHp}${extras.length ? ' | ' + extras.join(', ') : ''}`);
+    }
+  }
 
   // ── SPD-weighted random pick helper ──
   // Higher SPD → more likely to be chosen to act, but using sqrt curve
@@ -372,16 +441,20 @@ function buildSimulation(aq, quest) {
 
   // ── CRIT chance from stat ──
   // crit / (crit + 100)  →  ~9% at 10, ~17% at 20, ~33% at 50
+  // Plus flat critChance bonus from passive skills
   function critChance(attacker) {
     const c = attacker.crit || 0;
-    return c / (c + 100);
+    const flatBonus = attacker.critChance || 0;
+    return Math.min(0.75, c / (c + 100) + flatBonus);
   }
 
   // ── DODGE chance from stat ──
   // dodge / (dodge + 80)  →  ~11% at 10, ~20% at 20, ~33% at 40
+  // Plus flat dodgeChance bonus from items (e.g. +0.15 from Rogue daggers)
   function dodgeChance(defender) {
     const d = defender.dodge || 0;
-    return d / (d + 80);
+    const flatBonus = defender.dodgeChance || 0;
+    return Math.min(0.75, d / (d + 80) + flatBonus);
   }
 
   // Scale enemy count with party size — larger parties face more foes
@@ -491,10 +564,30 @@ function buildSimulation(aq, quest) {
   // Ranger Camouflage — dodge/damage reduction after Volley
   const camoRounds = {}; // { memberId: roundsRemaining }
 
+  // Bard Discord — enemy ATK/SPD debuff
+  const bardsWithDiscord = new Set();
+  const discordCooldowns = {}; // { memberId: roundsRemaining }
+  let discordRounds = 0; // party-wide: how many rounds the debuff lasts
+  let discordSource = null; // name of bard who cast it
+
+  // Bard Crescendo — devastating crit buff for next attacker
+  const bardsWithCrescendo = new Set();
+  const crescendoCooldowns = {}; // { memberId: roundsRemaining }
+  let crescendoActive = false; // is the next-attack buff waiting to be consumed?
+  let crescendoSourceId = null; // bard who cast it (for stat tracking)
+
   // Cleric Divine Shield — party damage reduction after heal
   const clericsWithDivineShield = new Set();
   let divineShieldRounds = 0; // party-wide counter
   let divineShieldSource = null; // name of cleric who cast it
+
+  // Cleric Divine Intervention — intercepts killing blow, saves ally at 1 HP
+  const clericsWithIntervention = new Set();
+  const interventionCooldowns = {}; // { memberId: roundsRemaining }
+
+  // Cleric Resurrection — revives a KO'd party member at 40% HP
+  const clericsWithResurrection = new Set();
+  const resurrectionCooldowns = {}; // { memberId: roundsRemaining }
 
   for (const m of members) {
     const memberData = Game.getMember(m.id);
@@ -520,8 +613,24 @@ function buildSimulation(aq, quest) {
       magesWithSpellEcho.add(m.id);
       spellEchoRounds[m.id] = 0;
     }
+    if (m.class === 'BARD' && memberSkills.includes('DISCORD')) {
+      bardsWithDiscord.add(m.id);
+      discordCooldowns[m.id] = 0;
+    }
+    if (m.class === 'BARD' && memberSkills.includes('CRESCENDO')) {
+      bardsWithCrescendo.add(m.id);
+      crescendoCooldowns[m.id] = 0;
+    }
     if (m.class === 'CLERIC' && memberSkills.includes('DIVINE_SHIELD')) {
       clericsWithDivineShield.add(m.id);
+    }
+    if (m.class === 'CLERIC' && memberSkills.includes('DIVINE_INTERVENTION')) {
+      clericsWithIntervention.add(m.id);
+      interventionCooldowns[m.id] = 0;
+    }
+    if (m.class === 'CLERIC' && memberSkills.includes('RESURRECTION')) {
+      clericsWithResurrection.add(m.id);
+      resurrectionCooldowns[m.id] = 0;
     }
   }
 
@@ -554,12 +663,19 @@ function buildSimulation(aq, quest) {
     magesWithSpellEcho, spellEchoRounds,
     camoRounds, rangersWithVolley,
     divineShieldRounds: 0, clericsWithDivineShield, divineShieldSource: null,
+    clericsWithIntervention, interventionCooldowns,
+    clericsWithResurrection, resurrectionCooldowns,
+    bardsWithDiscord, discordCooldowns, discordRounds: 0, discordSource: null,
+    bardsWithCrescendo, crescendoCooldowns, crescendoActive: false,
   };
 
   for (let i = 0; i < MAX_BATTLE_EVENTS; i++) {
     _bufState.regenPerTick = regenPerTick;  // keep in sync
     _bufState.divineShieldRounds = divineShieldRounds;
     _bufState.divineShieldSource = divineShieldRounds > 0 ? divineShieldSource : null;
+    _bufState.discordRounds = discordRounds;
+    _bufState.discordSource = discordRounds > 0 ? discordSource : null;
+    _bufState.crescendoActive = crescendoActive;
     const livingEnemies = enemies.filter(e => e.alive);
     const livingParty = partyHp.filter(p => p.hp > 0);
 
@@ -587,6 +703,35 @@ function buildSimulation(aq, quest) {
       }
       // Re-check after regen in case everyone died (shouldn't happen, but safety)
       if (partyHp.filter(p => p.hp > 0).length === 0) { battleOutcome = 'defeat'; break; }
+    }
+
+    // Discord DoT — sonic damage to all living enemies each round while active
+    if (discordRounds > 0) {
+      const discordBardObj = partyHp.find(p => p.name === discordSource);
+      const discordMag = discordBardObj ? (discordBardObj.mag || 5) : 5;
+      const dotDmg = Math.max(1, Math.floor(discordMag * (0.3 + sRand(seed + i * 2222) * 0.2)));
+      const dotTargets = enemies.filter(e => e.alive);
+      if (dotTargets.length > 0) {
+        let anyKilled = false;
+        dotTargets.forEach(e => {
+          e.hp = Math.max(0, e.hp - dotDmg);
+          if (discordBardObj && combatStats[discordBardObj.id]) combatStats[discordBardObj.id].dmgDealt += dotDmg;
+          if (e.hp <= 0) { e.alive = false; anyKilled = true; }
+        });
+        const dotText = sPick(T_DISCORD_DOT, seed + i * 3333)(dotDmg, dotTargets.length);
+        events.push({ text: dotText, type: 'debuff', icon: '🎸', phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        if (anyKilled) {
+          const killed = dotTargets.filter(e => !e.alive);
+          if (killed.length > 0) {
+            const killText = killed.map(e => `${e.name} succumbs to the Discord!`).join(' ');
+            events.push({ text: killText, type: 'defeat', icon: '💥', phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+          }
+        }
+        // Check if all enemies dead
+        if (enemies.filter(e => e.alive).length === 0) { battleOutcome = 'victory'; break; }
+      }
     }
 
     // Tick down Bulwark cooldowns
@@ -619,6 +764,27 @@ function buildSimulation(aq, quest) {
       if (camoRounds[id] > 0) camoRounds[id]--;
       if (camoRounds[id] <= 0) delete camoRounds[id];
     }
+    // Tick down Divine Intervention cooldowns
+    for (const id of Object.keys(interventionCooldowns)) {
+      if (interventionCooldowns[id] > 0) interventionCooldowns[id]--;
+    }
+    // Tick down Resurrection cooldowns
+    for (const id of Object.keys(resurrectionCooldowns)) {
+      if (resurrectionCooldowns[id] > 0) resurrectionCooldowns[id]--;
+    }
+    // Tick down Bard Discord cooldowns & duration
+    for (const id of Object.keys(discordCooldowns)) {
+      if (discordCooldowns[id] > 0) discordCooldowns[id]--;
+    }
+    if (discordRounds > 0) {
+      discordRounds--;
+      _bufState.discordRounds = discordRounds;
+      _bufState.discordSource = discordRounds > 0 ? discordSource : null;
+    }
+    // Tick down Bard Crescendo cooldowns
+    for (const id of Object.keys(crescendoCooldowns)) {
+      if (crescendoCooldowns[id] > 0) crescendoCooldowns[id]--;
+    }
     // Tick down Divine Shield
     if (divineShieldRounds > 0) {
       divineShieldRounds--;
@@ -641,13 +807,29 @@ function buildSimulation(aq, quest) {
       if (spellEchoRounds[attacker.id] > 0) baseDmg = Math.floor(baseDmg * 1.50);
       // Mark for Death amplification
       if (markedEnemies[target.id]) baseDmg = Math.floor(baseDmg * 1.20);
-      const isCrit = sRand(es + 13) < critChance(attacker);
-      const dmg = isCrit ? Math.floor(baseDmg * 1.5) : baseDmg;
+
+      // Bard Crescendo — guaranteed devastating crit (2.5×), consumes the buff
+      const isCrescendo = crescendoActive;
+      const isCrit = isCrescendo || sRand(es + 13) < critChance(attacker);
+      const critMult = isCrescendo ? 2.5 : 1.5;
+      const dmg = isCrit ? Math.floor(baseDmg * critMult) : baseDmg;
+      if (isCrescendo) {
+        crescendoActive = false;
+        _bufState.crescendoActive = false;
+        // Track healing-done equivalent on the bard for stat purposes
+        if (crescendoSourceId && combatStats[crescendoSourceId]) {
+          combatStats[crescendoSourceId].dmgDealt += Math.floor(baseDmg * (critMult - 1));
+        }
+      }
       target.hp = Math.max(0, target.hp - dmg);
       if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += dmg;
 
       const classId = attacker.class || 'HERO';
-      if (isCrit) {
+      if (isCrescendo) {
+        // Devastating Crescendo strike — special template
+        text = sPick(T_CRESCENDO_STRIKE, es + 14)(attacker.name, target.name, dmg);
+        icon = '🎶'; type = 'crit';
+      } else if (isCrit) {
         const dmgStr = `${dmg} CRIT`;
         // Override template to use crit class for the damage number
         const baseText = getAttackTemplate(classId, es)(attacker.name, target.name, dmgStr);
@@ -848,6 +1030,14 @@ function buildSimulation(aq, quest) {
       // ── Enemy attacks party member ──
       const attacker = sPick(livingEnemies, es + 30);
       const target = sPick(livingParty, es + 31);
+      // Discord FUMBLE check — 25% chance enemies miss entirely while debuffed
+      if (discordRounds > 0 && sRand(es + 96) < 0.25) {
+        text = `${attacker.name} staggers from the Discord — the attack goes wide!`;
+        icon = '🎸'; type = 'dodge';
+        events.push({ text, type, icon, phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        continue;
+      }
       // DODGE check — stat-based chance to avoid the attack entirely
       const totalDodge = dodgeChance(target) + (camoRounds[target.id] > 0 ? 0.40 : 0);
       if (sRand(es + 97) < totalDodge) {
@@ -858,7 +1048,8 @@ function buildSimulation(aq, quest) {
         snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
         continue;
       }
-      const rawDmg = Math.max(1, Math.floor(attacker.atk * (0.5 + sRand(es + 32) * 0.7)));
+      const discordAtkMult = discordRounds > 0 ? 0.80 : 1.0; // Discord: -20% ATK
+      const rawDmg = Math.max(1, Math.floor(attacker.atk * discordAtkMult * (0.5 + sRand(es + 32) * 0.7)));
       // Apply DEF reduction, synergy reduction, and Divine Shield
       const shieldReduction = divineShieldRounds > 0 ? 0.15 : 0;
       const afterDef = applyDef(rawDmg, target);
@@ -903,17 +1094,45 @@ function buildSimulation(aq, quest) {
 
         // Check if the knight was KO'd from absorbing the hit
         if (knight.hp <= 0) {
-          events.push({ text, type, icon, phase: 'battle' });
-          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-          text = sPick(T_PARTY_KO, es + 82)(knight.name, attacker.name);
-          icon = '💀'; type = 'ko';
+          // Try Divine Intervention to save the knight
+          const diSaveKnight = partyHp.find(p =>
+            p.hp > 0 && p.id !== knight.id && clericsWithIntervention.has(p.id) && interventionCooldowns[p.id] === 0
+          );
+          if (diSaveKnight) {
+            knight.hp = 1; // saved at 1 HP
+            interventionCooldowns[diSaveKnight.id] = 4;
+            if (combatStats[diSaveKnight.id]) combatStats[diSaveKnight.id].healingDone += 1;
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            text = sPick(T_DIVINE_INTERVENTION, es + 83)(diSaveKnight.name, knight.name);
+            icon = '🕊'; type = 'divine';
+          } else {
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            text = sPick(T_PARTY_KO, es + 82)(knight.name, attacker.name);
+            icon = '💀'; type = 'ko';
+          }
         }
       } else if (target.hp <= 0) {
-        // No Bulwark available — normal KO
-        events.push({ text, type, icon, phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-        text = sPick(T_PARTY_KO, es + 70)(target.name, attacker.name);
-        icon = '💀'; type = 'ko';
+        // Try Divine Intervention before KO
+        const diSave = partyHp.find(p =>
+          p.hp > 0 && p.id !== target.id && clericsWithIntervention.has(p.id) && interventionCooldowns[p.id] === 0
+        );
+        if (diSave) {
+          target.hp = 1; // saved at 1 HP
+          interventionCooldowns[diSave.id] = 4;
+          if (combatStats[diSave.id]) combatStats[diSave.id].healingDone += 1;
+          events.push({ text, type, icon, phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+          text = sPick(T_DIVINE_INTERVENTION, es + 71)(diSave.name, target.name);
+          icon = '🕊'; type = 'divine';
+        } else {
+          // No Divine Intervention available — normal KO
+          events.push({ text, type, icon, phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+          text = sPick(T_PARTY_KO, es + 70)(target.name, attacker.name);
+          icon = '💀'; type = 'ko';
+        }
       }
 
       // Hero Rally Cry — triggers when any ally drops below 30% HP
@@ -945,7 +1164,8 @@ function buildSimulation(aq, quest) {
       // ── Party defend / block ──
       const defender = sPick(livingParty, es + 40);
       const attacker = sPick(livingEnemies, es + 41);
-      const rawDmg = Math.max(1, Math.floor(attacker.atk * 0.3 * sRand(es + 42)));
+      const discordBlockMult = discordRounds > 0 ? 0.80 : 1.0;
+      const rawDmg = Math.max(1, Math.floor(attacker.atk * discordBlockMult * 0.3 * sRand(es + 42)));
       // Blocking already reduces, then DEF reduces further, then synergy
       const afterDef = applyDef(rawDmg, defender);
       const reducedDmg = Math.max(1, Math.floor(afterDef * (1 - dmgReduction)));
@@ -1013,6 +1233,23 @@ function buildSimulation(aq, quest) {
           events.push({ text: shieldText, type: 'buff', icon: '⛨', phase: 'battle' });
           snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
         }
+        // Cleric Resurrection — revive a fallen party member after healing
+        const deadParty = partyHp.filter(p => p.hp <= 0);
+        if (deadParty.length > 0) {
+          const availableRezzer = partyHp.find(p =>
+            p.hp > 0 && clericsWithResurrection.has(p.id) && resurrectionCooldowns[p.id] === 0
+          );
+          if (availableRezzer) {
+            const reviveTarget = sPick(deadParty, es + 99);
+            const reviveHp = Math.max(1, Math.floor(reviveTarget.maxHp * 0.40 * healBonus));
+            reviveTarget.hp = reviveHp;
+            resurrectionCooldowns[availableRezzer.id] = 3;
+            if (combatStats[availableRezzer.id]) combatStats[availableRezzer.id].healingDone += reviveHp;
+            const rezText = sPick(T_RESURRECTION, es + 100)(availableRezzer.name, reviveTarget.name);
+            events.push({ text: rezText, type: 'divine', icon: '🌟', phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+          }
+        }
         continue;
       } else {
         // ── Bard: regen buff — scales off MAG ──
@@ -1028,6 +1265,36 @@ function buildSimulation(aq, quest) {
         icon = '🎵'; type = 'buff';
         events.push({ text, type, icon, phase: 'battle' });
         snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+
+        // Bard Discord — cast enemy debuff after regen if off cooldown
+        const discordBard = livingParty.find(p =>
+          p.hp > 0 && bardsWithDiscord.has(p.id) && discordCooldowns[p.id] === 0 && discordRounds === 0
+        );
+        if (discordBard) {
+          discordRounds = 3; // 3 DoT ticks; fumble/ATK reduction active while rounds > 0 after decrement
+          discordSource = discordBard.name;
+          discordCooldowns[discordBard.id] = 4;
+          _bufState.discordRounds = discordRounds;
+          _bufState.discordSource = discordSource;
+          const discordText = sPick(T_DISCORD, es + 110)(discordBard.name);
+          events.push({ text: discordText, type: 'debuff', icon: '🎸', phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        }
+
+        // Bard Crescendo — buff next party attack if off cooldown
+        const crescBard = livingParty.find(p =>
+          p.hp > 0 && bardsWithCrescendo.has(p.id) && crescendoCooldowns[p.id] === 0 && !crescendoActive
+        );
+        if (crescBard) {
+          crescendoActive = true;
+          crescendoSourceId = crescBard.id;
+          crescendoCooldowns[crescBard.id] = 3;
+          _bufState.crescendoActive = true;
+          const crescText = sPick(T_CRESCENDO, es + 115)(crescBard.name);
+          events.push({ text: crescText, type: 'buff', icon: '🎶', phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        }
+
         continue;
       }
 
@@ -1176,12 +1443,66 @@ function makeSnapshot(party, enemies, buffs) {
       if (b.divineShieldRounds > 0) {
         pBuffs.push({ id: 'divine_shield', icon: '⛨', label: 'D.Shield', desc: `${b.divineShieldRounds}rd — -15% dmg` });
       }
+      // Cleric Divine Intervention cooldown
+      if (b.interventionCooldowns && b.interventionCooldowns[p.id] !== undefined) {
+        const cd = b.interventionCooldowns[p.id];
+        if (b.clericsWithIntervention && b.clericsWithIntervention.has(p.id)) {
+          pBuffs.push(cd > 0
+            ? { id: 'intervention_cd', icon: '🕊', label: 'D.Interv', desc: `CD: ${cd}`, cooldown: true }
+            : { id: 'intervention', icon: '🕊', label: 'D.Interv', desc: 'Ready' });
+        }
+      }
+      // Cleric Resurrection cooldown
+      if (b.resurrectionCooldowns && b.resurrectionCooldowns[p.id] !== undefined) {
+        const cd = b.resurrectionCooldowns[p.id];
+        if (b.clericsWithResurrection && b.clericsWithResurrection.has(p.id)) {
+          pBuffs.push(cd > 0
+            ? { id: 'rez_cd', icon: '🌟', label: 'Resurrect', desc: `CD: ${cd}`, cooldown: true }
+            : { id: 'rez', icon: '🌟', label: 'Resurrect', desc: 'Ready' });
+        }
+      }
+      // Bard Discord cooldown
+      if (b.discordCooldowns && b.discordCooldowns[p.id] !== undefined) {
+        const cd = b.discordCooldowns[p.id];
+        if (b.bardsWithDiscord && b.bardsWithDiscord.has(p.id)) {
+          pBuffs.push(cd > 0
+            ? { id: 'discord_cd', icon: '🎸', label: 'Discord', desc: `CD: ${cd}`, cooldown: true }
+            : { id: 'discord', icon: '🎸', label: 'Discord', desc: 'Ready' });
+        }
+      }
+      // Bard Crescendo cooldown
+      if (b.crescendoCooldowns && b.crescendoCooldowns[p.id] !== undefined) {
+        const cd = b.crescendoCooldowns[p.id];
+        if (b.bardsWithCrescendo && b.bardsWithCrescendo.has(p.id)) {
+          pBuffs.push(cd > 0
+            ? { id: 'cresc_cd', icon: '🎶', label: 'Crescendo', desc: `CD: ${cd}`, cooldown: true }
+            : { id: 'cresc', icon: '🎶', label: 'Crescendo', desc: 'Ready' });
+        }
+      }
+      // Crescendo active (party-wide indicator)
+      if (b.crescendoActive) {
+        pBuffs.push({ id: 'cresc_active', icon: '🎶', label: 'Crescendo', desc: 'Next atk: 2.5× CRIT' });
+      }
+      // Passive bonus indicators (from items, passive skills, auras)
+      if (p.dodgeChance > 0) {
+        pBuffs.push({ id: 'dodge_bonus', icon: '💨', label: 'Dodge+', desc: `+${Math.round(p.dodgeChance * 100)}% dodge` });
+      }
+      if (p.critChance > 0) {
+        pBuffs.push({ id: 'crit_bonus', icon: '⚡', label: 'Crit+', desc: `+${Math.round(p.critChance * 100)}% crit` });
+      }
+      if (p.healBonus > 0 && (p.class === 'CLERIC' || p.class === 'BARD')) {
+        pBuffs.push({ id: 'heal_bonus', icon: '💚', label: 'Heal+', desc: `+${Math.round(p.healBonus * 100)}% heal` });
+      }
       return { id: p.id, name: p.name, hp: p.hp, maxHp: p.maxHp, class: p.class, buffs: pBuffs };
     }),
     enemies: enemies.map(e => {
       const eDebuffs = [];
       if (b.markedEnemies && b.markedEnemies[e.id] > 0) {
         eDebuffs.push({ id: 'marked', icon: '🎯', label: 'Marked', desc: `${b.markedEnemies[e.id]}rd`, rounds: b.markedEnemies[e.id] });
+      }
+      // Discord debuff on enemies
+      if (b.discordRounds > 0) {
+        eDebuffs.push({ id: 'discord', icon: '🎸', label: 'Discord', desc: `${b.discordRounds}rd — -20% ATK, fumble, DoT` });
       }
       return {
         id: e.id, name: e.name, hp: Math.max(0, e.hp), maxHp: e.maxHp,

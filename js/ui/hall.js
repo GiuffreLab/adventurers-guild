@@ -60,7 +60,8 @@ function _updateHall(el) {
   rows.forEach((row, i) => {
     const m = allParty[i];
     if (!m) return;
-    const eff = Game.effectiveStats(m);
+    const hallAuras = Game.getPartyAuras();
+    const eff = Game.effectiveStats(m, hallAuras);
     const hpPct = Math.round((eff.hp / eff.maxHp) * 100);
     const fill = row.querySelector('.progress-fill');
     if (fill) {
@@ -124,8 +125,9 @@ function renderPartyOverviewCard(s, members) {
   if (members.length === 0) {
     return `<div class="card"><div class="card-title">Party Overview</div><div class="empty-state">No party members assigned.</div></div>`;
   }
+  const hallOverviewAuras = Game.getPartyAuras();
   const rows = members.map(m => {
-    const eff = Game.effectiveStats(m);
+    const eff = Game.effectiveStats(m, hallOverviewAuras);
     const hpPct = Math.round((eff.hp / eff.maxHp) * 100);
     const cls = getClass(m.class);
     return `

@@ -5,7 +5,8 @@ import {
 } from './data.js';
 import {
   getSkill, getUnlockedClassSkills, getUnlockedClassMasteries,
-  getEquipmentSkill, getMemberActiveSkills, applyPassiveSkills, rollActiveSkills
+  getEquipmentSkill, getMemberActiveSkills, applyPassiveSkills, rollActiveSkills,
+  collectPartyAuras
 } from './skills.js';
 import {
   calculatePartyStrength, generateQuestBoard, shouldRefreshBoard,
@@ -101,8 +102,9 @@ const Game = (() => {
     return computeBaseStats(classId, level);
   }
 
-  function effectiveStats(member) {
+  function effectiveStats(member, partyAuras) {
     const stats = { ...member.stats };
+    // 1) Apply equipment flat stat bonuses
     if (member.equipment) {
       for (const itemId of Object.values(member.equipment)) {
         if (!itemId) continue;
@@ -111,6 +113,30 @@ const Game = (() => {
         for (const [k, v] of Object.entries(item.statBonus)) {
           stats[k] = (stats[k] || 0) + v;
         }
+      }
+    }
+    // 2) Handle percentage-based item statBonus keys (atkBonus, dodgeChance, healBonus)
+    //    These were added as flat values above but are actually multipliers/percentages.
+    if (stats.atkBonus) {
+      stats.atk = Math.floor((stats.atk || 0) * (1 + stats.atkBonus));
+    }
+    // dodgeChance and healBonus are kept on stats for the combat sim to consume directly
+
+    // 3) Apply individual passive skill bonuses (non-party bonuses from type:'passive' skills)
+    applyPassiveSkills(stats, member);
+
+    // 4) Apply party-wide aura bonuses (from passive skills of all active party members)
+    if (partyAuras) {
+      if (partyAuras.atk)   stats.atk   = Math.floor((stats.atk || 0) * (1 + partyAuras.atk));
+      if (partyAuras.def)   stats.def   = Math.floor((stats.def || 0) * (1 + partyAuras.def));
+      if (partyAuras.mag)   stats.mag   = Math.floor((stats.mag || 0) * (1 + partyAuras.mag));
+      if (partyAuras.spd)   stats.spd   = Math.floor((stats.spd || 0) * (1 + partyAuras.spd));
+      if (partyAuras.crit)  stats.crit  = Math.floor((stats.crit || 0) * (1 + partyAuras.crit));
+      if (partyAuras.dodge) stats.dodge = Math.floor((stats.dodge || 0) * (1 + partyAuras.dodge));
+      if (partyAuras.maxHp) {
+        stats.maxHp = Math.floor((stats.maxHp || 100) * (1 + partyAuras.maxHp));
+        // Scale current HP proportionally so auras don't leave members at partial HP
+        stats.hp = Math.min(stats.hp || stats.maxHp, stats.maxHp);
       }
     }
     return stats;
@@ -150,6 +176,33 @@ const Game = (() => {
       if (state.activeSlots && state.activeSlots.length > maxSlots) {
         state.activeSlots = state.activeSlots.slice(0, maxSlots);
       }
+
+      // Migration: Cleric skill rework — replace old skill IDs with new ones
+      const skillRenames = {
+        'PURIFY': 'DIVINE_INTERVENTION',
+        'SANCTIFY': 'RESURRECTION',
+        'DIVINE_INTERVENTION': 'DIVINE_PRESENCE', // old epic → new passive aura
+      };
+      const migrateSkills = (member) => {
+        if (!member || !member.skills) return;
+        // Must process in order: DIVINE_INTERVENTION (old) → DIVINE_PRESENCE first,
+        // then PURIFY → DIVINE_INTERVENTION, to avoid double-renaming
+        const oldDI = member.skills.indexOf('DIVINE_INTERVENTION');
+        if (oldDI !== -1 && member.class === 'CLERIC') {
+          // Only rename old DI if it's a level 18 skill (Cleric at level 18+)
+          if (member.level >= 18) {
+            member.skills[oldDI] = 'DIVINE_PRESENCE';
+          }
+        }
+        for (let i = 0; i < member.skills.length; i++) {
+          if (member.skills[i] === 'PURIFY') member.skills[i] = 'DIVINE_INTERVENTION';
+          if (member.skills[i] === 'SANCTIFY') member.skills[i] = 'RESURRECTION';
+          // Bard rework: Battle Hymn → Crescendo (Symphony of War keeps ID but changed to passive)
+          if (member.skills[i] === 'BATTLE_HYMN') member.skills[i] = 'CRESCENDO';
+        }
+      };
+      migrateSkills(state.player);
+      if (state.party) state.party.forEach(m => migrateSkills(m));
 
       return true;
     } catch(e) { return false; }
@@ -398,12 +451,21 @@ const Game = (() => {
   }
 
   function buildPartySnapshot() {
-    const members = [{ id:'player', name:state.player.name, class:state.player.class, level:state.player.level, stats:effectiveStats(state.player), power:memberPower(state.player) }];
+    // Collect all party-wide aura bonuses from the active party
+    const allActive = [state.player, ...state.activeSlots.map(id => state.party.find(p => p.id === id)).filter(Boolean)];
+    const auras = collectPartyAuras(allActive);
+
+    const members = [{ id:'player', name:state.player.name, class:state.player.class, level:state.player.level, stats:effectiveStats(state.player, auras), power:memberPower(state.player) }];
     for (const id of state.activeSlots) {
       const m = state.party.find(p => p.id === id);
-      if (m) members.push({ id:m.id, name:m.name, class:m.class, level:m.level, stats:effectiveStats(m), power:memberPower(m) });
+      if (m) members.push({ id:m.id, name:m.name, class:m.class, level:m.level, stats:effectiveStats(m, auras), power:memberPower(m) });
     }
     return members;
+  }
+
+  function getPartyAuras() {
+    const allActive = [state.player, ...state.activeSlots.map(id => state.party.find(p => p.id === id)).filter(Boolean)];
+    return collectPartyAuras(allActive);
   }
 
   function totalPartyPower() {
@@ -738,7 +800,9 @@ const Game = (() => {
 
   function getPartyStrength() {
     const activeMembers = getActiveMembers();
-    return calculatePartyStrength(state.player, activeMembers, effectiveStats);
+    const auras = getPartyAuras();
+    const effectiveWithAuras = (m) => effectiveStats(m, auras);
+    return calculatePartyStrength(state.player, activeMembers, effectiveWithAuras);
   }
 
   function refreshQuestBoard(rank, force = false) {
@@ -1270,7 +1334,7 @@ const Game = (() => {
     questTimeRemaining, questProgress, questEventsRevealed, isQuestComplete,
     setQuestEventCount, completionCount, canTakeQuest,
     totalPartyPower, buildPartySnapshot, getMember, getActiveMembers, getActiveMemberSkills,
-    effectiveStats, memberPower, shopRefreshMs, shopQuestsUntilRefresh, getRushRestockCost,
+    effectiveStats, getPartyAuras, memberPower, shopRefreshMs, shopQuestsUntilRefresh, getRushRestockCost,
     getInventoryItem: (itemId) => state.inventory.find(e => e.itemId === itemId),
 
     // Quest Board

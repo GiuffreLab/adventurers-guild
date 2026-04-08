@@ -39,9 +39,10 @@ function formatFightLog() {
   // Party composition with gear
   lines.push('── PARTY COMPOSITION ──────────────────────');
   const activeMembers = [s.player, ...s.activeSlots.map(id => s.party.find(p => p.id === id)).filter(Boolean)];
+  const resultAuras = Game.getPartyAuras();
   for (const m of activeMembers) {
     const cls = CLASSES[m.class];
-    const eff = Game.effectiveStats(m);
+    const eff = Game.effectiveStats(m, resultAuras);
     lines.push(`${cls?.sigil || '?'} ${m.name} — ${cls?.label || m.class} Lv.${m.level}  (Power: ${Game.memberPower(m)})`);
     lines.push(`  HP: ${eff.maxHp}  ATK: ${eff.atk}  DEF: ${eff.def}  MAG: ${eff.mag}  SPD: ${eff.spd}`);
 

@@ -24,12 +24,14 @@ export function tickUpdateParty() {
   const el = document.getElementById('tab-party');
   if (!el) return;
 
+  const tickAuras = Game.getPartyAuras();
+
   // Update slot card HP bars
   el.querySelectorAll('.slot-card.filled').forEach(card => {
     const mid = card.dataset.memberId;
     const m = mid === 'player' ? s.player : s.party.find(p => p.id === mid);
     if (!m) return;
-    const eff = Game.effectiveStats(m);
+    const eff = Game.effectiveStats(m, tickAuras);
     const hpPct = Math.round((eff.hp / eff.maxHp) * 100);
     const fill = card.querySelector('.progress-fill');
     if (fill) {
@@ -45,7 +47,7 @@ export function tickUpdateParty() {
     const mid = row.dataset.memberId;
     const m = mid === 'player' ? s.player : s.party.find(p => p.id === mid);
     if (!m) return;
-    const eff = Game.effectiveStats(m);
+    const eff = Game.effectiveStats(m, tickAuras);
     const hpPct = Math.round((eff.hp / eff.maxHp) * 100);
     const fill = row.querySelector('.roster-hp .progress-fill');
     if (fill) {
@@ -59,7 +61,7 @@ export function tickUpdateParty() {
   if (charHpFill && selectedMemberId) {
     const m = selectedMemberId === 'player' ? s.player : s.party.find(p => p.id === selectedMemberId);
     if (m) {
-      const eff = Game.effectiveStats(m);
+      const eff = Game.effectiveStats(m, tickAuras);
       const hpPct = Math.round((eff.hp / eff.maxHp) * 100);
       charHpFill.style.width = hpPct + '%';
       charHpFill.className = 'progress-fill ' + hpClass(eff.hp, eff.maxHp);
@@ -78,11 +80,12 @@ export function renderParty() {
 
   // ── Roster View ──────────────────────────────────────────────────────────
   const maxParty = Game.getMaxPartySize();
+  const auras = Game.getPartyAuras(); // collect party-wide aura bonuses once
   const slotCards = Array.from({ length: maxParty }, (_, i) => i).map(i => {
     const id = s.activeSlots[i];
     const m = id ? s.party.find(p => p.id === id) : null;
     if (m) {
-      const eff = Game.effectiveStats(m);
+      const eff = Game.effectiveStats(m, auras);
       const cls = getClass(m.class);
       const hpPct = Math.round((eff.hp / eff.maxHp) * 100);
       return `
@@ -103,7 +106,7 @@ export function renderParty() {
     ...s.party.map(m => ({ id: m.id, data: m, type: 'member' }))
   ];
   const rosterRows = allMembers.map(({ id, data: m, type }) => {
-    const eff = Game.effectiveStats(m);
+    const eff = Game.effectiveStats(m, auras);
     const cls = getClass(m.class);
     const hpPct = Math.round((eff.hp / eff.maxHp) * 100);
     const isActive = s.activeSlots.includes(m.id);
@@ -215,7 +218,8 @@ function renderCharSheet(el, s) {
 
   const cls = getClass(m.class);
   const baseStats = m.stats;
-  const eff = Game.effectiveStats(m);
+  const charAuras = Game.getPartyAuras();
+  const eff = Game.effectiveStats(m, charAuras);
   const isPlayer = selectedMemberId === 'player';
   const isActive = s.activeSlots.includes(m.id);
   const hpPct = Math.round((eff.hp / eff.maxHp) * 100);
@@ -433,7 +437,13 @@ function renderStatsPanel(base, eff) {
       </div>`;
   }).join('');
 
-  return `<div class="stats-panel">${rows}</div>`;
+  // Show special percentage bonuses from items/passives (dodge chance, crit chance, heal bonus)
+  const specials = [];
+  if (eff.dodgeChance > 0) specials.push(`<div class="stat-row"><span class="stat-row-label">DDG%</span><span class="stat-row-final"><span class="stat-bonus">+${Math.round(eff.dodgeChance * 100)}%</span></span></div>`);
+  if (eff.critChance > 0) specials.push(`<div class="stat-row"><span class="stat-row-label">CRT%</span><span class="stat-row-final"><span class="stat-bonus">+${Math.round(eff.critChance * 100)}%</span></span></div>`);
+  if (eff.healBonus > 0) specials.push(`<div class="stat-row"><span class="stat-row-label">HEAL</span><span class="stat-row-final"><span class="stat-bonus">+${Math.round(eff.healBonus * 100)}%</span></span></div>`);
+
+  return `<div class="stats-panel">${rows}${specials.join('')}</div>`;
 }
 
 
