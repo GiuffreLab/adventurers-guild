@@ -785,7 +785,8 @@ function buildSimulation(aq, quest) {
       }
       // Check for Shroud of Decay (party aura with necrotic reflect)
       if (memberSkills.includes('NECRO_M_SHROUD_OF_DECAY')) {
-        necroticReflectMag = m.mag || 10;
+        const pMe = partyHp.find(p => p.id === m.id);
+        necroticReflectMag = pMe ? pMe.mag : (m.stats?.mag || 10);
       }
       // Accumulate minionDamageBonus from Lord of the Dead and Soul Anchor
       const mSkills = memberSkills.map(sid => getSkill(sid)).filter(Boolean);
