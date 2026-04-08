@@ -99,9 +99,20 @@ export function renderShop() {
       const item = getItem(e.itemId);
       return item && (item.sellPrice || item.buyPrice) && e.quantity > 0;
     });
+    const totalSellValue = sellable.reduce((sum, e) => {
+      const item = getItem(e.itemId);
+      if (!item) return sum;
+      return sum + Math.floor((item.sellPrice || Math.floor(item.buyPrice * 0.4)) * e.quantity);
+    }, 0);
+    const sellAllBar = sellable.length > 1
+      ? `<div class="shop-sell-all-bar">
+          <span>${sellable.length} item type${sellable.length !== 1 ? 's' : ''} in inventory — total value: <strong>${totalSellValue.toLocaleString()}g</strong></span>
+          <button class="btn btn-sm btn-sell-all-items" id="btn-sell-all-items">Sell All Items</button>
+        </div>`
+      : '';
     content = sellable.length === 0
       ? '<div class="empty-state">No items to sell.</div>'
-      : sellable.map(e => {
+      : sellAllBar + sellable.map(e => {
           const item = getItem(e.itemId);
           if (!item) return '';
           const sellPrice = item.sellPrice || Math.floor(item.buyPrice * 0.4);
@@ -186,6 +197,22 @@ export function renderShop() {
       updateHeader();
     });
   });
+
+  // Sell All Items button
+  const sellAllBtn = el.querySelector('#btn-sell-all-items');
+  if (sellAllBtn) {
+    sellAllBtn.addEventListener('click', () => {
+      const result = Game.sellAllItems();
+      if (result.ok && result.count > 0) {
+        showToast(`Sold ${result.count} items for ${result.earned.toLocaleString()}g`, 'success');
+        Game.save();
+      } else {
+        showToast('No items to sell.', 'error');
+      }
+      renderShop();
+      updateHeader();
+    });
+  }
 
   el.querySelectorAll('.btn-sell').forEach(btn => {
     btn.addEventListener('click', () => {

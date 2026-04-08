@@ -659,6 +659,26 @@ const Game = (() => {
     return { ok:true, earned };
   }
 
+  function sellAllItems() {
+    let totalEarned = 0;
+    let totalSold = 0;
+    // Iterate over a copy since sellItem mutates the array
+    const entries = [...state.inventory].filter(e => {
+      const item = getItem(e.itemId);
+      return item && (item.sellPrice || item.buyPrice) && e.quantity > 0;
+    });
+    for (const e of entries) {
+      const item = getItem(e.itemId);
+      if (!item) continue;
+      const earned = Math.floor((item.sellPrice || Math.floor(item.buyPrice * 0.4)) * e.quantity);
+      totalSold += e.quantity;
+      totalEarned += earned;
+      removeFromInventory(e.itemId, e.quantity);
+    }
+    state.gold += totalEarned;
+    return { ok: true, earned: totalEarned, count: totalSold };
+  }
+
   function shopRefreshMs() {
     if (!state.shop.lastRefreshed) return 0;
     return Math.max(0, SHOP_REFRESH_MS - (Date.now() - state.shop.lastRefreshed));
@@ -1222,7 +1242,7 @@ const Game = (() => {
     // Mutations
     logEvent, addRankPoints, addExp, addToInventory, removeFromInventory,
     healTick, recruitMember, dismissMember, setActive, equipItem, unequipItem,
-    refreshShop, buyItem, sellItem, upgradeShop, getShopUpgradeCost, getShopRarityWeights, rushRestock,
+    refreshShop, buyItem, sellItem, sellAllItems, upgradeShop, getShopUpgradeCost, getShopRarityWeights, rushRestock,
     expandParty, getPartyExpansionCost, getMaxPartySize,
 
     // Engine
