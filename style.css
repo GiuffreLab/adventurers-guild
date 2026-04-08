@@ -686,20 +686,6 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   border-color: rgba(46,204,113,0.3);
 }
 
-/* Combat Debug Section (collapsible) */
-.result-debug-section { border-top: 1px solid rgba(255,255,255,0.06); margin-top: 8px; padding-top: 4px; }
-.dbg-toggle { font-size: 0.75rem; color: var(--text-muted); padding: 4px 0; }
-.dbg-toggle:hover { color: var(--text); }
-.dbg-content { font-size: 0.72rem; color: var(--text-dim); padding: 4px 0 2px; }
-.dbg-row { display: flex; justify-content: space-between; padding: 2px 4px; gap: 8px; }
-.dbg-label { color: var(--text-muted); min-width: 80px; }
-.dbg-value { color: var(--text); text-align: right; }
-.dbg-divider { border-top: 1px solid rgba(255,255,255,0.04); margin: 4px 0; }
-.dbg-subtitle { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
-.dbg-member { display: flex; flex-wrap: wrap; gap: 4px 8px; padding: 2px 4px; border-bottom: 1px solid rgba(255,255,255,0.02); }
-.dbg-name { color: var(--text); min-width: 100px; font-weight: 500; }
-.dbg-stats { color: var(--text-dim); font-family: monospace; font-size: 0.68rem; }
-.dbg-extras { color: var(--green); font-size: 0.68rem; }
 
 @keyframes fadeSlideIn {
   from { opacity: 0; transform: translateY(8px); }
