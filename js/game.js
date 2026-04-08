@@ -105,6 +105,11 @@ const Game = (() => {
 
   function effectiveStats(member, partyAuras) {
     const stats = { ...member.stats };
+    // Capture HP ratio before any maxHp modifications so we can scale proportionally.
+    // This prevents auras/passives from making health bars appear partially empty.
+    const baseMaxHp = stats.maxHp || 100;
+    const hpRatio = (stats.hp || baseMaxHp) / baseMaxHp;
+
     // 1) Apply equipment flat stat bonuses
     if (member.equipment) {
       for (const itemId of Object.values(member.equipment)) {
@@ -136,10 +141,13 @@ const Game = (() => {
       if (partyAuras.dodge) stats.dodge = Math.floor((stats.dodge || 0) * (1 + partyAuras.dodge));
       if (partyAuras.maxHp) {
         stats.maxHp = Math.floor((stats.maxHp || 100) * (1 + partyAuras.maxHp));
-        // Scale current HP proportionally so auras don't leave members at partial HP
-        stats.hp = Math.min(stats.hp || stats.maxHp, stats.maxHp);
       }
     }
+
+    // 5) Scale current HP proportionally to the final maxHp.
+    //    A member at full health stays at full health; a member at 50% stays at 50%.
+    stats.hp = Math.min(Math.round(hpRatio * stats.maxHp), stats.maxHp);
+
     return stats;
   }
 

@@ -548,9 +548,12 @@ function renderSpecSection(m) {
   const allSpecSkills = getSpecSkills(m.heroSpec);
   const unlockedSpecIds = new Set(getUnlockedSpecSkills(m.heroSpec, m.level).map(s => s.id));
 
+  const respecCost = Game.getRespecCost();
   html += `<div class="skills-category-label" style="margin-top:12px">
     ${track.icon} ${track.label} Specialization
-    <button class="btn btn-xs btn-ghost btn-respec" title="Change specialization">⟳ Respec</button>
+  </div>
+  <div class="spec-respec-bar">
+    <button class="btn btn-sm btn-respec" title="Change specialization for ${respecCost.toLocaleString()}g">⟳ Respec (${respecCost.toLocaleString()}g)</button>
   </div>`;
   for (const sk of allSpecSkills) {
     const unlocked = unlockedSpecIds.has(sk.id);
