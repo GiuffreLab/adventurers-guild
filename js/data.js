@@ -60,7 +60,7 @@ export const CLASSES = {
     recruitCost: true, unlockRank: null,
   },
   NECROMANCER: {
-    id: 'NECROMANCER', label: 'Necromancer', sigil: 'NCR',
+    id: 'NECROMANCER', label: 'Necromancer', sigil: 'NEC',
     description: 'Hybrid summoner and drain caster. Raises the fallen as thralls and corrodes the living.',
     baseStats: { maxHp: 80, atk: 5, def: 5, spd: 9, mag: 16, crit: 7, dodge: 4 },
     growthRates: { maxHp: 11, atk: 0.6, def: 0.8, spd: 1.3, mag: 3.0, crit: 1.2, dodge: 0.5 },

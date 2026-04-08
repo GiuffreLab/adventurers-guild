@@ -14,7 +14,7 @@ You start by creating your character — a Hero — and registering with the gui
 
 **Quest Board** — Pick from available quests suited to your guild's rank. Each quest shows enemies, difficulty, rewards, and recommended party power. Hit "Send Party" and watch the combat play out event by event. As you complete more quests, your party builds synergy bonuses that improve gold, XP, damage, healing, and more. Once you unlock auto-battle, you can queue up repeated runs with different strategies (safe, balanced, or push).
 
-**Party** — Recruit new members, manage your roster, equip gear, and assign active party slots. All eight classes are available from the start — build whatever party composition you want. Recruitment costs scale with party size: your first few recruits are cheap (50–150g) to get a base party going, while later slots ramp up (500–1500g) as a long-term gold sink. Maximum roster is 8 members.
+**Party** — Recruit new members, manage your roster, equip gear, and assign active party slots. All nine classes are available from the start — build whatever party composition you want. Recruitment costs scale with party size: your first few recruits are cheap (50–150g) to get a base party going, while later slots ramp up (500–1500g) as a long-term gold sink. Maximum roster is 8 members.
 
 **Shop** — Buy and sell equipment. The shop restocks periodically with gear appropriate to your rank. Higher rarity items appear less frequently but offer stronger stat bonuses.
 
@@ -27,7 +27,7 @@ You start by creating your character — a Hero — and registering with the gui
 Quests run a full deterministic battle simulation. Your party fights enemies in real time until one side falls. Events play out every 1.5 seconds (faster with ATK speed synergy bonuses), showing attacks, skills, healing, enemy knockouts, and reinforcements. Every stat on your characters matters in combat:
 
 - **ATK** — Scales physical damage for melee and ranged classes. The primary damage stat for Heroes, Knights, Rogues, Rangers, and Monks.
-- **MAG** — Scales magic damage for caster classes and also scales heal strength. The primary stat for Mages, Clerics, and Bards.
+- **MAG** — Scales magic damage for caster classes and also scales heal strength. The primary stat for Mages, Clerics, Bards, and Necromancers.
 - **DEF** — Reduces incoming damage with diminishing returns. Knights with 200+ DEF shrug off hits that would flatten a Mage.
 - **SPD** — Determines how often a character gets selected to act. High-SPD characters like Rogues and Rangers attack significantly more often than slow tanks.
 - **CRIT** — Chance to land a critical hit for 1.5x damage. Scales with diminishing returns — Rogues and Mages have the highest crit rates.
@@ -51,7 +51,7 @@ After each quest, the results screen shows a combat performance breakdown with d
 
 ## Classes
 
-Every class brings a unique signature ability to the party. All classes are available from the start — build your dream roster from day one.
+Every class brings a unique signature ability to the party. All nine classes are available from the start — build your dream roster from day one.
 
 **Hero** — Your starting character (free). A balanced all-rounder with solid stats across the board. Signature: **Rally Cry** — when any ally drops below 30% HP, the Hero rallies them with a burst heal and attack buff. At Level 10, the Hero chooses a **Specialization** (Vanguard, Champion, or Warden) that adds 3 new skills on top of existing abilities, defining their combat identity for the rest of the game. Respec available for gold.
 
@@ -68,6 +68,8 @@ Every class brings a unique signature ability to the party. All classes are avai
 **Bard** — The ultimate support. Signature: **Regen Melody + Party Buffs** — the only class that provides persistent HP regeneration each round AND boosts the entire party's ATK, DEF, and SPD through songs. Bards wield two-handed instruments with boosted stats to compensate for no offhand slot. High DODGE makes them surprisingly survivable.
 
 **Monk** — Martial arts master with perfectly balanced stats. Signature: **Ki Barrier** — heals 25% of all damage dealt back as HP, making the Monk a self-sustaining frontliner who doesn't need a healer. High SPD and balanced ATK/DEF mean Monks contribute everywhere. A late-game powerhouse worth the investment.
+
+**Necromancer** — Hybrid summoner and drain caster. Fragile but hard to kill thanks to raised minions that serve as both a damage source and a death shield. Signature: **Raise Dead** — when an enemy dies, the Necromancer tears it from death's embrace as a thrall that deals automatic damage each round and can absorb hits. **Forgo Death** sacrifices the thrall to survive a killing blow. **Blight** corrodes all enemies with a 3-round AoE DoT, and the capstone **Army of the Damned** raises every fallen enemy at once for devastating multi-round carnage. Necromancers wield dark staves (1H, paired with skull/grimoire offhands) or scythes (2H). Their party aura **Shroud of Decay** reflects MAG-scaled necrotic damage back at enemies who strike allies. Best paired with a Cleric — group heals keep the thrall alive longer, extending the Forgo Death safety net.
 
 ## Hero Specializations
 

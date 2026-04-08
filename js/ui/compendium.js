@@ -69,7 +69,7 @@ function renderOverview() {
       <p class="comp-text">You are the leader of a fledgling guild of adventurers. Recruit heroes, equip them with powerful gear, send them on dangerous quests, and climb the ranks from F to S.</p>
 
       <h3 class="comp-subtitle">Getting Started</h3>
-      <p class="comp-text">You begin with a <strong>Hero</strong> and <strong>200 gold</strong>. Head to the <strong>Party</strong> tab to recruit your first companions — all 8 classes are available from the start. Your first few recruits cost 50–150g, so you can assemble a party of 3 quickly.</p>
+      <p class="comp-text">You begin with a <strong>Hero</strong> and <strong>200 gold</strong>. Head to the <strong>Party</strong> tab to recruit your first companions — all 9 classes are available from the start. Your first few recruits cost 50–150g, so you can assemble a party of 3 quickly.</p>
       <p class="comp-text">Once you have a party, visit the <strong>Quest Board</strong> to pick a quest. Combat plays out automatically — watch the battle log to see your team in action. Completing quests earns gold, experience, rank points, and loot.</p>
 
       <h3 class="comp-subtitle">Key Tips</h3>
@@ -218,7 +218,7 @@ function renderClasses() {
   return `
     <div class="comp-section">
       <h2 class="comp-title">Classes & Skills</h2>
-      <p class="comp-text">All 8 classes are available from the start. Base stats show Level 1 values, with per-level growth in parentheses. Active skills show their proc chance; passives are always active.</p>
+      <p class="comp-text">All 9 classes are available from the start. Base stats show Level 1 values, with per-level growth in parentheses. Active skills show their proc chance; passives are always active.</p>
       ${cards}
 
       <h2 class="comp-title" style="margin-top:24px">Hero Specializations</h2>
