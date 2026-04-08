@@ -573,7 +573,7 @@ function buildSimulation(aq, quest) {
   // ── Per-member combat stats tracking ──
   const combatStats = {};
   for (const m of partyHp) {
-    combatStats[m.id] = { id: m.id, name: esc(m.name), class: m.class, dmgDealt: 0, healingDone: 0, healingReceived: 0, dmgTaken: 0 };
+    combatStats[m.id] = { id: m.id, name: esc(m.name), class: m.class, dmgDealt: 0, healingDone: 0, healingReceived: 0, dmgTaken: 0, dmgMitigated: 0, dmgAbsorbed: 0, dmgDodged: 0, dmgReflected: 0 };
   }
 
   // ── Phase 1: Travel (2 events) ──
@@ -1444,10 +1444,11 @@ function buildSimulation(aq, quest) {
         target.hp = Math.max(0, target.hp - minionAfterDef);
         text = sPick(T_ENEMY_ATK, es)(attacker.name, `risen ${target.name}`, minionAfterDef);
         icon = '💀'; type = 'enemy';
-        // Necrotic reflect
+        // Necrotic reflect — attribute to minion owner
         if (necroticReflectMag > 0) {
-          const reflectDmg = Math.max(1, Math.floor(necroticReflectMag * 0.12));
+          const reflectDmg = Math.max(1, Math.floor(necroticReflectMag * 0.35));
           attacker.hp = Math.max(0, attacker.hp - reflectDmg);
+          if (target.ownerId && combatStats[target.ownerId]) { combatStats[target.ownerId].dmgDealt += reflectDmg; combatStats[target.ownerId].dmgReflected += reflectDmg; }
           events.push({ text, type, icon, phase: 'battle' });
           snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
           text = sPick(T_NECROTIC_REFLECT, es + 98)(reflectDmg, attacker.name);
@@ -1480,6 +1481,10 @@ function buildSimulation(aq, quest) {
         const dodgeReason = camoRounds[target.id] > 0 ? 'is camouflaged' : 'deftly sidesteps';
         text = `${target.name} ${dodgeReason} — the attack misses!`;
         icon = camoRounds[target.id] > 0 ? '🍃' : '💨'; type = 'dodge';
+        // Estimate dodged damage for tracking (avg of 0.5–1.2 raw multiplier = 0.85)
+        const estRaw = Math.max(1, Math.floor(attacker.atk * (discordRounds > 0 ? 0.80 : 1.0) * 0.85));
+        const estDodged = applyDef(estRaw, target);
+        if (combatStats[target.id]) combatStats[target.id].dmgDodged += estDodged;
         events.push({ text, type, icon, phase: 'battle' });
         snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
         continue;
@@ -1498,6 +1503,9 @@ function buildSimulation(aq, quest) {
         actualDmg = Math.max(1, Math.floor(actualDmg * 0.20)); // 80% DR
       }
 
+      // Track DEF/shield/DR mitigation (rawDmg - actualDmg)
+      if (combatStats[target.id]) combatStats[target.id].dmgMitigated += Math.max(0, rawDmg - actualDmg);
+
       if (isSkill) {
         const skillName = sPick(MONSTER_SKILLS, es + 34);
         target.hp = Math.max(0, target.hp - actualDmg);
@@ -1513,8 +1521,9 @@ function buildSimulation(aq, quest) {
 
       // Necrotic reflect — Shroud of Decay damages attacker when party member is hit
       if (necroticReflectMag > 0) {
-        const reflectDmg = Math.max(1, Math.floor(necroticReflectMag * 0.12));
+        const reflectDmg = Math.max(1, Math.floor(necroticReflectMag * 0.35));
         attacker.hp = Math.max(0, attacker.hp - reflectDmg);
+        if (combatStats[target.id]) { combatStats[target.id].dmgDealt += reflectDmg; combatStats[target.id].dmgReflected += reflectDmg; }
         events.push({ text, type, icon, phase: 'battle' });
         snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
         text = sPick(T_NECROTIC_REFLECT, es + 98)(reflectDmg, attacker.name);
@@ -1540,7 +1549,7 @@ function buildSimulation(aq, quest) {
         if (combatStats[target.id]) combatStats[target.id].dmgTaken -= dmgTaken;
         target.hp = Math.min(target.hp + dmgTaken, target.maxHp);
         knight.hp = Math.max(0, knight.hp - dmgTaken);
-        if (combatStats[knight.id]) combatStats[knight.id].dmgTaken += dmgTaken;
+        if (combatStats[knight.id]) { combatStats[knight.id].dmgTaken += dmgTaken; combatStats[knight.id].dmgAbsorbed += dmgTaken; }
         coverCooldowns[knight.id] = 3;
         events.push({ text, type, icon, phase: 'battle' });
         snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
@@ -1573,7 +1582,7 @@ function buildSimulation(aq, quest) {
         if (combatStats[target.id]) combatStats[target.id].dmgTaken -= dmgTaken;
         target.hp = Math.min(target.hp + dmgTaken, target.maxHp);
         hero.hp = Math.max(0, hero.hp - reducedDmg);
-        if (combatStats[hero.id]) combatStats[hero.id].dmgTaken += reducedDmg;
+        if (combatStats[hero.id]) { combatStats[hero.id].dmgTaken += reducedDmg; combatStats[hero.id].dmgAbsorbed += reducedDmg; combatStats[hero.id].dmgMitigated += (dmgTaken - reducedDmg); }
         vanguardCooldowns[hero.id] = 3;
         events.push({ text, type, icon, phase: 'battle' });
         snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
