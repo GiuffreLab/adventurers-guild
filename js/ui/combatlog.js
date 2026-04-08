@@ -710,7 +710,7 @@ function buildSimulation(aq, quest) {
         heroesWithGuardian.add(m.id);
         guardianCooldowns[m.id] = 0;
       }
-      if (memberSkills.includes('WARDENS_LAST_STAND')) {
+      if (memberSkills.includes('SECOND_DAWN')) {
         heroesWithLastStand.add(m.id);
         lastStandUsed[m.id] = false;
       }

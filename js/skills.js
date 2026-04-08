@@ -163,8 +163,8 @@ export const SKILLS = {
     icon: '🚩', effects: { partyAtkBonus: 0.12, partyDefBonus: 0.10, partySpdBonus: 0.08, partyCritBonus: 0.05 }, procChance: 1.0,
     narrative: null,
   },
-  WARDENS_LAST_STAND: {
-    id: 'WARDENS_LAST_STAND', name: "Warden's Last Stand", type: 'active', source: 'spec',
+  SECOND_DAWN: {
+    id: 'SECOND_DAWN', name: 'Second Dawn', type: 'active', source: 'spec',
     classId: 'HERO', specTrack: 'warden', unlockLevel: 18,
     description: 'EPIC SPEC — When 2+ allies are KO\'d, revives all fallen allies at 25% HP. Once per fight.',
     icon: '🌅', effects: { reviveAllPercent: 0.25, koThreshold: 2 }, procChance: 1.0, reactive: true, cooldown: 999,
@@ -1504,7 +1504,7 @@ export const HERO_SPECS = {
   warden: {
     id: 'warden', label: 'Warden', icon: '🚩',
     description: 'Support/buffer. Emergency heals, powerful party aura, mass revive.',
-    skills: ['GUARDIAN_SPIRIT', 'WAR_BANNER', 'WARDENS_LAST_STAND'],
+    skills: ['GUARDIAN_SPIRIT', 'WAR_BANNER', 'SECOND_DAWN'],
   },
 };
 

@@ -374,7 +374,7 @@ function renderCombat() {
       <p class="comp-text"><strong>Hero's Wrath:</strong> Active skill (45% proc). Deals a guaranteed 3.0× critical hit. Devastating when combined with Bloodlust.</p>
       <p class="comp-text"><strong>Guardian Spirit:</strong> When any ally drops below 25% HP, the Warden Hero heals them for 30% of their max HP. 3-round cooldown.</p>
       <p class="comp-text"><strong>War Banner:</strong> Passive party aura — ATK +12%, DEF +10%, SPD +8%, CRIT +5%. Always active.</p>
-      <p class="comp-text"><strong>Warden's Last Stand:</strong> When 2+ allies are KO'd, the Warden revives ALL fallen allies at 25% HP. Once per fight.</p>
+      <p class="comp-text"><strong>Second Dawn:</strong> When 2+ allies are KO'd, the Warden revives ALL fallen allies at 25% HP. Once per fight.</p>
     </div>
   `;
 }
