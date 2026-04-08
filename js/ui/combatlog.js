@@ -271,8 +271,8 @@ const T_RESURRECTION = [
 // ── Bard Discord templates (enemy debuff) ─────────────────────────
 const T_DISCORD = [
   (bard) => `${bard} strikes a jarring <span class="dmg-num" style="color:#c4a">Discord</span> — enemies stagger, their attacks weakened!`,
-  (bard) => `A dissonant chord from ${bard} rattles the enemy ranks — <span class="dmg-num" style="color:#c4a">Discord</span>: -20% ATK & SPD!`,
-  (bard) => `${bard}'s <span class="dmg-num" style="color:#c4a">Discord</span> shrieks across the battlefield — enemies flinch and slow!`,
+  (bard) => `A dissonant chord from ${bard} rattles the enemy ranks — <span class="dmg-num" style="color:#c4a">Discord</span>: -20% ATK, fumble, & sonic DoT!`,
+  (bard) => `${bard}'s <span class="dmg-num" style="color:#c4a">Discord</span> shrieks across the battlefield — enemies flinch and stumble!`,
 ];
 // ── Bard Crescendo templates (devastating crit buff) ──────────────
 const T_CRESCENDO = [
@@ -560,7 +560,7 @@ function buildSimulation(aq, quest) {
   // Ranger Camouflage — dodge/damage reduction after Volley
   const camoRounds = {}; // { memberId: roundsRemaining }
 
-  // Bard Discord — enemy ATK/SPD debuff
+  // Bard Discord — enemy ATK reduction, fumble chance, sonic DoT
   const bardsWithDiscord = new Set();
   const discordCooldowns = {}; // { memberId: roundsRemaining }
   let discordRounds = 0; // party-wide: how many rounds the debuff lasts
