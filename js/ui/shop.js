@@ -57,9 +57,12 @@ export function renderShop() {
   const s = Game.state;
   const el = document.getElementById('tab-shop');
   const refreshMs = Game.shopRefreshMs();
-  const h = Math.floor(refreshMs / 3600000);
-  const min = Math.floor((refreshMs % 3600000) / 60000);
-  const refreshStr = refreshMs > 0 ? `${h}h ${min}m` : 'Now';
+  const min = Math.floor(refreshMs / 60000);
+  const sec = Math.floor((refreshMs % 60000) / 1000);
+  const refreshStr = refreshMs > 0 ? `${min}m ${sec}s` : 'Now';
+  const questsLeft = Game.shopQuestsUntilRefresh();
+  const rushCost = Game.getRushRestockCost();
+  const canRush = s.gold >= rushCost;
 
   let content;
   if (shopMode === 'buy') {
@@ -124,7 +127,14 @@ export function renderShop() {
 
   el.innerHTML = `
     ${buildUpgradePanel()}
-    <div class="shop-refresh">Shop refreshes in: <strong>${refreshStr}</strong></div>
+    <div class="shop-refresh-bar">
+      <div class="shop-refresh-info">
+        <span>Restocks in: <strong>${refreshStr}</strong> or <strong>${questsLeft} quest${questsLeft !== 1 ? 's' : ''}</strong></span>
+      </div>
+      <button class="btn btn-sm btn-rush${canRush ? '' : ' disabled'}" id="btn-rush-restock" ${canRush ? '' : 'disabled'}>
+        Rush Restock — ${rushCost.toLocaleString()}g
+      </button>
+    </div>
     <div class="shop-toggle">
       <button class="btn${shopMode === 'buy' ? ' active' : ''}" id="btn-shop-buy">Buy</button>
       <button class="btn${shopMode === 'sell' ? ' active' : ''}" id="btn-shop-sell">Sell</button>
@@ -139,6 +149,22 @@ export function renderShop() {
       const result = Game.upgradeShop();
       if (result.ok) {
         showToast(`Shop upgraded to level ${result.newLevel}!`, 'success');
+        Game.save();
+      } else {
+        showToast(result.reason, 'error');
+      }
+      renderShop();
+      updateHeader();
+    });
+  }
+
+  // Rush restock button
+  const rushBtn = el.querySelector('#btn-rush-restock');
+  if (rushBtn) {
+    rushBtn.addEventListener('click', () => {
+      const result = Game.rushRestock();
+      if (result.ok) {
+        showToast(`Restocked! Spent ${result.cost.toLocaleString()}g`, 'success');
         Game.save();
       } else {
         showToast(result.reason, 'error');

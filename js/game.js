@@ -18,6 +18,7 @@ const Game = (() => {
   const SAVE_KEY = 'adventurersGuild_v1';
   const RANK_THRESHOLDS = { F:1000, E:3000, D:7000, C:15000, B:35000, A:80000, S:null };
   const SHOP_REFRESH_MS = 10 * 60 * 1000;  // 10 minutes
+  const SHOP_QUEST_REFRESH = 2; // refresh shop every N completed quests
 
   // ── Party Expansion ───────────────────────────────────────────────────────
   const BASE_PARTY_SIZE = 4;      // default max active party (including player)
@@ -514,9 +515,38 @@ const Game = (() => {
 
   function refreshShopIfNeeded() {
     const now = Date.now();
-    if (!state.shop.lastRefreshed || now - state.shop.lastRefreshed >= SHOP_REFRESH_MS) {
+    const timerExpired = !state.shop.lastRefreshed || now - state.shop.lastRefreshed >= SHOP_REFRESH_MS;
+    const questThreshold = (state.shop.questsSinceRefresh || 0) >= SHOP_QUEST_REFRESH;
+    if (timerExpired || questThreshold) {
       refreshShop();
     }
+  }
+
+  // Called after each quest completes to tick the quest-based refresh counter
+  function tickShopQuestCounter() {
+    state.shop.questsSinceRefresh = (state.shop.questsSinceRefresh || 0) + 1;
+    if (state.shop.questsSinceRefresh >= SHOP_QUEST_REFRESH) {
+      refreshShop();
+    }
+  }
+
+  // Rush restock — gold sink: costs 20% of the upgrade cost for the current level
+  function getRushRestockCost() {
+    const level = state.shop.level || 0;
+    if (level === 0) return 100; // base cost when shop hasn't been upgraded yet
+    // 20% of the cost it took to reach this level
+    return Math.floor(SHOP_UPGRADE_COSTS[level - 1] * 0.20);
+  }
+
+  function rushRestock() {
+    const cost = getRushRestockCost();
+    if (state.gold < cost) {
+      return { ok: false, reason: `Need ${cost.toLocaleString()}g (have ${state.gold.toLocaleString()}g)` };
+    }
+    state.gold -= cost;
+    refreshShop();
+    logEvent(`Rush restock! Spent ${cost.toLocaleString()}g to refresh the shop.`);
+    return { ok: true, cost };
   }
 
   // ── Shop Upgrade System ─────────────────────────────────────────────────
@@ -596,6 +626,7 @@ const Game = (() => {
       return { itemId: item.id, price: item.buyPrice, quantity: qty };
     });
     state.shop.lastRefreshed = Date.now();
+    state.shop.questsSinceRefresh = 0;
   }
 
   function weightedPick(items) {
@@ -631,6 +662,10 @@ const Game = (() => {
   function shopRefreshMs() {
     if (!state.shop.lastRefreshed) return 0;
     return Math.max(0, SHOP_REFRESH_MS - (Date.now() - state.shop.lastRefreshed));
+  }
+
+  function shopQuestsUntilRefresh() {
+    return Math.max(0, SHOP_QUEST_REFRESH - (state.shop.questsSinceRefresh || 0));
   }
 
   // ── Quest Board ────────────────────────────────────────────────────────────
@@ -1100,6 +1135,9 @@ const Game = (() => {
     // Refresh quest board for this rank on completion
     refreshQuestBoard(quest.rank, true);
 
+    // Tick shop quest counter — shop restocks every 2 completed quests
+    tickShopQuestCounter();
+
     // Handle auto-run (strategy-based)
     // The actual decrement + next-quest start happens in ui.js when the user
     // dismisses the results modal.  Here we only cancel on failure / injury.
@@ -1166,7 +1204,7 @@ const Game = (() => {
     questTimeRemaining, questProgress, questEventsRevealed, isQuestComplete,
     setQuestEventCount, completionCount, canTakeQuest,
     totalPartyPower, buildPartySnapshot, getMember, getActiveMembers, getActiveMemberSkills,
-    effectiveStats, memberPower, shopRefreshMs,
+    effectiveStats, memberPower, shopRefreshMs, shopQuestsUntilRefresh, getRushRestockCost,
     getInventoryItem: (itemId) => state.inventory.find(e => e.itemId === itemId),
 
     // Quest Board
@@ -1184,7 +1222,7 @@ const Game = (() => {
     // Mutations
     logEvent, addRankPoints, addExp, addToInventory, removeFromInventory,
     healTick, recruitMember, dismissMember, setActive, equipItem, unequipItem,
-    refreshShop, buyItem, sellItem, upgradeShop, getShopUpgradeCost, getShopRarityWeights,
+    refreshShop, buyItem, sellItem, upgradeShop, getShopUpgradeCost, getShopRarityWeights, rushRestock,
     expandParty, getPartyExpansionCost, getMaxPartySize,
 
     // Engine

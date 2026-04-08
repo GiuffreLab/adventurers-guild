@@ -482,6 +482,22 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .shop-price.cant-afford { color: var(--red); }
 .shop-stock { font-size: 0.72rem; color: var(--text-muted); }
 .shop-refresh { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 12px; }
+.shop-refresh-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-bottom: 12px; padding: 8px 12px;
+  background: var(--bg-card-alt); border: 1px solid var(--border);
+  border-radius: var(--radius); font-size: 0.82rem;
+}
+.shop-refresh-info { color: var(--text-muted); }
+.shop-refresh-info strong { color: var(--text); }
+.btn-rush {
+  background: linear-gradient(135deg, #b8860b 0%, #daa520 100%);
+  color: #fff; border: none; font-weight: 600; white-space: nowrap;
+  padding: 5px 12px; border-radius: var(--radius-sm); cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn-rush:hover:not(:disabled) { opacity: 0.85; }
+.btn-rush.disabled, .btn-rush:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Shop Upgrade Panel */
 .shop-upgrade-panel {
