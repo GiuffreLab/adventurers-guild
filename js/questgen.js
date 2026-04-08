@@ -77,11 +77,11 @@ export function getQuestDifficultyTier(questPower, partyStrength) {
   if (partyStrength <= 0) return DIFFICULTY_TIERS[5]; // legendary if no party
   const ratio = questPower / partyStrength;
 
-  if (ratio <= 0.3)  return DIFFICULTY_TIERS[0]; // trivial
-  if (ratio <= 0.6)  return DIFFICULTY_TIERS[1]; // easy
-  if (ratio <= 0.9)  return DIFFICULTY_TIERS[2]; // moderate
-  if (ratio <= 1.3)  return DIFFICULTY_TIERS[3]; // hard
-  if (ratio <= 1.8)  return DIFFICULTY_TIERS[4]; // epic
+  if (ratio <= 0.25) return DIFFICULTY_TIERS[0]; // trivial
+  if (ratio <= 0.50) return DIFFICULTY_TIERS[1]; // easy
+  if (ratio <= 0.80) return DIFFICULTY_TIERS[2]; // moderate
+  if (ratio <= 1.15) return DIFFICULTY_TIERS[3]; // hard
+  if (ratio <= 1.60) return DIFFICULTY_TIERS[4]; // epic
   return DIFFICULTY_TIERS[5];                     // legendary
 }
 
@@ -549,11 +549,11 @@ function partyScalingMultiplier(partyStrength, rank) {
   const scale = RANK_SCALES[rank];
   if (!scale) return 1.0;
   const baseMax = scale.recPow[1]; // top end of the rank's base power
-  if (partyStrength <= baseMax * 1.5) return 1.0; // party is within expected range
-  // Scale up so base quests sit around 55-80% of party power.
-  // Standard quests land Easy→Moderate, harder slots push into Hard→Epic.
-  const target = partyStrength * 0.85; // aim for ~85% of party strength as midpoint
-  return Math.min(10.0, target / baseMax); // cap at 10x
+  if (partyStrength <= baseMax * 1.2) return 1.0; // party is within expected range
+  // Scale up so base quests sit around 70-95% of party power.
+  // Standard quests land Moderate→Hard, harder slots push into Epic→Legendary.
+  const target = partyStrength * 1.0; // aim for ~100% of party strength as midpoint
+  return Math.min(12.0, target / baseMax); // cap at 12x
 }
 
 export function generateQuestInstance(rank, templateIndex, seed, partyStrength) {
@@ -647,8 +647,8 @@ export function generateQuestInstance(rank, templateIndex, seed, partyStrength) 
 
       let baseChance;
       if (isCelestial) {
-        // Celestial items: ultra-rare base chance (~1-3%), boosted for S-rank bosses (~3-9%)
-        baseChance = (0.008 + seededRand(seed + 20 + i) * 0.012) * Math.min(rarityDropMult, 1.5) * bossCelestialMult;
+        // Celestial items: rare base chance (~1.5-4%), boosted for S-rank bosses (~4.5-12%)
+        baseChance = (0.012 + seededRand(seed + 20 + i) * 0.018) * Math.min(rarityDropMult, 1.5) * bossCelestialMult;
       } else if (isEquip) {
         // Boss quests give a slight boost to all equipment drop rates
         const bossEquipMult = isBoss ? 1.3 : 1.0;
@@ -658,7 +658,7 @@ export function generateQuestInstance(rank, templateIndex, seed, partyStrength) 
       }
       return {
         itemId,
-        chance: Math.min(isCelestial ? (isBoss && rank === 'S' ? 0.12 : 0.05) : 0.90, baseChance),
+        chance: Math.min(isCelestial ? (isBoss && rank === 'S' ? 0.15 : 0.07) : 0.90, baseChance),
         quantity: isEquip ? [1, 1] : [1, seededRandInt(1, 4, seed + 40 + i)],
       };
     });
@@ -713,9 +713,9 @@ export function generateQuestBoard(rank, partyStrength, seed) {
   const indices = [];
   const used = new Set();
 
-  // ~25% chance per board refresh to include a boss quest (replaces one harder slot)
+  // ~35% chance per board refresh to include a boss quest (replaces one harder slot)
   const bossRoll = seededRand(seed + 500);
-  const hasBoss = bossRoll < 0.25 && bossIndices.length > 0;
+  const hasBoss = bossRoll < 0.35 && bossIndices.length > 0;
 
   // First, pick 3 quests that should be at-level (moderate difficulty) — never bosses
   let attempts = 0;
@@ -755,8 +755,8 @@ export function generateQuestBoard(rank, partyStrength, seed) {
     if (!quest) return null;
 
     if (boss) {
-      // Boss quests: significantly harder (1.8-2.5x) with boosted rewards
-      const bossBoost = 1.8 + seededRand(seed + 300 + i) * 0.7;
+      // Boss quests: significantly harder (2.2-3.2x) with boosted rewards
+      const bossBoost = 2.2 + seededRand(seed + 300 + i) * 1.0;
       quest.difficulty = Math.round(quest.difficulty * bossBoost * 100) / 100;
       quest.recommendedPower = Math.floor(quest.recommendedPower * bossBoost);
       quest.goldReward.min = Math.floor(quest.goldReward.min * bossBoost * 1.5);
@@ -765,8 +765,8 @@ export function generateQuestBoard(rank, partyStrength, seed) {
       quest.expReward.max = Math.floor(quest.expReward.max * bossBoost * 1.3);
       quest.rankPointReward = Math.floor(quest.rankPointReward * bossBoost * 1.2);
     } else if (harder) {
-      // Boost difficulty by 30-80% for the harder slots (wider range for stronger parties)
-      const baseBoost = 1.3 + seededRand(seed + 200 + i) * 0.5;
+      // Boost difficulty by 50-110% for the harder slots (wider range for stronger parties)
+      const baseBoost = 1.5 + seededRand(seed + 200 + i) * 0.6;
       const boost = baseBoost;
       quest.difficulty = Math.round(quest.difficulty * boost * 100) / 100;
       quest.recommendedPower = Math.floor(quest.recommendedPower * boost);

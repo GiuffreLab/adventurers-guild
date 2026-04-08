@@ -370,14 +370,14 @@ function buildSimulation(aq, quest) {
   // Initialize enemies with HP proportional to party HP
   const totalPartyHp = partyHp.reduce((s, p) => s + p.maxHp, 0);
   const avgMemberHp = totalPartyHp / Math.max(1, partyHp.length);
-  const totalEnemyHpPool = Math.max(60, Math.floor(totalPartyHp * 1.2));
+  const totalEnemyHpPool = Math.max(80, Math.floor(totalPartyHp * 1.6));
   const perEnemyBaseHp = Math.floor(totalEnemyHpPool / Math.max(1, fullEnemyNames.length));
 
   let enemies = fullEnemyNames.map((name, i) => ({
     id: `enemy_${i}`, name: esc(name),
-    maxHp: Math.max(10, Math.floor(perEnemyBaseHp * (0.7 + sRand(seed + 500 + i) * 0.6))),
+    maxHp: Math.max(15, Math.floor(perEnemyBaseHp * (0.7 + sRand(seed + 500 + i) * 0.6))),
     hp: 0,
-    atk: Math.max(3, Math.floor(avgMemberHp * (0.06 + sRand(seed + 600 + i) * 0.10))),
+    atk: Math.max(4, Math.floor(avgMemberHp * (0.09 + sRand(seed + 600 + i) * 0.12))),
     alive: true, isReinforcement: false,
   }));
   enemies.forEach(e => e.hp = e.maxHp);
@@ -588,7 +588,7 @@ function buildSimulation(aq, quest) {
     let type = 'attack';
     let icon = '⚔';
 
-    if (roll < 0.35) {
+    if (roll < 0.30) {
       // ── Party member attacks enemy ──
       const attacker = sPickWeighted(livingParty, es + 10);
       const target = sPick(livingEnemies, es + 11);
@@ -648,7 +648,7 @@ function buildSimulation(aq, quest) {
         icon = '💥'; type = 'defeat';
       }
 
-    } else if (roll < 0.50) {
+    } else if (roll < 0.44) {
       // ── Party skill usage (round-robin with cooldowns) ──
       const attacker = sPickWeighted(livingParty, es + 20);
       const target = sPick(livingEnemies, es + 21);
@@ -767,7 +767,7 @@ function buildSimulation(aq, quest) {
         icon = '⚔'; type = 'attack';
       }
 
-    } else if (roll < 0.72) {
+    } else if (roll < 0.74) {
       // ── Enemy attacks party member ──
       const attacker = sPick(livingEnemies, es + 30);
       const target = sPick(livingParty, es + 31);
@@ -786,11 +786,11 @@ function buildSimulation(aq, quest) {
       const shieldReduction = divineShieldRounds > 0 ? 0.15 : 0;
       const afterDef = applyDef(rawDmg, target);
       const baseDmg = Math.max(1, Math.floor(afterDef * (1 - dmgReduction) * (1 - shieldReduction)));
-      const isSkill = sRand(es + 33) < 0.30;
+      const isSkill = sRand(es + 33) < 0.35;
 
       if (isSkill) {
         const skillName = sPick(MONSTER_SKILLS, es + 34);
-        const dmg = Math.floor(baseDmg * 1.3);
+        const dmg = Math.floor(baseDmg * 1.5);
         target.hp = Math.max(0, target.hp - dmg);
         if (combatStats[target.id]) combatStats[target.id].dmgTaken += dmg;
         text = sPick(T_ENEMY_SKILL, es)(attacker.name, skillName, target.name, dmg);
@@ -865,7 +865,7 @@ function buildSimulation(aq, quest) {
       }
 
     } else if (roll < 0.82) {
-      // ── Party defend / block — DEF stat reduces damage further ──
+      // ── Party defend / block ──
       const defender = sPick(livingParty, es + 40);
       const attacker = sPick(livingEnemies, es + 41);
       const rawDmg = Math.max(1, Math.floor(attacker.atk * 0.3 * sRand(es + 42)));
@@ -956,13 +956,13 @@ function buildSimulation(aq, quest) {
 
     } else {
       // ── Reinforcement spawn (limited) ──
-      if (reinforceCount < maxReinforcements && livingEnemies.length < 5 && sRand(es + 55) < 0.40) {
+      if (reinforceCount < maxReinforcements && livingEnemies.length < 5 && sRand(es + 55) < 0.45) {
         const template = sPick(enemyNames, es + 56);
-        const reinforceHp = Math.max(10, Math.floor(perEnemyBaseHp * (0.4 + sRand(es + 57) * 0.4)));
+        const reinforceHp = Math.max(12, Math.floor(perEnemyBaseHp * (0.5 + sRand(es + 57) * 0.5)));
         const newEnemy = {
           id: `enemy_${nextEnemyId++}`, name: esc(template),
           maxHp: reinforceHp, hp: 0,
-          atk: Math.max(2, Math.floor(avgMemberHp * (0.04 + sRand(es + 58) * 0.08))),
+          atk: Math.max(3, Math.floor(avgMemberHp * (0.07 + sRand(es + 58) * 0.10))),
           alive: true, isReinforcement: true,
         };
         newEnemy.hp = newEnemy.maxHp;
