@@ -78,17 +78,8 @@ export function tickUpdateCombatVisuals() {
     if (simInfo) Game.setQuestEventCount(simInfo.eventCount, simInfo.intervalMs);
   }
 
-  // Timer + progress bar
-  const revealed = Game.questEventsRevealed();
-  const total = aq.eventCount || 1;
-  const timerEl = document.getElementById('aq-timer');
-  if (timerEl) timerEl.textContent = `${Math.min(revealed, total)} / ${total}`;
-
+  // Phase tracker (progress bar removed — fight plays to completion)
   const progress = Game.questProgress();
-  const fillEl = document.getElementById('aq-progress-fill');
-  if (fillEl) fillEl.style.width = (progress * 100).toFixed(1) + '%';
-
-  // Phase tracker
   const phase = getQuestPhase(progress);
   const phaseEl = document.getElementById('aq-phase-label');
   if (phaseEl) phaseEl.textContent = `${phase.icon} ${phase.label}`;
@@ -247,10 +238,7 @@ function renderActiveQuestView(s) {
   }
 
   const progress = Game.questProgress();
-  const revealed = Game.questEventsRevealed();
-  const total = aq.eventCount || 1;
   const phase = getQuestPhase(progress);
-  const pct = (progress * 100).toFixed(1);
   const env = quest.environment || { name: 'Unknown', icon: '?', mood: 'dungeon' };
   const phases = getPhases();
 
@@ -355,12 +343,7 @@ function renderActiveQuestView(s) {
 
       <div class="aq-main-content">
         <div class="aq-left-col">
-          <div class="aq-timer-block">
-            <div class="aq-timer-label">Battle Progress</div>
-            <div class="aq-timer" id="aq-timer">${Math.min(revealed, total)} / ${total}</div>
-            <div class="aq-progress-bar">
-              <div class="aq-progress-fill" id="aq-progress-fill" style="width:${pct}%"></div>
-            </div>
+          <div class="aq-phase-status">
             <div class="aq-phase-current" id="aq-phase-label">${phase.icon} ${phase.label}</div>
           </div>
           <div class="aq-party-strip-section">

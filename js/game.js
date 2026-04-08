@@ -11,7 +11,7 @@ import {
   calculatePartyStrength, generateQuestBoard, shouldRefreshBoard,
   getQuestDifficultyTier, BOARD_REFRESH_MS
 } from './questgen.js';
-import { getCombatStats, getSimEvents } from './ui/combatlog.js';
+import { getCombatStats, getSimEvents, getBattleOutcome } from './ui/combatlog.js';
 
 const Game = (() => {
 
@@ -463,10 +463,18 @@ const Game = (() => {
     const partyPower = adjustedPartyPower;
     const questPower = questDef.difficulty * 25;
     const ratio = partyPower / Math.max(1, questPower);
-    // Steeper S-curve: parties need a meaningful power advantage to guarantee success
-    // ratio 0.5 → ~30%, ratio 0.8 → ~55%, ratio 1.0 → ~70%, ratio 1.3 → ~85%, ratio 1.8 → ~95%
-    const successChance = Math.min(0.95, Math.max(0.05, ratio * 0.40 + 0.30));
-    const success = Math.random() < successChance;
+
+    // Use the combat simulation's outcome if available (keeps visual narrative in sync)
+    // Fall back to probability formula only if no sim exists (e.g. instant-resolve scenarios)
+    const simOutcome = getBattleOutcome();
+    let success;
+    if (simOutcome) {
+      success = simOutcome === 'victory';
+    } else {
+      // Fallback: probability formula for cases without a combat sim
+      const successChance = Math.min(0.95, Math.max(0.05, ratio * 0.40 + 0.30));
+      success = Math.random() < successChance;
+    }
     // Loot bonus from party synergy skills only (LCK stat removed)
     const luckBonus = 0;
 

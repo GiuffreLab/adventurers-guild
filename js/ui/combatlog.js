@@ -27,7 +27,7 @@ export function getQuestPhase(progress) {
 }
 
 // ── Event interval (seconds between revealed events) ────────────────────
-export const EVENT_INTERVAL = 1.5;
+export const EVENT_INTERVAL = 1.0;
 
 // ── Seeded random ───────────────────────────────────────────────────────
 function sRand(seed) {
@@ -367,17 +367,28 @@ function buildSimulation(aq, quest) {
     fullEnemyNames.push(enemyNames[i % enemyNames.length]);
   }
 
-  // Initialize enemies with HP proportional to party HP
+  // Initialize enemies with HP proportional to party HP, scaled by quest difficulty
   const totalPartyHp = partyHp.reduce((s, p) => s + p.maxHp, 0);
   const avgMemberHp = totalPartyHp / Math.max(1, partyHp.length);
-  const totalEnemyHpPool = Math.max(80, Math.floor(totalPartyHp * 1.6));
+
+  // Factor in quest difficulty: questPower vs partyPower
+  // When quest is harder (ratio < 1), enemies are beefier; when easier (ratio > 1), enemies are weaker
+  const partyPower = members.reduce((s, m) => s + (m.power || 20), 0);
+  const questPower = (quest.difficulty || 1) * 25;
+  const difficultyRatio = partyPower / Math.max(1, questPower);
+  // Clamp the scaling factor: 0.6x (very overleveled) to 2.0x (very underleveled)
+  const difficultyScale = Math.min(2.0, Math.max(0.6, 1.0 / Math.max(0.5, difficultyRatio)));
+
+  const totalEnemyHpPool = Math.max(80, Math.floor(totalPartyHp * 1.6 * difficultyScale));
   const perEnemyBaseHp = Math.floor(totalEnemyHpPool / Math.max(1, fullEnemyNames.length));
+  const baseAtkScale = 0.09 * difficultyScale;
+  const atkRange = 0.12 * difficultyScale;
 
   let enemies = fullEnemyNames.map((name, i) => ({
     id: `enemy_${i}`, name: esc(name),
     maxHp: Math.max(15, Math.floor(perEnemyBaseHp * (0.7 + sRand(seed + 500 + i) * 0.6))),
     hp: 0,
-    atk: Math.max(4, Math.floor(avgMemberHp * (0.09 + sRand(seed + 600 + i) * 0.12))),
+    atk: Math.max(4, Math.floor(avgMemberHp * (baseAtkScale + sRand(seed + 600 + i) * atkRange))),
     alive: true, isReinforcement: false,
   }));
   enemies.forEach(e => e.hp = e.maxHp);
@@ -413,8 +424,8 @@ function buildSimulation(aq, quest) {
   }
 
   // ── Phase 3: Battle (loop until one side dies) ──
-  // Scale battle length and reinforcement cap with party size
-  const MAX_BATTLE_EVENTS = 40 + extraEnemies * 5; // +5 events per extra enemy
+  // High cap as safety net — battle should always end naturally via HP depletion
+  const MAX_BATTLE_EVENTS = 80 + extraEnemies * 8;
   let reinforceCount = 0;
   const maxReinforcements = Math.min(3 + extraEnemies, fullEnemyNames.length);
   let regenPerTick = 0; // Bard regen — HP per member per round
@@ -962,7 +973,7 @@ function buildSimulation(aq, quest) {
         const newEnemy = {
           id: `enemy_${nextEnemyId++}`, name: esc(template),
           maxHp: reinforceHp, hp: 0,
-          atk: Math.max(3, Math.floor(avgMemberHp * (0.07 + sRand(es + 58) * 0.10))),
+          atk: Math.max(3, Math.floor(avgMemberHp * (0.07 * difficultyScale + sRand(es + 58) * 0.10 * difficultyScale))),
           alive: true, isReinforcement: true,
         };
         newEnemy.hp = newEnemy.maxHp;
@@ -987,11 +998,55 @@ function buildSimulation(aq, quest) {
     snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
   }
 
-  // If we hit the cap without resolution, determine outcome by HP remaining
+  // If we hit the event cap without natural resolution, force the fight to finish
+  // by generating rapid finishing blows so one side is fully eliminated.
   if (!battleOutcome) {
     const livingEnemies = enemies.filter(e => e.alive);
     const livingParty = partyHp.filter(p => p.hp > 0);
-    battleOutcome = livingParty.length >= livingEnemies.length ? 'victory' : 'defeat';
+    // Decide winner based on remaining HP ratio
+    const partyHpLeft = livingParty.reduce((s, p) => s + p.hp, 0);
+    const enemyHpLeft = livingEnemies.reduce((s, e) => s + e.hp, 0);
+    const partyWins = partyHpLeft >= enemyHpLeft;
+
+    if (partyWins) {
+      // Party finishes off remaining enemies
+      let finishSeed = seed + 200000;
+      for (const enemy of livingEnemies) {
+        const attacker = sPickWeighted(livingParty.filter(p => p.hp > 0), finishSeed++);
+        if (!attacker) break;
+        const dmg = enemy.hp;
+        enemy.hp = 0;
+        enemy.alive = false;
+        if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += dmg;
+        const classId = attacker.class || 'HERO';
+        const atkText = getAttackTemplate(classId, finishSeed)(attacker.name, enemy.name, `${dmg}`);
+        events.push({ text: atkText, type: 'attack', icon: '⚔', phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        const defeatText = sPick(T_ENEMY_DEFEAT, finishSeed + 1)(enemy.name, attacker.name);
+        events.push({ text: defeatText, type: 'defeat', icon: '💥', phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        finishSeed += 100;
+      }
+      battleOutcome = 'victory';
+    } else {
+      // Enemies overwhelm the remaining party
+      let finishSeed = seed + 300000;
+      for (const member of livingParty) {
+        const attacker = sPick(enemies.filter(e => e.alive), finishSeed++);
+        if (!attacker) break;
+        const dmg = member.hp;
+        member.hp = 0;
+        if (combatStats[member.id]) combatStats[member.id].dmgTaken += dmg;
+        const atkText = sPick(T_ENEMY_ATK, finishSeed)(attacker.name, member.name, dmg);
+        events.push({ text: atkText, type: 'enemy', icon: '💀', phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        const koText = sPick(T_PARTY_KO, finishSeed + 1)(member.name, attacker.name);
+        events.push({ text: koText, type: 'ko', icon: '💀', phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        finishSeed += 100;
+      }
+      battleOutcome = 'defeat';
+    }
   }
 
   // ── Phase 4: Resolution (1 event) ──
@@ -1087,6 +1142,11 @@ function ensureSim() {
 }
 
 // ── Public API ──────────────────────────────────────────────────────────
+
+// Get the battle outcome from the current simulation ('victory' or 'defeat' or null)
+export function getBattleOutcome() {
+  return _sim ? _sim.battleOutcome : null;
+}
 
 // Helper: get the effective event interval (in seconds) for the current sim
 function _getInterval() {

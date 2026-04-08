@@ -1280,22 +1280,9 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 }
 
 /* Timer block */
-.aq-timer-block { text-align: center; }
-.aq-timer-label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
-.aq-timer {
-  font-size: 2rem; font-weight: 700; color: var(--cyan);
-  font-variant-numeric: tabular-nums; margin: 4px 0 8px;
-}
-.aq-progress-bar {
-  height: 10px; background: var(--bg-deep); border-radius: 5px;
-  overflow: hidden; margin-bottom: 6px;
-}
-.aq-progress-fill {
-  height: 100%; border-radius: 5px; background: var(--cyan);
-  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
+.aq-phase-status { text-align: center; margin-bottom: 8px; }
 .aq-phase-current {
-  font-size: 0.8rem; color: var(--cyan); font-weight: 600;
+  font-size: 0.9rem; color: var(--cyan); font-weight: 600;
 }
 
 /* Party strip with HP bars */
