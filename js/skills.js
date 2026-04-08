@@ -163,8 +163,8 @@ export const SKILLS = {
     icon: '🚩', effects: { partyAtkBonus: 0.12, partyDefBonus: 0.10, partySpdBonus: 0.08, partyCritBonus: 0.05 }, procChance: 1.0,
     narrative: null,
   },
-  LAST_STAND: {
-    id: 'LAST_STAND', name: 'Last Stand', type: 'active', source: 'spec',
+  WARDENS_LAST_STAND: {
+    id: 'WARDENS_LAST_STAND', name: "Warden's Last Stand", type: 'active', source: 'spec',
     classId: 'HERO', specTrack: 'warden', unlockLevel: 18,
     description: 'EPIC SPEC — When 2+ allies are KO\'d, revives all fallen allies at 25% HP. Once per fight.',
     icon: '🌅', effects: { reviveAllPercent: 0.25, koThreshold: 2 }, procChance: 1.0, reactive: true, cooldown: 999,
@@ -813,11 +813,11 @@ export const SKILLS = {
     narrative: 'channels the heavens and strikes with a Heavenly Palm!',
   },
   DIVINE_GRACE_EQ: {
-    id: 'DIVINE_GRACE_EQ', name: 'Divine Grace', type: 'active', source: 'equipment',
+    id: 'DIVINE_GRACE_EQ', name: 'Staff of Grace', type: 'active', source: 'equipment',
     itemId: 'DIVINE_STAFF', unlockLevel: null,
-    description: 'Divine Staff channels holy energy, bolstering the party.',
+    description: 'The Divine Staff channels holy energy, bolstering the party.',
     icon: '🌟', effects: { magBonus: 0.40, healBonus: 0.25 }, procChance: 0.55,
-    narrative: 'channels Divine Grace through the holy staff!',
+    narrative: 'channels the Staff of Grace — holy energy surges forth!',
   },
   HOLY_SMITE: {
     id: 'HOLY_SMITE', name: 'Holy Smite', type: 'active', source: 'equipment',
@@ -877,11 +877,11 @@ export const SKILLS = {
     narrative: 'weaves through danger and strikes from the shadows!',
   },
   IRON_BODY: {
-    id: 'IRON_BODY', name: 'Iron Body', type: 'active', source: 'equipment',
+    id: 'IRON_BODY', name: "Dragon's Fortitude", type: 'active', source: 'equipment',
     itemId: 'DRAGON_CLAW', unlockLevel: null,
-    description: 'Hardens the body like iron and counters with force.',
+    description: 'The Dragon Claw channels draconic toughness, hardening the body and countering with force.',
     icon: '🪨', effects: { atkBonus: 0.30, defBonus: 0.30, dodgeChance: 0.15 }, procChance: 0.45,
-    narrative: 'hardens their body like iron and counters!',
+    narrative: "channels Dragon's Fortitude — skin hardens like scales!",
   },
   MOUNTAIN_STANCE: {
     id: 'MOUNTAIN_STANCE', name: 'Mountain Stance', type: 'active', source: 'equipment',
@@ -990,11 +990,11 @@ export const SKILLS = {
     narrative: 'unleashes a Void Burst!',
   },
   SANCTUARY: {
-    id: 'SANCTUARY', name: 'Sanctuary', type: 'active', source: 'equipment',
+    id: 'SANCTUARY', name: 'Holy Sanctuary', type: 'active', source: 'equipment',
     itemId: 'HOLY_ORB', unlockLevel: null,
-    description: 'Creates a Sanctuary of light for protection and healing.',
+    description: 'The Holy Orb creates a sanctuary of light for protection and healing.',
     icon: '☀', effects: { defBonus: 0.30, healBonus: 0.20 }, procChance: 0.50,
-    narrative: 'creates a Sanctuary of light!',
+    narrative: 'calls forth a Holy Sanctuary — light shields the party!',
   },
   DRAGON_SPIRIT: {
     id: 'DRAGON_SPIRIT', name: 'Dragon Spirit', type: 'active', source: 'equipment',
@@ -1069,9 +1069,9 @@ export const SKILLS = {
     narrative: 'fires a Celestial Volley — arrows of pure starlight!',
   },
   ARCANE_CATACLYSM_EQ: {
-    id: 'ARCANE_CATACLYSM_EQ', name: 'Arcane Cataclysm', type: 'active', source: 'equipment',
+    id: 'ARCANE_CATACLYSM_EQ', name: 'Cataclysm: Staff of Ages', type: 'active', source: 'equipment',
     itemId: 'STAFF_OF_AGES', unlockLevel: null,
-    description: 'Unleashes an Arcane Cataclysm of magical destruction.',
+    description: 'The Staff of Ages unleashes a devastating Arcane Cataclysm.',
     icon: '💥', effects: { magBonus: 0.85, critChance: 0.25, defPierce: 0.20 }, procChance: 0.55,
     narrative: 'unleashes an Arcane Cataclysm!',
   },
@@ -1298,11 +1298,11 @@ export const SKILLS = {
 
   // ── MAGE "Arcanum Infinitum" Set Procs ─────────────────────────────────
   CEL_ARCANUM_CATACLYSM: {
-    id: 'CEL_ARCANUM_CATACLYSM', name: 'Arcane Cataclysm', type: 'active', source: 'equipment',
+    id: 'CEL_ARCANUM_CATACLYSM', name: 'Infinite Cataclysm', type: 'active', source: 'equipment',
     itemId: 'CEL_INFINITY_STAFF', unlockLevel: null,
     description: 'The Infinity Staff tears open reality itself, unleashing a cataclysm of pure arcane energy.',
     icon: '💥', effects: { magBonus: 0.45, critChance: 0.20, powerMultiplier: 2.0 }, procChance: 0.55,
-    narrative: 'channels Arcane Cataclysm — the Infinity Staff tears reality apart with impossible power!',
+    narrative: 'channels Infinite Cataclysm — the Infinity Staff tears reality apart with impossible power!',
   },
   CEL_VOID_BARRIER: {
     id: 'CEL_VOID_BARRIER', name: 'Void Barrier', type: 'active', source: 'equipment',
@@ -1358,18 +1358,18 @@ export const SKILLS = {
 
   // ── CLERIC "Divine Radiance" Set Procs ─────────────────────────────────
   CEL_DIVINE_JUDGEMENT: {
-    id: 'CEL_DIVINE_JUDGEMENT', name: 'Divine Judgement', type: 'active', source: 'equipment',
+    id: 'CEL_DIVINE_JUDGEMENT', name: "Dawn's Judgement", type: 'active', source: 'equipment',
     itemId: 'CEL_SCEPTER_OF_DAWN', unlockLevel: null,
-    description: 'The Scepter of Dawn channels the wrath of the heavens, passing divine judgement.',
+    description: 'The Scepter of Dawn channels the wrath of the heavens, passing judgement upon the unworthy.',
     icon: '⚡', effects: { magBonus: 0.35, atkBonus: 0.20, powerMultiplier: 1.7 }, procChance: 0.55,
-    narrative: 'calls down Divine Judgement — the Scepter of Dawn sears evil with holy radiance!',
+    narrative: "calls down Dawn's Judgement — the Scepter of Dawn sears evil with holy radiance!",
   },
   CEL_DIVINE_SHIELD: {
-    id: 'CEL_DIVINE_SHIELD', name: 'Divine Shield', type: 'active', source: 'equipment',
+    id: 'CEL_DIVINE_SHIELD', name: 'Radiant Aegis', type: 'active', source: 'equipment',
     itemId: 'CEL_VESTMENTS_OF_GRACE', unlockLevel: null,
-    description: 'The Vestments of Grace form a divine shield that heals as it protects.',
+    description: 'The Vestments of Grace form a radiant aegis that heals as it protects.',
     icon: '🛐', effects: { defBonus: 0.45, maxHpBonus: 0.35, healBonus: 0.20 }, procChance: 0.50,
-    narrative: 'manifests a Divine Shield — wounds heal as quickly as they are made!',
+    narrative: 'manifests a Radiant Aegis — wounds heal as quickly as they are made!',
   },
   CEL_MIRACULOUS_BLESSING: {
     id: 'CEL_MIRACULOUS_BLESSING', name: 'Miraculous Blessing', type: 'active', source: 'equipment',
@@ -1504,7 +1504,7 @@ export const HERO_SPECS = {
   warden: {
     id: 'warden', label: 'Warden', icon: '🚩',
     description: 'Support/buffer. Emergency heals, powerful party aura, mass revive.',
-    skills: ['GUARDIAN_SPIRIT', 'WAR_BANNER', 'LAST_STAND'],
+    skills: ['GUARDIAN_SPIRIT', 'WAR_BANNER', 'WARDENS_LAST_STAND'],
   },
 };
 

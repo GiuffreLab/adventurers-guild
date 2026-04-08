@@ -205,10 +205,15 @@ const Game = (() => {
       migrateSkills(state.player);
       if (state.party) state.party.forEach(m => migrateSkills(m));
 
-      // Migration: ensure heroSpec field exists on all Heroes
+      // Migration: ensure heroSpec field exists on all Heroes + fix LAST_STAND key collision
       const migrateHeroSpec = (member) => {
         if (!member || member.class !== 'HERO') return;
         if (member.heroSpec === undefined) member.heroSpec = null;
+        // Rename old LAST_STAND → WARDENS_LAST_STAND for Warden Heroes
+        if (member.heroSpec === 'warden' && member.skills) {
+          const idx = member.skills.indexOf('LAST_STAND');
+          if (idx !== -1) member.skills[idx] = 'WARDENS_LAST_STAND';
+        }
       };
       migrateHeroSpec(state.player);
       if (state.party) state.party.forEach(m => migrateHeroSpec(m));
