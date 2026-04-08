@@ -1174,7 +1174,7 @@ const Game = (() => {
     // Party Synergy
     getMaxAutoRun, getSecretBossChance,
     getGoldXpBonus, getDmgBonus, getDmgReduction, getAtkSpeedBonus, getHealBonus, getItemFind, getRpBonus,
-    SYNERGY_THRESHOLDS,
+    SYNERGY_THRESHOLDS, RANK_THRESHOLDS,
 
     // Auto-run
     pickQuestByStrategy, startAutoRun, stopAutoRun,

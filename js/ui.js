@@ -18,7 +18,10 @@ export function initNewGameModal() {
   });
 
   document.getElementById('btn-start-game').addEventListener('click', () => {
-    const name = document.getElementById('input-name').value.trim();
+    const raw = document.getElementById('input-name').value.trim();
+    if (!raw) return;
+    // Strip any HTML/script tags at input time (defense in depth)
+    const name = raw.replace(/<[^>]*>/g, '').trim();
     if (!name) return;
     Game.newGame(name, 'HERO');
     document.getElementById('modal-new-game').classList.add('hidden');

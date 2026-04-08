@@ -6,6 +6,7 @@ import {
   getAllClassUnlocks, getNextUnlock, getEquipmentSkill
 } from '../skills.js';
 import { hpClass, fmtTime, showToast } from './helpers.js';
+import { esc } from '../util.js';
 
 let partyView = 'roster';   // 'roster' | 'sheet' | 'recruit'
 let selectedMemberId = null;
@@ -86,7 +87,7 @@ export function renderParty() {
       const hpPct = Math.round((eff.hp / eff.maxHp) * 100);
       return `
         <div class="slot-card filled" data-member-id="${m.id}">
-          <span class="slot-name">${m.name}</span>
+          <span class="slot-name">${esc(m.name)}</span>
           <span class="slot-cls">${cls.label} · Lv.${m.level}</span>
           <div class="slot-hp progress-bar">
             <div class="progress-fill ${hpClass(eff.hp, eff.maxHp)}" style="width:${hpPct}%"></div>
@@ -111,7 +112,7 @@ export function renderParty() {
     return `
       <div class="roster-row${isActive ? ' in-active' : ''}" data-member-id="${m.id}">
         <div class="roster-info">
-          <div class="roster-name">${m.name} <span class="member-sigil">${cls.sigil}</span></div>
+          <div class="roster-name">${esc(m.name)} <span class="member-sigil">${cls.sigil}</span></div>
           <div class="roster-sub">Lv.${m.level} ${cls.label} · Power: ${Math.round(Game.memberPower(m))}</div>
         </div>
         <div class="roster-hp progress-bar">
@@ -255,7 +256,7 @@ function renderCharSheet(el, s) {
           <span class="char-portrait-sigil">${cls.sigil}</span>
         </div>
         <div class="char-header-info">
-          <div class="char-name">${m.name}</div>
+          <div class="char-name">${esc(m.name)}</div>
           <div class="char-class">${cls.label} · Level ${m.level}</div>
           <div class="char-power">Power: <strong>${power}</strong></div>
           <div class="char-bars">
@@ -640,7 +641,7 @@ function renderRecruit(el, s) {
     row.addEventListener('click', () => {
       const result = Game.recruitMember(row.dataset.classId);
       if (result.ok) {
-        showToast(`${result.member.name} joined the party!`, 'success');
+        showToast(`${esc(result.member.name)} joined the party!`, 'success');
         selectedMemberId = result.member.id;
         partyView = 'sheet';
         Game.save();

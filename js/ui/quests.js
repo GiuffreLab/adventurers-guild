@@ -3,6 +3,7 @@ import { RANK_ORDER, getQuest, getItem, getClass, getItemRarity, CLASSES, rankIn
 import { rankTag, fmtTime, timeAgo, showToast } from './helpers.js';
 import { generateCombatLog, getCombatSnapshot, getQuestPhase, getPhases, resetCombatLog, getSimInfo } from './combatlog.js';
 import { getQuestDifficultyTier, DIFFICULTY_TIERS } from '../questgen.js';
+import { esc } from '../util.js';
 
 let questRankFilter = 'F';
 let selectedQuestId = null;
@@ -284,7 +285,7 @@ function renderActiveQuestView(s) {
       <div class="aq-party-header">
         <div class="aq-party-sigil">${dead ? '💀' : cls.sigil}</div>
         <div class="aq-party-info">
-          <div class="aq-party-name">${m.name.split(' ')[0]}</div>
+          <div class="aq-party-name">${esc(m.name.split(' ')[0])}</div>
           <div class="aq-party-level">${cls.label} Lv.${m.level}</div>
         </div>
       </div>
@@ -710,7 +711,7 @@ function renderQuestHistory(s) {
           const healRcvd = (c.healingReceived || 0) > 0 ? `<span class="cs-heal-rcvd" title="Healing received">💚${c.healingReceived}</span>` : '';
           const taken = c.dmgTaken > 0 ? `<span class="cs-taken" title="Damage taken">💔${c.dmgTaken}</span>` : '';
           return `<div class="cs-row">
-            <div class="cs-name">${sigil} ${c.name.split(' ')[0]}</div>
+            <div class="cs-name">${sigil} ${esc(c.name.split(' ')[0])}</div>
             <div class="cs-bar-wrap"><div class="cs-bar" style="width:${dmgPct}%"></div><span class="cs-dmg-val">${c.dmgDealt}</span></div>
             <div class="cs-extras">${healDone}${healRcvd}${taken}</div>
           </div>`;
@@ -754,7 +755,7 @@ function renderQuestHistory(s) {
       const levelUps = h.levelUps || [];
       if (levelUps.length > 0) {
         const luItems = levelUps.map(lu =>
-          `<span class="qh-levelup-item text-gold">${lu.name} → Lv.${lu.level}</span>`
+          `<span class="qh-levelup-item text-gold">${esc(lu.name)} → Lv.${lu.level}</span>`
         ).join('');
         levelUpsHtml = `<div class="qh-detail-section"><div class="qh-detail-section-title">Level Ups</div><div class="qh-levelup-list">${luItems}</div></div>`;
       }

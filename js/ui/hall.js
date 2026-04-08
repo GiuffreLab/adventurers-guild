@@ -1,6 +1,7 @@
 import Game from '../game.js';
 import { getQuest, getClass, RANK_ORDER } from '../data.js';
 import { rankTag, timeAgo, hpClass } from './helpers.js';
+import { esc } from '../util.js';
 import { getQuestPhase } from './combatlog.js';
 
 let _rendered = false;
@@ -131,7 +132,7 @@ function renderPartyOverviewCard(s, members) {
       <div class="party-member-row">
         <div>
           <div class="member-name-cls">
-            ${m.name}
+            ${esc(m.name)}
             <span class="member-sigil">${cls.sigil}</span>
             <span class="member-level">Lv.${m.level}</span>
           </div>
@@ -147,7 +148,7 @@ function renderPartyOverviewCard(s, members) {
 }
 
 function renderGuildProgressCard(s) {
-  const threshold = { F:100, E:300, D:700, C:1500, B:3500, A:8000, S:null }[s.guild.rank];
+  const threshold = Game.RANK_THRESHOLDS[s.guild.rank];
   const pct = threshold ? Math.round((s.guild.rankPoints / threshold) * 100) : 100;
   const nextRank = RANK_ORDER[RANK_ORDER.indexOf(s.guild.rank) + 1] || null;
   const progressSection = threshold

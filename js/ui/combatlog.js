@@ -6,6 +6,7 @@
 import Game from '../game.js';
 import { getQuest, getClass, randInt } from '../data.js';
 import { getSkill } from '../skills.js';
+import { esc } from '../util.js';
 
 // ── Phases are now structural markers, not progress-based ──────────────
 const PHASES = [
@@ -277,7 +278,7 @@ function buildSimulation(aq, quest) {
   const seed = aq.startedAt;
   const members = aq.partySnapshot || [];
   const enemyNames = quest.enemies || ['Monster'];
-  const envName = quest.environment ? quest.environment.name : 'the unknown';
+  const envName = quest.environment ? esc(quest.environment.name) : 'the unknown';
 
   // Synergy bonuses for repeated quests
   const dmgBonus = 1 + (Game.getDmgBonus ? Game.getDmgBonus(aq.questId) : 0);
@@ -292,7 +293,7 @@ function buildSimulation(aq, quest) {
     const member = Game.getMember(m.id);
     const eff = member ? Game.effectiveStats(member) : m.stats;
     return {
-      id: m.id, name: m.name, class: m.class,
+      id: m.id, name: esc(m.name), class: m.class,
       maxHp: eff.maxHp || m.stats.maxHp || 100,
       hp: eff.hp || eff.maxHp || m.stats.hp || 100,
       level: m.level, power: m.power || 20,
@@ -373,7 +374,7 @@ function buildSimulation(aq, quest) {
   const perEnemyBaseHp = Math.floor(totalEnemyHpPool / Math.max(1, fullEnemyNames.length));
 
   let enemies = fullEnemyNames.map((name, i) => ({
-    id: `enemy_${i}`, name,
+    id: `enemy_${i}`, name: esc(name),
     maxHp: Math.max(10, Math.floor(perEnemyBaseHp * (0.7 + sRand(seed + 500 + i) * 0.6))),
     hp: 0,
     atk: Math.max(3, Math.floor(avgMemberHp * (0.06 + sRand(seed + 600 + i) * 0.10))),
@@ -389,7 +390,7 @@ function buildSimulation(aq, quest) {
   // ── Per-member combat stats tracking ──
   const combatStats = {};
   for (const m of partyHp) {
-    combatStats[m.id] = { id: m.id, name: m.name, class: m.class, dmgDealt: 0, healingDone: 0, healingReceived: 0, dmgTaken: 0 };
+    combatStats[m.id] = { id: m.id, name: esc(m.name), class: m.class, dmgDealt: 0, healingDone: 0, healingReceived: 0, dmgTaken: 0 };
   }
 
   // ── Phase 1: Travel (2 events) ──
@@ -959,7 +960,7 @@ function buildSimulation(aq, quest) {
         const template = sPick(enemyNames, es + 56);
         const reinforceHp = Math.max(10, Math.floor(perEnemyBaseHp * (0.4 + sRand(es + 57) * 0.4)));
         const newEnemy = {
-          id: `enemy_${nextEnemyId++}`, name: template,
+          id: `enemy_${nextEnemyId++}`, name: esc(template),
           maxHp: reinforceHp, hp: 0,
           atk: Math.max(2, Math.floor(avgMemberHp * (0.04 + sRand(es + 58) * 0.08))),
           alive: true, isReinforcement: true,
@@ -1135,7 +1136,9 @@ export function getCombatStats() {
 export function getSimEvents() {
   if (!_sim) return [];
   return _sim.events.map(e => ({
-    text: e.text.replace(/<[^>]+>/g, '').replace(/&[a-z]+;/g, ' '),
+    text: e.text.replace(/<[^>]+>/g, '')
+      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"').replace(/&#39;/g, "'"),
     type: e.type,
     icon: e.icon,
     phase: e.phase,

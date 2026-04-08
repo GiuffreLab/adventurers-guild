@@ -1,6 +1,7 @@
 import Game from '../game.js';
 import { getItem, getItemRarity, CLASSES, EQUIPMENT } from '../data.js';
 import { getSkill, SKILLS } from '../skills.js';
+import { esc } from '../util.js';
 
 function formatLootEntry(d) {
   const item = getItem(d.itemId);
@@ -198,12 +199,12 @@ export function showResultsModal() {
   }
 
   const levelUpHtml = levelUps.length > 0 ? levelUps.map(lu =>
-    `<div class="result-levelup">⭐ ${lu.name} reached Level ${lu.level}!</div>`
+    `<div class="result-levelup">⭐ ${esc(lu.name)} reached Level ${lu.level}!</div>`
   ).join('') : '';
 
   const skillGainHtml = skillGains && skillGains.length > 0 ? skillGains.map(sg => {
     const verb = sg.type === 'mastery' ? 'gained mastery' : 'learned skill';
-    return `<div class="result-skill-gain">${sg.skillIcon} ${sg.memberName} ${verb}: <strong>${sg.skillName}</strong>!</div>`;
+    return `<div class="result-skill-gain">${sg.skillIcon} ${esc(sg.memberName)} ${verb}: <strong>${esc(sg.skillName)}</strong>!</div>`;
   }).join('') : '';
 
   const synergyHtml = synergyUnlocks && synergyUnlocks.length > 0 ? `
@@ -236,8 +237,11 @@ export function showResultsModal() {
 
     // Extract name from start of event text (before "attacks", "activates", etc.)
     function extractName(text) {
-      // Strip HTML tags first, then remove any remaining angle brackets to avoid partial tags like "<script"
-      const clean = text.replace(/<[^>]+>/g, '').replace(/[<>]/g, '');
+      // Strip HTML tags, decode common entities, remove stray angle brackets
+      const clean = text.replace(/<[^>]+>/g, '')
+        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+        .replace(/[<>]/g, '');
       const m = clean.match(/^([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)/);
       return m ? m[1] : null;
     }
@@ -273,7 +277,9 @@ export function showResultsModal() {
       // Kill tracking
       if (e.type === 'defeat' && name) {
         // "X delivers the final blow" or "X defeats Y"
-        const clean = e.text.replace(/<[^>]+>/g, '');
+        const clean = e.text.replace(/<[^>]+>/g, '')
+          .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/[<>]/g, '');
         const killer = clean.match(/([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\s+(?:delivers|defeats|strikes)/);
         if (killer) kills[killer[1]] = (kills[killer[1]] || 0) + 1;
       }
@@ -295,28 +301,28 @@ export function showResultsModal() {
 
     if (biggestHit.dmg > 0) {
       const critTag = biggestHit.type === 'crit' ? ' CRIT' : '';
-      highlights.push(`<div class="highlight-row"><span class="highlight-icon">💥</span><span class="highlight-label">Biggest Hit</span><span class="highlight-value">${biggestHit.name} — <strong>${biggestHit.dmg}${critTag}</strong></span></div>`);
+      highlights.push(`<div class="highlight-row"><span class="highlight-icon">💥</span><span class="highlight-label">Biggest Hit</span><span class="highlight-value">${esc(biggestHit.name)} — <strong>${biggestHit.dmg}${critTag}</strong></span></div>`);
     }
 
     if (biggestHeal.amt > 0) {
-      highlights.push(`<div class="highlight-row"><span class="highlight-icon">💚</span><span class="highlight-label">Biggest Heal</span><span class="highlight-value">${biggestHeal.name} — <strong>+${biggestHeal.amt} HP</strong></span></div>`);
+      highlights.push(`<div class="highlight-row"><span class="highlight-icon">💚</span><span class="highlight-label">Biggest Heal</span><span class="highlight-value">${esc(biggestHeal.name)} — <strong>+${biggestHeal.amt} HP</strong></span></div>`);
     }
 
     if (biggestBlock.dmg > 0) {
-      highlights.push(`<div class="highlight-row"><span class="highlight-icon">🛡</span><span class="highlight-label">Biggest Block</span><span class="highlight-value">${biggestBlock.name} — <strong>${biggestBlock.dmg} absorbed</strong></span></div>`);
+      highlights.push(`<div class="highlight-row"><span class="highlight-icon">🛡</span><span class="highlight-label">Biggest Block</span><span class="highlight-value">${esc(biggestBlock.name)} — <strong>${biggestBlock.dmg} absorbed</strong></span></div>`);
     }
 
     // Top killer
     const topKiller = Object.entries(kills).sort((a, b) => b[1] - a[1])[0];
     if (topKiller && topKiller[1] > 0) {
-      highlights.push(`<div class="highlight-row"><span class="highlight-icon">☠</span><span class="highlight-label">Most Kills</span><span class="highlight-value">${topKiller[0]} — <strong>${topKiller[1]} kills</strong></span></div>`);
+      highlights.push(`<div class="highlight-row"><span class="highlight-icon">☠</span><span class="highlight-label">Most Kills</span><span class="highlight-value">${esc(topKiller[0])} — <strong>${topKiller[1]} kills</strong></span></div>`);
     }
 
     // Top critter
     if (totalCrits > 0) {
       const topCrit = Object.entries(crits).sort((a, b) => b[1] - a[1])[0];
       if (topCrit) {
-        highlights.push(`<div class="highlight-row"><span class="highlight-icon">⚡</span><span class="highlight-label">Crit Machine</span><span class="highlight-value">${topCrit[0]} — <strong>${topCrit[1]} crits</strong></span></div>`);
+        highlights.push(`<div class="highlight-row"><span class="highlight-icon">⚡</span><span class="highlight-label">Crit Machine</span><span class="highlight-value">${esc(topCrit[0])} — <strong>${topCrit[1]} crits</strong></span></div>`);
       }
     }
 
@@ -324,7 +330,7 @@ export function showResultsModal() {
     if (totalDodges > 0) {
       const topDodge = Object.entries(dodges).sort((a, b) => b[1] - a[1])[0];
       if (topDodge) {
-        highlights.push(`<div class="highlight-row"><span class="highlight-icon">💨</span><span class="highlight-label">Untouchable</span><span class="highlight-value">${topDodge[0]} — <strong>${topDodge[1]} dodge${topDodge[1] > 1 ? 's' : ''}</strong></span></div>`);
+        highlights.push(`<div class="highlight-row"><span class="highlight-icon">💨</span><span class="highlight-label">Untouchable</span><span class="highlight-value">${esc(topDodge[0])} — <strong>${topDodge[1]} dodge${topDodge[1] > 1 ? 's' : ''}</strong></span></div>`);
       }
     }
 
@@ -347,7 +353,7 @@ export function showResultsModal() {
       const healRcvd = c.healingReceived > 0 ? `<span class="cs-heal-rcvd" title="Healing received">💚${c.healingReceived}</span>` : '';
       const taken = c.dmgTaken > 0 ? `<span class="cs-taken" title="Damage taken">💔${c.dmgTaken}</span>` : '';
       return `<div class="cs-row">
-        <div class="cs-name">${sigil} ${c.name.split(' ')[0]}</div>
+        <div class="cs-name">${sigil} ${esc(c.name.split(' ')[0])}</div>
         <div class="cs-bar-wrap">
           <div class="cs-bar" style="width:${dmgPct}%"></div>
           <span class="cs-dmg-val">${c.dmgDealt}</span>

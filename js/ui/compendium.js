@@ -1,6 +1,6 @@
 // ── Compendium — In-game encyclopedia ─────────────────────────────────────
 import Game from '../game.js';
-import { CLASSES, RANK_ORDER, EQUIPMENT, getItemRarity } from '../data.js';
+import { CLASSES, RANK_ORDER, EQUIPMENT, ITEM_RARITIES, getItemRarity } from '../data.js';
 import { SKILLS, getClassSkills, getClassMasteries } from '../skills.js';
 
 let _currentSection = 'overview';
@@ -194,14 +194,20 @@ function renderClasses() {
 // ── Equipment & Procs ─────────────────────────────────────────────────────
 function renderEquipment() {
   const rarityOrder = ['common', 'magic', 'rare', 'epic', 'legendary', 'celestial'];
-  const rarityInfo = [
-    { id: 'common',    label: 'Common',    color: '#9e9e9e', desc: 'Basic starter gear. Stats only, no special effects.' },
-    { id: 'magic',     label: 'Magic',     color: '#4fc3f7', desc: 'Modest upgrades over common gear. Available in shops early on.' },
-    { id: 'rare',      label: 'Rare',      color: '#66bb6a', desc: 'Solid mid-game gear with broader stat coverage.' },
-    { id: 'epic',      label: 'Epic',      color: '#ba68c8', desc: 'Strong endgame equipment. Some pieces grant active skill procs.' },
-    { id: 'legendary', label: 'Legendary', color: '#ffa726', desc: 'Best-in-slot below celestial. Every legendary grants a unique active skill proc.' },
-    { id: 'celestial', label: 'Celestial', color: '#00e5ff', desc: 'God-tier S-Rank drops. Each class has a full 4-piece set with massive stats and celestial-tier skill procs with special visual effects.' },
-  ];
+  const rarityDescs = {
+    common:    'Basic starter gear. Stats only, no special effects.',
+    magic:     'Modest upgrades over common gear. Available in shops early on.',
+    rare:      'Solid mid-game gear with broader stat coverage. Some rare items grant skill procs.',
+    epic:      'Strong endgame equipment. Many pieces grant active skill procs.',
+    legendary: 'Best-in-slot below celestial. Every legendary grants a unique active skill proc.',
+    celestial: 'God-tier S-Rank drops. Each class has a full 4-piece set with massive stats and celestial-tier skill procs with special visual effects.',
+  };
+  const rarityInfo = rarityOrder.map(id => ({
+    id,
+    label: ITEM_RARITIES[id].label,
+    color: ITEM_RARITIES[id].color,
+    desc: rarityDescs[id],
+  }));
 
   const rarityRows = rarityInfo.map(r => `
     <div class="comp-rarity-row">
@@ -210,15 +216,31 @@ function renderEquipment() {
     </div>
   `).join('');
 
-  // Collect all legendary + celestial items with procs
+  // Collect all items with procs (epic, legendary, celestial)
   const items = Object.values(EQUIPMENT);
   const procItems = items
-    .filter(it => (it.rarity === 'legendary' || it.rarity === 'celestial') && it.grantedSkill)
+    .filter(it => it.grantedSkill)
     .sort((a, b) => {
       const ri = rarityOrder.indexOf(a.rarity) - rarityOrder.indexOf(b.rarity);
       if (ri !== 0) return ri;
       return (a.classReq?.[0] || 'ZZZ').localeCompare(b.classReq?.[0] || 'ZZZ');
     });
+
+  const effectLabels = {
+    atkBonus: 'ATK', defBonus: 'DEF', magBonus: 'MAG', spdBonus: 'SPD',
+    critChance: 'Crit', critBonus: 'Crit', dodgeChance: 'Dodge', dodgeBonus: 'Dodge',
+    defPierce: 'Armor Pierce', powerMultiplier: 'Power', healBonus: 'Heal',
+    maxHpBonus: 'Max HP',
+  };
+
+  function formatEffects(effects) {
+    if (!effects) return '—';
+    return Object.entries(effects).map(([key, val]) => {
+      const label = effectLabels[key] || key;
+      if (key === 'powerMultiplier') return `${val}× ${label}`;
+      return `+${Math.round(val * 100)}% ${label}`;
+    }).join(', ');
+  }
 
   const procRows = procItems.map(it => {
     const skill = SKILLS[it.grantedSkill];
@@ -226,14 +248,20 @@ function renderEquipment() {
     const rarity = getItemRarity(it);
     const classStr = it.classReq ? it.classReq.map(c => CLASSES[c]?.sigil || c).join('/') : 'Any';
     const isPassive = skill.type === 'passive' || skill.procChance >= 1.0;
-    const pct = isPassive ? 'passive' : `${Math.round(skill.procChance * 100)}%`;
+    const procStr = isPassive
+      ? '<span class="comp-proc-passive">Passive</span>'
+      : `<span class="comp-proc-chance">${Math.round(skill.procChance * 100)}%</span>`;
+    const durationStr = isPassive ? 'Always active' : '1 round (2-round CD)';
+    const effectStr = formatEffects(skill.effects);
     return `
       <div class="comp-item-row">
         <span class="comp-item-name" style="color:${rarity.color}">${it.name}</span>
         <span class="comp-item-slot">${it.slot}</span>
         <span class="comp-item-class">${classStr}</span>
-        <span class="comp-item-skill">${skill.icon || '•'} ${skill.name} <em>(${pct})</em></span>
-        <span class="comp-item-desc">${skill.description || ''}</span>
+        <span class="comp-item-skill">${skill.icon || '•'} ${skill.name}</span>
+        <span class="comp-item-proc">${procStr}</span>
+        <span class="comp-item-effects">${effectStr}</span>
+        <span class="comp-item-duration">${durationStr}</span>
       </div>
     `;
   }).join('');
@@ -246,11 +274,11 @@ function renderEquipment() {
       <h3 class="comp-subtitle">Rarity Tiers</h3>
       ${rarityRows}
 
-      <h3 class="comp-subtitle">Legendary & Celestial Item Procs</h3>
-      <p class="comp-text">Every legendary and celestial item grants a unique skill when equipped. These appear in combat alongside class skills and rotate via the round-robin cooldown system.</p>
+      <h3 class="comp-subtitle">Equipment Skill Procs</h3>
+      <p class="comp-text">Some rare, epic, legendary, and celestial items grant unique skills when equipped. Active procs trigger each round based on their proc chance, last for 1 round, then enter a 2-round cooldown. Passive procs are always active. These appear in combat alongside class skills and rotate via the round-robin cooldown system.</p>
       <div class="comp-item-table">
         <div class="comp-item-header">
-          <span>Item</span><span>Slot</span><span>Class</span><span>Skill</span><span>Description</span>
+          <span>Item</span><span>Slot</span><span>Class</span><span>Skill</span><span>Proc</span><span>Effects</span><span>Duration</span>
         </div>
         ${procRows}
       </div>

@@ -2192,7 +2192,7 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .comp-item-header,
 .comp-item-row {
   display: grid;
-  grid-template-columns: 180px 70px 60px 180px 1fr;
+  grid-template-columns: 160px 65px 55px 140px 60px 1fr 110px;
   gap: 8px;
   padding: 8px 12px;
   font-size: 0.83rem;
@@ -2213,8 +2213,11 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .comp-item-slot { color: var(--text-muted); text-transform: capitalize; }
 .comp-item-class { color: var(--text-muted); }
 .comp-item-skill { color: var(--text); }
-.comp-item-skill em { color: var(--text-muted); font-size: 0.78rem; }
-.comp-item-desc { color: var(--text-dim); font-size: 0.8rem; }
+.comp-item-proc { text-align: center; }
+.comp-proc-chance { color: var(--cyan); font-weight: 600; }
+.comp-proc-passive { color: var(--text-muted); font-style: italic; font-size: 0.78rem; }
+.comp-item-effects { color: var(--text-dim); font-size: 0.8rem; }
+.comp-item-duration { color: var(--text-muted); font-size: 0.78rem; }
 
 /* Synergy table */
 .comp-synergy-table {
@@ -2300,7 +2303,7 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   .comp-nav-btn.active { border-left-color: transparent; border-bottom-color: var(--cyan); }
   .comp-body { padding: 16px; max-height: none; }
   .comp-skill-row { grid-template-columns: 24px 100px 50px 1fr; }
-  .comp-item-header, .comp-item-row { grid-template-columns: 140px 50px 50px 150px 1fr; font-size: 0.78rem; }
+  .comp-item-header, .comp-item-row { grid-template-columns: 130px 50px 50px 120px 50px 1fr 90px; font-size: 0.78rem; }
 }
 
 /* ── Responsive: Phone (≤480px) ───────────────────────────────────────── */
@@ -2420,7 +2423,10 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   .comp-item-name { font-size: 0.88rem; }
   .comp-item-slot::before { content: 'Slot: '; color: var(--text-muted); }
   .comp-item-class::before { content: 'Class: '; color: var(--text-muted); }
-  .comp-item-desc { font-size: 0.78rem; }
+  .comp-item-proc { text-align: left; }
+  .comp-item-proc::before { content: 'Proc: '; color: var(--text-muted); font-style: normal; font-weight: 400; }
+  .comp-item-effects::before { content: 'Effects: '; color: var(--text-muted); }
+  .comp-item-duration::before { content: 'Duration: '; color: var(--text-muted); }
 
   /* Compendium: Synergy table → card layout */
   .comp-synergy-table { border: none; }
