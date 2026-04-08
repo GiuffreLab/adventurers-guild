@@ -2047,6 +2047,76 @@ export const EQUIPMENT = {
     desc: 'An orb that channels the power of creation.'
   },
 
+  // ── Ranger Quivers (Offhand) ─────────────────────────────────────────────
+  LEATHER_QUIVER: {
+    id: 'LEATHER_QUIVER',
+    name: 'Leather Quiver',
+    slot: 'offhand',
+    tier: 1,
+    rarity: 'common',
+    classReq: ['RANGER'],
+    statBonus: { atk: 2, spd: 1 },
+    sellPrice: 4,
+    buyPrice: 14,
+    shopMinRank: 'F',
+    desc: 'A simple leather quiver. Holds arrows and not much else.'
+  },
+  HUNTERS_QUIVER: {
+    id: 'HUNTERS_QUIVER',
+    name: "Hunter's Quiver",
+    slot: 'offhand',
+    tier: 2,
+    rarity: 'magic',
+    classReq: ['RANGER'],
+    statBonus: { atk: 6, spd: 3, crit: 2 },
+    sellPrice: 30,
+    buyPrice: 75,
+    shopMinRank: 'E',
+    desc: 'Reinforced with boarhide and enchanted to keep arrows dry in any weather.'
+  },
+  WINDRUNNER_QUIVER: {
+    id: 'WINDRUNNER_QUIVER',
+    name: 'Windrunner Quiver',
+    slot: 'offhand',
+    tier: 3,
+    rarity: 'rare',
+    classReq: ['RANGER'],
+    statBonus: { atk: 12, spd: 6, crit: 5, dodge: 2 },
+    sellPrice: 100,
+    buyPrice: 250,
+    shopMinRank: 'D',
+    grantedSkill: 'QUICK_DRAW',
+    desc: 'Wind-enchanted leather lets arrows practically leap to the bow on their own.'
+  },
+  SHADOWSTRIKE_QUIVER: {
+    id: 'SHADOWSTRIKE_QUIVER',
+    name: 'Shadowstrike Quiver',
+    slot: 'offhand',
+    tier: 4,
+    rarity: 'epic',
+    classReq: ['RANGER'],
+    statBonus: { atk: 18, spd: 10, crit: 8, dodge: 4 },
+    sellPrice: 250,
+    buyPrice: 620,
+    shopMinRank: 'C',
+    grantedSkill: 'SHADOW_SHOT',
+    desc: 'Woven from shadow silk. Arrows drawn from it strike before the enemy hears the bowstring.'
+  },
+  GALE_QUIVER: {
+    id: 'GALE_QUIVER',
+    name: 'Gale Quiver',
+    slot: 'offhand',
+    tier: 5,
+    rarity: 'legendary',
+    classReq: ['RANGER'],
+    statBonus: { atk: 30, spd: 16, crit: 18, dodge: 6 },
+    sellPrice: 880,
+    buyPrice: 2200,
+    shopMinRank: 'B',
+    grantedSkill: 'GALE_BARRAGE',
+    desc: 'Forged from a captured storm. Every arrow loosed carries the force of a gale behind it.'
+  },
+
   // ══════════════════════════════════════════════════════════════════════════
   // ██ CELESTIAL EQUIPMENT — God-tier class-locked sets (S-rank drop only) ██
   // ══════════════════════════════════════════════════════════════════════════

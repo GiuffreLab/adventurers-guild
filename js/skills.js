@@ -820,6 +820,28 @@ export const SKILLS = {
     icon: '🌿', effects: { atkBonus: 0.35, defBonus: 0.20, healBonus: 0.10 }, procChance: 0.45,
     narrative: 'calls upon nature\'s protection while firing!',
   },
+  // ── Ranger Quiver procs ──
+  QUICK_DRAW: {
+    id: 'QUICK_DRAW', name: 'Quick Draw', type: 'active', source: 'equipment',
+    itemId: 'WINDRUNNER_QUIVER', unlockLevel: null,
+    description: 'Wind-enchanted quiver feeds arrows faster, boosting attack speed.',
+    icon: '💨', effects: { spdBonus: 0.30, atkBonus: 0.15, critChance: 0.10 }, procChance: 0.40,
+    narrative: 'draws arrows with blinding speed from the Windrunner Quiver!',
+  },
+  SHADOW_SHOT: {
+    id: 'SHADOW_SHOT', name: 'Shadow Shot', type: 'active', source: 'equipment',
+    itemId: 'SHADOWSTRIKE_QUIVER', unlockLevel: null,
+    description: 'Fires a shadow-infused arrow that strikes before the enemy can react.',
+    icon: '🌑', effects: { atkBonus: 0.40, critChance: 0.25, spdBonus: 0.15 }, procChance: 0.45,
+    narrative: 'fires a shadow-infused arrow from the Shadowstrike Quiver!',
+  },
+  GALE_BARRAGE: {
+    id: 'GALE_BARRAGE', name: 'Gale Barrage', type: 'active', source: 'equipment',
+    itemId: 'GALE_QUIVER', unlockLevel: null,
+    description: 'Unleashes a storm-charged volley of arrows that tears through the enemy ranks.',
+    icon: '🌪', effects: { atkBonus: 0.55, spdBonus: 0.25, critChance: 0.20, defPierce: 0.15 }, procChance: 0.50,
+    narrative: 'unleashes a Gale Barrage — arrows scream through the air like a storm!',
+  },
   SIREN_SONG: {
     id: 'SIREN_SONG', name: 'Siren Song', type: 'active', source: 'equipment',
     itemId: 'SIREN_HARP', unlockLevel: null,
