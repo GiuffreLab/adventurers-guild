@@ -199,10 +199,37 @@ const T_MARK_FOR_DEATH = [
 ];
 // ── Ranger Volley templates ─────────────────────────────────────────
 const T_VOLLEY = [
-  (ranger, count, dmg) => `${ranger} launches a Volley — arrows rain on <span class="dmg-num">${count}</span> enemies for <span class="dmg-num dmg-ally">${dmg}</span> each!`,
-  (ranger, count, dmg) => `${ranger} darkens the sky! Volley hits <span class="dmg-num">${count}</span> foes for <span class="dmg-num dmg-ally">${dmg}</span> each!`,
-  (ranger, count, dmg) => `A rain of arrows from ${ranger} strikes <span class="dmg-num">${count}</span> enemies — <span class="dmg-num dmg-ally">${dmg}</span> damage each!`,
+  (name, count, dmg) => `${name} launches a Volley — arrows rain on <span class="dmg-num">${count}</span> enemies for <span class="dmg-num dmg-ally">${dmg}</span> each!`,
+  (name, count, dmg) => `${name} darkens the sky! Volley hits <span class="dmg-num">${count}</span> foes for <span class="dmg-num dmg-ally">${dmg}</span> each!`,
+  (name, count, dmg) => `A rain of arrows from ${name} strikes <span class="dmg-num">${count}</span> enemies — <span class="dmg-num dmg-ally">${dmg}</span> damage each!`,
 ];
+const T_MAGE_AOE = [
+  (name, skill, count, dmg) => `${name} unleashes ${skill} — arcane devastation hits <span class="dmg-num">${count}</span> enemies for <span class="dmg-num dmg-mag">${dmg}</span> each!`,
+  (name, skill, count, dmg) => `${name} casts ${skill}! Magical destruction rains on <span class="dmg-num">${count}</span> foes — <span class="dmg-num dmg-mag">${dmg}</span> each!`,
+  (name, skill, count, dmg) => `The air shatters as ${name} channels ${skill} — <span class="dmg-num">${count}</span> enemies take <span class="dmg-num dmg-mag">${dmg}</span> each!`,
+];
+const T_RANGER_AOE = [
+  (name, skill, count, dmg) => `${name} fires ${skill} — a storm of arrows hits <span class="dmg-num">${count}</span> enemies for <span class="dmg-num dmg-ally">${dmg}</span> each!`,
+  (name, skill, count, dmg) => `${name} unleashes ${skill}! <span class="dmg-num">${count}</span> foes are struck for <span class="dmg-num dmg-ally">${dmg}</span> each!`,
+  (name, skill, count, dmg) => `Arrows fly as ${name} activates ${skill} — <span class="dmg-num">${count}</span> targets take <span class="dmg-num dmg-ally">${dmg}</span> each!`,
+];
+
+// ── AoE skill registry ──
+// Skills that hit ALL living enemies instead of a single target.
+// dmgScale: fraction of normal attack damage applied per target (lower since it hits everyone)
+const AOE_SKILLS = {
+  // Ranger AoE
+  VOLLEY:               { dmgScale: 0.60, templates: T_VOLLEY,     icon: '🏹', type: 'skill',     triggerCamo: true },
+  ARROW_STORM:          { dmgScale: 0.75, templates: T_RANGER_AOE, icon: '🌧', type: 'skill',     triggerCamo: true },
+  STORM_VOLLEY:         { dmgScale: 0.65, templates: T_RANGER_AOE, icon: '⚡', type: 'equip',     triggerCamo: true },
+  CELESTIAL_VOLLEY:     { dmgScale: 0.70, templates: T_RANGER_AOE, icon: '🌠', type: 'equip',     triggerCamo: true },
+  CEL_STARFIRE_VOLLEY:  { dmgScale: 0.80, templates: T_RANGER_AOE, icon: '🎆', type: 'celestial', triggerCamo: true },
+  // Mage AoE
+  ARCANE_CATACLYSM:     { dmgScale: 0.55, templates: T_MAGE_AOE, icon: '💥', type: 'skill',     triggerCamo: false },
+  METEOR_STORM:         { dmgScale: 0.70, templates: T_MAGE_AOE, icon: '☄',  type: 'skill',     triggerCamo: false },
+  ARCANE_CATACLYSM_EQ:  { dmgScale: 0.60, templates: T_MAGE_AOE, icon: '💥', type: 'equip',     triggerCamo: false },
+  CEL_ARCANUM_CATACLYSM:{ dmgScale: 0.75, templates: T_MAGE_AOE, icon: '💥', type: 'celestial', triggerCamo: false },
+};
 // ── Monk Ki Barrier templates ───────────────────────────────────────
 const T_KI_BARRIER = [
   (monk, hp) => `${monk}'s Ki Barrier pulses — <span class="dmg-num dmg-heal">+${hp}</span> HP drained from the enemy!`,
@@ -308,12 +335,14 @@ function buildSimulation(aq, quest) {
   });
 
   // ── SPD-weighted random pick helper ──
-  // Higher SPD → more likely to be chosen to act
+  // Higher SPD → more likely to be chosen to act, but using sqrt curve
+  // so slow classes (Knights, Clerics) still participate meaningfully.
+  // Linear (old): Knight 43 vs Rogue 202 = 4.7:1 ratio → Knight gets ~5% of actions
+  // Sqrt (new):   Knight 41 vs Rogue 80  = 2.0:1 ratio → Knight gets ~8% of actions
   function sPickWeighted(arr, seed) {
     if (arr.length === 0) return null;
     if (arr.length === 1) return arr[0];
-    // Weight = spd + 5 (floor so even 0 SPD gets a chance)
-    const weights = arr.map(m => (m.spd || 10) + 5);
+    const weights = arr.map(m => Math.sqrt((m.spd || 10) + 5) * 6 + 8);
     const total = weights.reduce((s, w) => s + w, 0);
     let roll = sRand(seed) * total;
     for (let i = 0; i < arr.length; i++) {
@@ -676,29 +705,48 @@ function buildSimulation(aq, quest) {
         if (!skillCooldowns[attacker.id]) skillCooldowns[attacker.id] = {};
         skillCooldowns[attacker.id][skillId] = SKILL_COOLDOWN;
         if (skill) {
-          // ── Ranger Volley: AoE all enemies ──
-          if (skillId === 'VOLLEY' && rangersWithVolley.has(attacker.id)) {
-            // Volley: AoE at 60% of normal attack damage per target
-            const perTargetDmg = Math.max(2, Math.floor(calcPartyDmg(attacker, es + 23, dmgBonus) * 0.60));
+          // ── AoE skills: hit ALL living enemies ──
+          const aoeInfo = AOE_SKILLS[skillId];
+          if (aoeInfo) {
+            const perTargetDmg = Math.max(2, Math.floor(calcPartyDmg(attacker, es + 23, dmgBonus) * aoeInfo.dmgScale));
+            // Mage Spell Echo amplification on AoE
+            const echoDmg = spellEchoRounds[attacker.id] > 0 ? Math.floor(perTargetDmg * 1.50) : perTargetDmg;
             const currentLiving = enemies.filter(e => e.alive);
-            let volleyTotalDmg = 0;
+            let aoeTotalDmg = 0;
             currentLiving.forEach(e => {
-              const ampDmg = markedEnemies[e.id] ? Math.floor(perTargetDmg * 1.20) : perTargetDmg;
+              const ampDmg = markedEnemies[e.id] ? Math.floor(echoDmg * 1.20) : echoDmg;
               e.hp = Math.max(0, e.hp - ampDmg);
-              volleyTotalDmg += ampDmg;
+              aoeTotalDmg += ampDmg;
               if (e.hp <= 0) e.alive = false;
             });
-            if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += volleyTotalDmg;
-            text = sPick(T_VOLLEY, es)(attacker.name, currentLiving.length, perTargetDmg);
-            icon = '🏹'; type = 'skill';
-            // Ranger Camouflage — activate after Volley
-            if (rangersWithVolley.has(attacker.id)) {
+            if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += aoeTotalDmg;
+
+            // Use skill-specific templates (Volley uses 3-arg, others use 4-arg with skill name)
+            if (aoeInfo.templates === T_VOLLEY) {
+              text = sPick(T_VOLLEY, es)(attacker.name, currentLiving.length, echoDmg);
+            } else {
+              text = sPick(aoeInfo.templates, es)(attacker.name, skill.name, currentLiving.length, echoDmg);
+            }
+            icon = aoeInfo.icon; type = aoeInfo.type;
+
+            // Ranger Camouflage — activate after any Ranger AoE
+            if (aoeInfo.triggerCamo && rangersWithVolley.has(attacker.id)) {
               camoRounds[attacker.id] = 2;
               events.push({ text, type, icon, phase: 'battle' });
               snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
               text = sPick(T_CAMOUFLAGE, es + 96)(attacker.name);
               icon = '🍃'; type = 'buff';
             }
+
+            // Mage Spell Echo — activate after AoE skill cast
+            if (magesWithSpellEcho.has(attacker.id) && spellEchoRounds[attacker.id] === 0) {
+              spellEchoRounds[attacker.id] = 2;
+              events.push({ text, type, icon, phase: 'battle' });
+              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+              text = sPick(T_SPELL_ECHO, es + 95)(attacker.name);
+              icon = '🌀'; type = 'buff';
+            }
+
             // Check for kills
             const killed = currentLiving.filter(e => !e.alive);
             if (killed.length > 0) {
