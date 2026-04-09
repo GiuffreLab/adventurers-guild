@@ -2020,7 +2020,6 @@ function buildSimulation(aq, quest) {
           text = `${livingHeroes[0].name}'s heroic spirit revives ${revived.name} at ${revived.hp} HP!`;
           icon = '✨'; type = 'heal';
         }
-        }
       }
 
       // Hero Rally Cry — triggers when any ally drops below 30% HP
