@@ -21,7 +21,9 @@ const MIME = {
 };
 
 const server = http.createServer((req, res) => {
-  let filePath = path.join(ROOT, req.url === '/' ? 'index.html' : req.url);
+  // Strip query string (?v=11 etc.) before resolving the file path
+  const urlPath = req.url.split('?')[0];
+  let filePath = path.join(ROOT, urlPath === '/' ? 'index.html' : urlPath);
   const ext = path.extname(filePath);
   const mime = MIME[ext] || 'application/octet-stream';
 

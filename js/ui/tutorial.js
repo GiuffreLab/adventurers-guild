@@ -37,27 +37,47 @@ const STEPS = [
     target: '#btn-recruit',
     tab: 'party',
     arrow: 'bottom',
-    waitFor: () => document.querySelector('.recruit-grid') !== null,
+    waitFor: () => document.querySelector('.recruit-list') !== null,
     doneText: 'The class list is open — pick one!',
   },
   {
     id: 'pick-class',
     title: 'Choose a Class',
     text: 'Pick any class that interests you. Each one plays differently — check their stats and descriptions. Click a class row to recruit them.',
-    target: '.recruit-grid',
+    target: '.recruit-list',
     tab: 'party',
     arrow: 'top',
     waitFor: () => Game.state.party.length >= 1,
-    doneText: 'Welcome aboard! Your first recruit is in.',
+    doneText: 'Nice pick! Now add them to your active party.',
+  },
+  {
+    id: 'add-to-party',
+    title: 'Add to Active Party',
+    text: 'Click <strong>Add to Party</strong> to put your new recruit in your active quest lineup. Members on the roster aren\'t sent on quests until they\'re in the active party.',
+    target: '#btn-toggle-active',
+    tab: 'party',
+    arrow: 'bottom',
+    waitFor: () => Game.state.activeSlots.length >= 1,
+    doneText: 'They\'re ready for action!',
+  },
+  {
+    id: 'back-to-roster',
+    title: 'Back to Roster',
+    text: 'Click <strong>← Roster</strong> to return to your party list.',
+    target: '#btn-back-roster',
+    tab: 'party',
+    arrow: 'bottom',
+    waitFor: () => document.querySelector('.party-roster') !== null || document.querySelector('.roster-grid') !== null || document.querySelector('#btn-recruit') !== null,
+    doneText: 'You\'re back on the roster screen.',
   },
   {
     id: 'recruit-more',
     title: 'Build Your Party',
-    text: 'Great hire! You can send a party of up to <strong>4 members</strong> on quests (your Hero + 3 recruits). Recruit a couple more, or head to the Quest Board whenever you\'re ready.',
-    target: null,
+    text: 'Your Hero + recruits form your quest party (up to <strong>4 members</strong>). You can spend gold on <strong>+ Recruit</strong> to add more members — a bigger party means better odds in combat. When your party is ready, click <strong>Continue</strong> below to head to the Quest Board.',
+    target: '#btn-recruit',
     tab: 'party',
-    arrow: null,
-    // No condition — "Next" always enabled
+    arrow: 'bottom',
+    // No condition — "Continue" always enabled
   },
   {
     id: 'go-to-quests',
@@ -148,12 +168,8 @@ export function renderTutorial() {
     spotlight.style.height = (rect.height + pad * 2) + 'px';
     spotlight.style.display = 'block';
 
-    // Cut a hole in the backdrop so the target area is visible & clickable
-    _setBackdropHole(rect, pad);
   } else {
     _overlayEl.querySelector('.tutorial-spotlight').style.display = 'none';
-    // Full backdrop, no hole
-    _overlayEl.querySelector('.tutorial-backdrop').style.clipPath = '';
   }
 
   // Position tooltip
@@ -222,7 +238,6 @@ function _ensureOverlay() {
   _overlayEl = document.createElement('div');
   _overlayEl.className = 'tutorial-overlay';
   _overlayEl.innerHTML = `
-    <div class="tutorial-backdrop"></div>
     <div class="tutorial-spotlight"></div>
     <div class="tutorial-tooltip"></div>
   `;
@@ -235,25 +250,6 @@ function _removeOverlay() {
     _overlayEl = null;
   }
   _stopChecking();
-}
-
-// Cut a rectangular hole in the backdrop using clip-path so the target
-// area is fully visible and clickable (no z-index elevation needed).
-function _setBackdropHole(rect, pad) {
-  const backdrop = _overlayEl?.querySelector('.tutorial-backdrop');
-  if (!backdrop) return;
-  const t = Math.max(0, rect.top - pad);
-  const l = Math.max(0, rect.left - pad);
-  const r = Math.min(window.innerWidth, rect.right + pad);
-  const b = Math.min(window.innerHeight, rect.bottom + pad);
-  // Polygon: full screen with a rectangular hole punched out
-  backdrop.style.clipPath = `polygon(
-    0% 0%, 0% 100%,
-    ${l}px 100%, ${l}px ${t}px,
-    ${r}px ${t}px, ${r}px ${b}px,
-    ${l}px ${b}px, ${l}px 100%,
-    100% 100%, 100% 0%
-  )`;
 }
 
 function _advanceStep() {
@@ -304,7 +300,6 @@ function _startChecking() {
           spotlight.style.width = (rect.width + pad * 2) + 'px';
           spotlight.style.height = (rect.height + pad * 2) + 'px';
         }
-        _setBackdropHole(rect, pad);
       }
     }
   }, 300);

@@ -92,8 +92,8 @@ h3 { font-size: 0.875rem; font-weight: 600; color: var(--text-dim); text-transfo
 }
 .btn-danger:hover:not(:disabled) { background: #5a1a1a; }
 
-.btn-ghost { background: transparent; border-color: transparent; }
-.btn-ghost:hover { border-color: var(--border); background: var(--bg-hover); color: var(--text); }
+.btn-ghost { background: transparent; border-color: var(--border); color: var(--text-dim); }
+.btn-ghost:hover { border-color: var(--cyan); background: var(--bg-hover); color: var(--text); }
 
 .btn-sm { padding: 4px 10px; font-size: 0.8rem; }
 .btn-lg { padding: 10px 24px; font-size: 1rem; }
@@ -281,19 +281,12 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   z-index: 9999;
   pointer-events: none;
 }
-.tutorial-backdrop {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.55);
-  pointer-events: auto;
-  /* clip-path is set dynamically to cut a hole around the spotlight target */
-}
 .tutorial-spotlight {
   position: fixed;
   border-radius: var(--radius);
-  box-shadow: 0 0 12px 4px rgba(0, 229, 200, 0.3);
-  border: 2px solid rgba(0, 229, 200, 0.4);
-  background: transparent;
+  box-shadow: 0 0 16px 6px rgba(0, 229, 200, 0.35), inset 0 0 8px rgba(0, 229, 200, 0.1);
+  border: 2px solid rgba(0, 229, 200, 0.5);
+  background: rgba(0, 229, 200, 0.04);
   z-index: 10000;
   pointer-events: none;
   display: none;
@@ -301,10 +294,9 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   animation: tutorialPulse 2s ease-in-out infinite;
 }
 @keyframes tutorialPulse {
-  0%, 100% { box-shadow: 0 0 12px 4px rgba(0, 229, 200, 0.3); }
-  50% { box-shadow: 0 0 20px 8px rgba(0, 229, 200, 0.5); }
+  0%, 100% { box-shadow: 0 0 16px 6px rgba(0, 229, 200, 0.35), inset 0 0 8px rgba(0, 229, 200, 0.1); }
+  50% { box-shadow: 0 0 24px 10px rgba(0, 229, 200, 0.55), inset 0 0 12px rgba(0, 229, 200, 0.15); }
 }
-/* No longer needed — clip-path approach keeps target in normal DOM flow */
 .tutorial-tooltip {
   position: fixed;
   z-index: 10001;
@@ -3235,7 +3227,6 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 @keyframes specPulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
-}
 }
 
 /* ── Rarity Visual System ─────────────────────────────────────────────── */
