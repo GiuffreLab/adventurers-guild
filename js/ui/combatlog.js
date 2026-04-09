@@ -1011,7 +1011,7 @@ function buildSimulation(aq, quest) {
           mTarget.hp = Math.max(0, mTarget.hp - mDmg);
           if (combatStats[minion.ownerId]) combatStats[minion.ownerId].dmgDealt += mDmg;
           const mText = sPick(T_MINION_ATTACK, seed + i * 5556 + mi)(minion.name, mTarget.name, mDmg);
-          events.push({ text: mText, type: 'magic', icon: '💀', phase: 'battle' });
+          events.push({ text: mText, type: 'magic', icon: '🧟', phase: 'battle' });
           snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
           if (mTarget.hp <= 0) {
             mTarget.alive = false;
@@ -1716,7 +1716,7 @@ function buildSimulation(aq, quest) {
           events.push({ text, type, icon, phase: 'battle' });
           snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
           text = sPick(T_MINION_DEATH, es + 100)(target.name);
-          icon = '💀'; type = 'defeat';
+          icon = '🧟'; type = 'defeat';
           necroMinions.splice(necroMinions.indexOf(target), 1);
         }
         events.push({ text, type, icon, phase: 'battle' });
@@ -2434,7 +2434,7 @@ function makeSnapshot(party, enemies, buffs) {
       // Necromancer active minion indicator
       if (b.necroMinions && b.necroMinions.length > 0 && b.necrosWithRaiseDead && b.necrosWithRaiseDead.has(p.id)) {
         const m = b.necroMinions[0];
-        pBuffs.push({ id: 'minion', icon: '👻', label: 'Thrall', desc: `${m.name} (${m.hp}/${m.maxHp})` });
+        pBuffs.push({ id: 'minion', icon: '🧟', label: 'Thrall', desc: `${m.name} (${m.hp}/${m.maxHp})` });
       }
       // Necromancer Forgo Death available
       if (b.necrosWithForgoDeath && b.necrosWithForgoDeath.has(p.id) && b.necroMinions && b.necroMinions.length > 0) {

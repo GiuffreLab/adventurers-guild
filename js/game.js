@@ -382,8 +382,8 @@ const Game = (() => {
 
     // ── NECROMANCER (NEC) ──
     NEC_TAP_SHARE:      { id: 'NEC_TAP_SHARE',         tier: 1, cost: 1, reqLevel: 1, classId: 'NECROMANCER',label: 'Siphon Aura',        icon: '🩸', desc: 'Life Tap also heals 2 nearby allies for 15% of damage dealt.' },
-    NEC_SHIELD_TAP:     { id: 'NEC_SHIELD_TAP',        tier: 2, cost: 2, reqLevel: 3, classId: 'NECROMANCER',label: 'Vampiric Shroud',    icon: '💀', desc: 'Shroud of Decay\'s reflected damage also triggers Life Tap healing.' },
-    NEC_SUMMON_SHIELD:  { id: 'NEC_SUMMON_SHIELD',     tier: 3, cost: 3, reqLevel: 6, classId: 'NECROMANCER',label: 'Undead Vanguard',    icon: '💀', desc: 'Army of the Damned summons each absorb one hit before dying.' },
+    NEC_SHIELD_TAP:     { id: 'NEC_SHIELD_TAP',        tier: 2, cost: 2, reqLevel: 3, classId: 'NECROMANCER',label: 'Vampiric Shroud',    icon: '🦇', desc: 'Shroud of Decay\'s reflected damage also triggers Life Tap healing.' },
+    NEC_SUMMON_SHIELD:  { id: 'NEC_SUMMON_SHIELD',     tier: 3, cost: 3, reqLevel: 6, classId: 'NECROMANCER',label: 'Undead Vanguard',    icon: '🪦', desc: 'Army of the Damned summons each absorb one hit before dying.' },
 
     // ── PARTY-WIDE ──
     PARTY_CEL_RESONANCE: { id: 'PARTY_CEL_RESONANCE',  tier: 2, cost: 2, reqLevel: 3, classId: null, label: 'Celestial Resonance', icon: '✦', desc: 'Celestial equipment grants +10% to all stats.' },

@@ -120,7 +120,7 @@ function renderStats() {
 
 // ── Classes & Skills ──────────────────────────────────────────────────────
 function renderClasses() {
-  const classOrder = ['HERO', 'KNIGHT', 'MAGE', 'ROGUE', 'CLERIC', 'RANGER', 'BARD', 'MONK', 'NECROMANCER'];
+  const classOrder = ['HERO', 'BARD', 'CLERIC', 'KNIGHT', 'MAGE', 'MONK', 'NECROMANCER', 'RANGER', 'ROGUE'];
   const roleMap = {
     HERO: 'Balanced DPS / Support',
     KNIGHT: 'Tank / Protector',
@@ -133,7 +133,7 @@ function renderClasses() {
     NECROMANCER: 'Summoner / Drain Caster',
   };
 
-  const cards = classOrder.map(cid => {
+  const buildCard = (cid) => {
     const cls = CLASSES[cid];
     if (!cls) return '';
     const bs = cls.baseStats;
@@ -194,7 +194,10 @@ function renderClasses() {
         ${masteries.length > 0 ? `<div class="comp-skill-section"><div class="comp-skill-header">Masteries</div>${masteryList}</div>` : ''}
       </div>
     `;
-  }).join('');
+  };
+
+  const heroCard = buildCard('HERO');
+  const otherCards = classOrder.slice(1).map(buildCard).join('');
 
   // Hero Specialization section
   const specCards = Object.entries(HERO_SPECS).map(([trackId, track]) => {
@@ -236,12 +239,14 @@ function renderClasses() {
     <div class="comp-section">
       <h2 class="comp-title">Classes & Skills</h2>
       <p class="comp-text">All 9 classes are available from the start. Base stats show Level 1 values, with per-level growth in parentheses. Active skills show their proc chance; passives are always active.</p>
-      ${cards}
+      ${heroCard}
 
       <h2 class="comp-title" style="margin-top:24px">Hero Specializations</h2>
       <p class="comp-text">At Level 10, the Hero chooses a specialization track that adds 3 new skills on top of existing abilities (at Lv.10, 14, and 18). Each track defines a distinct combat role. You can respec to a different track for gold — the cost scales with guild rank.</p>
       <p class="comp-text" style="opacity:0.7">Respec costs: ${respecCosts}</p>
       ${specCards}
+
+      ${otherCards}
     </div>
   `;
 }
@@ -562,10 +567,10 @@ function renderLegacyGuide() {
     groups[key].push(t);
   }
 
-  const classOrder = Object.keys(CLASSES);
+  const talentClassOrder = ['HERO', ...Object.keys(CLASSES).filter(c => c !== 'HERO').sort()];
   let talentRows = '';
 
-  for (const cid of classOrder) {
+  for (const cid of talentClassOrder) {
     if (!groups[cid]) continue;
     const cls = CLASSES[cid];
     const sorted = groups[cid].sort((a, b) => a.tier - b.tier);
