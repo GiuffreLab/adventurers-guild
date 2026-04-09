@@ -611,7 +611,7 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .shop-item-bonus { font-size: 0.78rem; }
 .shop-item-slot { font-size: 0.7rem; color: var(--cyan); text-transform: uppercase; }
 .shop-item-meta { display: flex; gap: 10px; align-items: center; }
-.shop-item-class-req { font-size: 0.7rem; color: var(--text-muted); }
+.shop-item-class-req { font-size: 0.7rem; color: var(--text-dim); }
 .shop-item-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .shop-price { font-weight: 700; color: var(--gold); font-size: 0.9rem; }
 .shop-price.cant-afford { color: var(--red); }
@@ -1074,7 +1074,7 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   display: flex; align-items: center; gap: 8px;
 }
 .char-bar-label {
-  font-size: 0.7rem; font-weight: 600; color: var(--text-muted);
+  font-size: 0.7rem; font-weight: 600; color: var(--text-dim);
   width: 28px; text-align: right;
 }
 .char-bar-value {
@@ -1124,7 +1124,7 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 
 .equip-slot-type {
   display: block; font-size: 0.65rem; text-transform: uppercase;
-  letter-spacing: 0.06em; color: var(--text-muted);
+  letter-spacing: 0.06em; color: var(--text-dim);
 }
 
 .equip-slot-item-name {
@@ -1132,7 +1132,7 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 }
 
 .equip-slot-empty {
-  font-size: 0.8rem; color: var(--text-muted); font-style: italic;
+  font-size: 0.8rem; color: var(--text-dim); font-style: italic;
 }
 
 .equip-slot-bonus {
@@ -1145,7 +1145,7 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .equip-unequip-btn:hover { border-color: var(--red); background: var(--red-dim); }
 
 .equip-slot-class-req {
-  font-size: 0.7rem; color: var(--text-muted); padding: 0 12px 4px 38px;
+  font-size: 0.7rem; color: var(--text-dim); padding: 0 12px 4px 38px;
 }
 
 .equip-skill-grant {
@@ -1182,10 +1182,10 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 }
 
 .equip-picker-item-name { font-size: 0.85rem; font-weight: 600; color: var(--text); }
-.equip-picker-qty { color: var(--text-muted); font-weight: 400; }
+.equip-picker-qty { color: var(--text-dim); font-weight: 400; }
 .equip-picker-item-bonus { font-size: 0.75rem; }
 .equip-picker-item-skill { font-size: 0.72rem; color: var(--purple); margin-top: 3px; }
-.equip-picker-item-desc { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+.equip-picker-item-desc { font-size: 0.72rem; color: var(--text-dim); margin-top: 2px; }
 
 .equip-picker-item.class-locked {
   opacity: 0.45; cursor: not-allowed; pointer-events: none;
@@ -1226,11 +1226,11 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 }
 
 .stat-row-base {
-  font-size: 0.8rem; color: var(--text-muted); width: 40px; text-align: right;
+  font-size: 0.8rem; color: var(--text-dim); width: 40px; text-align: right;
 }
 
 .stat-row-arrow {
-  font-size: 0.7rem; color: var(--text-muted);
+  font-size: 0.7rem; color: var(--text-dim);
 }
 
 .stat-row-final {
@@ -1255,11 +1255,11 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 }
 
 .skills-category-sub {
-  color: var(--text-muted); font-weight: 400; text-transform: none; letter-spacing: 0;
+  color: var(--text-dim); font-weight: 400; text-transform: none; letter-spacing: 0;
 }
 
 .skill-empty-note {
-  font-size: 0.78rem; color: var(--text-muted); font-style: italic; padding: 4px 0;
+  font-size: 0.78rem; color: var(--text-dim); font-style: italic; padding: 4px 0;
 }
 
 .skill-row {
@@ -1292,7 +1292,7 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 }
 
 .skill-row-lock {
-  font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;
+  font-size: 0.72rem; color: var(--text-dim); margin-top: 2px;
 }
 
 .skill-row-desc {
@@ -1333,7 +1333,7 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .spec-card-icon { font-size: 1.1rem; }
 .spec-card-name { color: var(--text-primary); }
 .spec-card-desc {
-  font-size: 0.78rem; color: var(--text-muted); margin-bottom: 6px; line-height: 1.3;
+  font-size: 0.78rem; color: var(--text-dim); margin-bottom: 6px; line-height: 1.3;
 }
 .spec-card-skills {
   display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;
@@ -2531,7 +2531,7 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 }
 .comp-item-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
 .comp-item-slot { color: var(--text-muted); text-transform: capitalize; }
-.comp-item-class { color: var(--text-muted); font-size: 0.78rem; }
+.comp-item-class { color: var(--text-dim); font-size: 0.78rem; }
 .comp-item-skill { color: var(--text); overflow: hidden; text-overflow: ellipsis; }
 .comp-item-proc { text-align: center; }
 .comp-proc-chance { color: var(--cyan); font-weight: 600; }
