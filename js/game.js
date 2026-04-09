@@ -984,9 +984,18 @@ const Game = (() => {
     return { ok:true };
   }
 
+  function toggleKeepItem(itemId) {
+    const entry = state.inventory.find(e => e.itemId === itemId);
+    if (!entry) return { ok:false, reason:'Item not found' };
+    entry.kept = !entry.kept;
+    return { ok:true, kept: entry.kept };
+  }
+
   function sellItem(itemId, qty = 1) {
     const item = getItem(itemId);
     if (!item) return { ok:false, reason:'Unknown item' };
+    const entry = state.inventory.find(e => e.itemId === itemId);
+    if (entry && entry.kept) return { ok:false, reason:'Item is kept — unlock it first' };
     if (!removeFromInventory(itemId, qty)) return { ok:false, reason:'Not enough items' };
     const earned = Math.floor((item.sellPrice || Math.floor(item.buyPrice * 0.4)) * qty);
     state.gold += earned;
@@ -996,10 +1005,10 @@ const Game = (() => {
   function sellAllItems() {
     let totalEarned = 0;
     let totalSold = 0;
-    // Iterate over a copy since sellItem mutates the array
+    // Iterate over a copy since sellItem mutates the array; skip kept items
     const entries = [...state.inventory].filter(e => {
       const item = getItem(e.itemId);
-      return item && (item.sellPrice || item.buyPrice) && e.quantity > 0;
+      return item && (item.sellPrice || item.buyPrice) && e.quantity > 0 && !e.kept;
     });
     for (const e of entries) {
       const item = getItem(e.itemId);
@@ -1823,7 +1832,7 @@ const Game = (() => {
     logEvent, addRankPoints, addExp, addToInventory, removeFromInventory,
     healTick, recruitMember, dismissMember, setActive, equipItem, unequipItem,
     setHeroSpec, respecHeroSpec, getRespecCost,
-    refreshShop, buyItem, sellItem, sellAllItems, upgradeShop, getShopUpgradeCost, getShopRarityWeights, rushRestock,
+    refreshShop, buyItem, sellItem, sellAllItems, toggleKeepItem, upgradeShop, getShopUpgradeCost, getShopRarityWeights, rushRestock,
     expandParty, getPartyExpansionCost, getMaxPartySize,
 
     // Engine

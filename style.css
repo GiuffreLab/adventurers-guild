@@ -486,6 +486,24 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .shop-item-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .shop-price { font-weight: 700; color: var(--gold); font-size: 0.9rem; }
 .shop-price.cant-afford { color: var(--red); }
+
+/* Keep / lock toggle */
+.shop-item-kept {
+  border-color: var(--gold) !important;
+  background: linear-gradient(135deg, rgba(218,165,32,0.06) 0%, transparent 60%);
+}
+.kept-icon { font-size: 0.82rem; }
+.kept-note { color: var(--gold); font-size: 0.78rem; font-weight: 400; }
+.btn-keep-toggle {
+  font-size: 0.72rem; padding: 3px 8px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--bg-card-alt);
+  color: var(--text-muted); cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.btn-keep-toggle:hover { border-color: var(--gold); color: var(--gold); }
+.btn-keep-toggle.btn-kept {
+  border-color: var(--gold); color: var(--gold); background: rgba(218,165,32,0.12);
+  font-weight: 600;
+}
 .shop-stock { font-size: 0.72rem; color: var(--text-muted); }
 .shop-refresh { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 12px; }
 .shop-refresh-bar {

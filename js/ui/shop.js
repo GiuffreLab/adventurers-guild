@@ -99,15 +99,18 @@ export function renderShop() {
       const item = getItem(e.itemId);
       return item && (item.sellPrice || item.buyPrice) && e.quantity > 0;
     });
-    const totalSellValue = sellable.reduce((sum, e) => {
+    const unkept = sellable.filter(e => !e.kept);
+    const keptCount = sellable.length - unkept.length;
+    const totalSellValue = unkept.reduce((sum, e) => {
       const item = getItem(e.itemId);
       if (!item) return sum;
       return sum + Math.floor((item.sellPrice || Math.floor(item.buyPrice * 0.4)) * e.quantity);
     }, 0);
-    const sellAllBar = sellable.length > 1
+    const keptNote = keptCount > 0 ? ` <span class="kept-note">(${keptCount} kept)</span>` : '';
+    const sellAllBar = unkept.length > 1
       ? `<div class="shop-sell-all-bar">
-          <span>${sellable.length} item type${sellable.length !== 1 ? 's' : ''} in inventory — total value: <strong>${totalSellValue.toLocaleString()}g</strong></span>
-          <button class="btn btn-sm btn-sell-all-items" id="btn-sell-all-items">Sell All Items</button>
+          <span>${unkept.length} sellable type${unkept.length !== 1 ? 's' : ''} — total value: <strong>${totalSellValue.toLocaleString()}g</strong>${keptNote}</span>
+          <button class="btn btn-sm btn-sell-all-items" id="btn-sell-all-items">Sell All Unlocked</button>
         </div>`
       : '';
     content = sellable.length === 0
@@ -118,18 +121,22 @@ export function renderShop() {
           const sellPrice = item.sellPrice || Math.floor(item.buyPrice * 0.4);
           const bonusStr = item.statBonus ? Object.entries(item.statBonus).map(([k,v]) => `<span class="${v < 0 ? 'stat-penalty' : 'stat-bonus'}">${v >= 0 ? '+' : ''}${v} ${k.toUpperCase()}</span>`).join(' · ') : '';
           const rarity = getItemRarity(item);
+          const kept = !!e.kept;
           return `
-            <div class="shop-item">
+            <div class="shop-item${kept ? ' shop-item-kept' : ''}">
               <div class="shop-item-info">
-                <div class="shop-item-name" style="color:${rarity.color}">${item.name}${rarity.id !== 'common' ? ` <span class="item-rarity-badge" style="color:${rarity.color};border-color:${rarity.color}30">${rarity.label}</span>` : ''} ${e.quantity > 1 ? `<span style="color:var(--text-muted)">×${e.quantity}</span>` : ''}</div>
+                <div class="shop-item-name" style="color:${rarity.color}">
+                  ${kept ? '<span class="kept-icon" title="Kept — won\'t be sold">🔒</span> ' : ''}${item.name}${rarity.id !== 'common' ? ` <span class="item-rarity-badge" style="color:${rarity.color};border-color:${rarity.color}30">${rarity.label}</span>` : ''} ${e.quantity > 1 ? `<span style="color:var(--text-muted)">×${e.quantity}</span>` : ''}
+                </div>
                 <div class="shop-item-meta">${item.slot ? `<span class="shop-item-slot">${item.slot}</span>` : ''}<span class="shop-item-class-req">${item.classReq ? item.classReq.map(cid => CLASSES[cid]?.label || cid).join(', ') : 'Any class'}</span></div>
                 ${bonusStr ? `<div class="shop-item-bonus">${bonusStr}</div>` : ''}
                 <div class="shop-item-desc">${item.desc}</div>
               </div>
               <div class="shop-item-right">
                 <span class="shop-price">${sellPrice}g each</span>
-                <button class="btn btn-sm btn-sell" data-item-id="${item.id}">Sell 1</button>
-                ${e.quantity > 1 ? `<button class="btn btn-sm btn-sell-all" data-item-id="${item.id}" data-qty="${e.quantity}">Sell All</button>` : ''}
+                <button class="btn btn-sm btn-keep-toggle${kept ? ' btn-kept' : ''}" data-item-id="${item.id}" title="${kept ? 'Unlock for selling' : 'Keep — protect from selling'}">${kept ? '🔒 Kept' : '🔓 Keep'}</button>
+                ${kept ? '' : `<button class="btn btn-sm btn-sell" data-item-id="${item.id}">Sell 1</button>`}
+                ${!kept && e.quantity > 1 ? `<button class="btn btn-sm btn-sell-all" data-item-id="${item.id}" data-qty="${e.quantity}">Sell All</button>` : ''}
               </div>
             </div>
           `;
@@ -213,6 +220,17 @@ export function renderShop() {
       updateHeader();
     });
   }
+
+  el.querySelectorAll('.btn-keep-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const result = Game.toggleKeepItem(btn.dataset.itemId);
+      if (result.ok) {
+        showToast(result.kept ? 'Item kept — protected from selling' : 'Item unlocked', result.kept ? 'success' : 'info');
+        Game.save();
+      }
+      renderShop();
+    });
+  });
 
   el.querySelectorAll('.btn-sell').forEach(btn => {
     btn.addEventListener('click', () => {
