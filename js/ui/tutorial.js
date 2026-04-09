@@ -18,7 +18,7 @@ const STEPS = [
     target: null,
     tab: 'hall',
     arrow: null,
-    autoAdvance: false, // advance on click
+    // No condition — "Next" always enabled
   },
   {
     id: 'go-to-party',
@@ -27,8 +27,8 @@ const STEPS = [
     target: '.tab-btn[data-tab="party"]',
     tab: null,
     arrow: 'bottom',
-    autoAdvance: true,
-    condition: () => document.querySelector('.tab-btn[data-tab="party"]')?.classList.contains('active'),
+    waitFor: () => document.querySelector('.tab-btn[data-tab="party"]')?.classList.contains('active'),
+    doneText: 'Great! You\'re on the Party page.',
   },
   {
     id: 'click-recruit',
@@ -37,8 +37,8 @@ const STEPS = [
     target: '#btn-recruit',
     tab: 'party',
     arrow: 'bottom',
-    autoAdvance: true,
-    condition: () => document.querySelector('.recruit-grid') !== null,
+    waitFor: () => document.querySelector('.recruit-grid') !== null,
+    doneText: 'The class list is open — pick one!',
   },
   {
     id: 'pick-class',
@@ -47,8 +47,8 @@ const STEPS = [
     target: '.recruit-grid',
     tab: 'party',
     arrow: 'top',
-    autoAdvance: true,
-    condition: () => Game.state.party.length >= 1,
+    waitFor: () => Game.state.party.length >= 1,
+    doneText: 'Welcome aboard! Your first recruit is in.',
   },
   {
     id: 'recruit-more',
@@ -57,7 +57,7 @@ const STEPS = [
     target: null,
     tab: 'party',
     arrow: null,
-    autoAdvance: false, // advance on click
+    // No condition — "Next" always enabled
   },
   {
     id: 'go-to-quests',
@@ -66,8 +66,8 @@ const STEPS = [
     target: '.tab-btn[data-tab="quests"]',
     tab: null,
     arrow: 'bottom',
-    autoAdvance: true,
-    condition: () => document.querySelector('.tab-btn[data-tab="quests"]')?.classList.contains('active'),
+    waitFor: () => document.querySelector('.tab-btn[data-tab="quests"]')?.classList.contains('active'),
+    doneText: 'You\'re on the Quest Board!',
   },
   {
     id: 'pick-quest',
@@ -76,8 +76,8 @@ const STEPS = [
     target: '.quest-list',
     tab: 'quests',
     arrow: 'top',
-    autoAdvance: true,
-    condition: () => !!Game.state.guild.activeQuest,
+    waitFor: () => !!Game.state.guild.activeQuest,
+    doneText: 'Your party is on their way!',
   },
   {
     id: 'watch-combat',
@@ -86,7 +86,7 @@ const STEPS = [
     target: null,
     tab: 'quests',
     arrow: null,
-    autoAdvance: false, // advance on click
+    // No condition — "Next" always enabled
   },
   {
     id: 'done',
@@ -95,7 +95,7 @@ const STEPS = [
     target: null,
     tab: null,
     arrow: null,
-    autoAdvance: false, // final step, dismiss on click
+    // No condition — "Finish" always enabled
   },
 ];
 
@@ -103,6 +103,7 @@ const STEPS = [
 
 let _overlayEl = null;
 let _checkInterval = null;
+let _conditionMet = false; // tracks whether current step's waitFor has been satisfied
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -161,7 +162,10 @@ export function renderTutorial() {
   const stepNum = Game.state.tutorial.step + 1;
   const totalSteps = STEPS.length;
   const isLast = Game.state.tutorial.step === STEPS.length - 1;
-  const nextLabel = isLast ? 'Finish' : step.autoAdvance ? 'Got it' : 'Next';
+  const hasWait = !!step.waitFor;
+  const condDone = !hasWait || _conditionMet;
+  const nextLabel = isLast ? 'Finish' : condDone ? 'Continue →' : 'Next';
+  const bodyText = condDone && step.doneText ? `${step.text}<div class="tutorial-done-msg">✓ ${step.doneText}</div>` : step.text;
 
   tooltip.innerHTML = `
     <div class="tutorial-header">
@@ -169,9 +173,9 @@ export function renderTutorial() {
       <button class="tutorial-skip" id="tutorial-skip">Skip Tutorial</button>
     </div>
     <div class="tutorial-title">${step.title}</div>
-    <div class="tutorial-body">${step.text}</div>
+    <div class="tutorial-body">${bodyText}</div>
     <div class="tutorial-footer">
-      <button class="btn btn-sm tutorial-next" id="tutorial-next">${nextLabel}</button>
+      <button class="btn btn-sm tutorial-next${hasWait && !condDone ? ' tutorial-next-waiting' : ''}" id="tutorial-next" ${hasWait && !condDone ? 'disabled' : ''}>${hasWait && !condDone ? 'Waiting...' : nextLabel}</button>
     </div>
   `;
 
@@ -243,6 +247,7 @@ function _removeOverlay() {
 function _advanceStep() {
   if (!Game.state.tutorial) return;
   Game.state.tutorial.step++;
+  _conditionMet = false; // reset for next step
   if (Game.state.tutorial.step >= STEPS.length) {
     _dismissTutorial();
     return;
@@ -259,7 +264,8 @@ function _dismissTutorial() {
   _removeOverlay();
 }
 
-// Periodically check if the current step's condition is met (for action-based steps)
+// Periodically check if the current step's waitFor condition is met.
+// When it is, enable the "Continue" button — player still has to click it.
 function _startChecking() {
   _stopChecking();
   _checkInterval = setInterval(() => {
@@ -267,9 +273,10 @@ function _startChecking() {
     const step = STEPS[Game.state.tutorial.step];
     if (!step) return;
 
-    // For steps that auto-advance on condition (not just "click next")
-    if (step.autoAdvance && step.condition && step.condition()) {
-      _advanceStep();
+    // Check waitFor condition — when first satisfied, re-render to enable button
+    if (step.waitFor && !_conditionMet && step.waitFor()) {
+      _conditionMet = true;
+      renderTutorial(); // re-render with enabled button + done message
     }
 
     // Re-position spotlight if target moved (e.g., after render)

@@ -386,6 +386,25 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   transition: opacity 0.15s;
 }
 .tutorial-next:hover { opacity: 0.85; }
+.tutorial-next-waiting {
+  background: var(--bg-card-alt) !important;
+  color: var(--text-muted) !important;
+  border: 1px solid var(--border);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.tutorial-next-waiting:hover { opacity: 0.6; }
+.tutorial-done-msg {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: rgba(46,204,113,0.1);
+  border: 1px solid rgba(46,204,113,0.25);
+  border-radius: var(--radius-sm);
+  color: var(--green);
+  font-size: 0.8rem;
+  font-weight: 600;
+  animation: tutorialFadeIn 0.3s ease;
+}
 
 /* ── Save Management ──────────────────────────────────────────────────── */
 .save-mgmt-card { }

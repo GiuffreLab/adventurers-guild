@@ -97,6 +97,8 @@ export function renderShop() {
           `;
         }).join('');
   } else {
+    const gemEntries = s.inventory.filter(e => e.itemId.startsWith('GEM_'));
+    if (gemEntries.length > 0) console.log('[GEM DEBUG] Sell tab render — gem items in inventory:', JSON.stringify(gemEntries));
     const sellable = s.inventory.filter(e => {
       const item = getItem(e.itemId);
       return item && (item.sellPrice || item.buyPrice) && e.quantity > 0;
