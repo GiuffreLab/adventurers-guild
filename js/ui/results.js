@@ -1,7 +1,7 @@
 import Game from '../game.js';
 import { getItem, getItemRarity, CLASSES, EQUIPMENT } from '../data.js';
 import { getSkill, SKILLS } from '../skills.js';
-import { esc } from '../util.js';
+import { esc, rankCss } from '../util.js';
 
 function formatLootEntry(d) {
   const item = getItem(d.itemId);
@@ -267,6 +267,13 @@ function formatFightLog() {
 export function showResultsModal() {
   const pr = Game.state.pendingResults;
   if (!pr) return;
+
+  // Tower run recap uses a specialized layout
+  if (pr.quest.towerRun) {
+    showTowerResultsModal(pr);
+    return;
+  }
+
   const { quest, result, levelUps, rankUp, synergyUnlocks, skillGains, combatStats } = pr;
   const s = Game.state;
 
@@ -490,11 +497,9 @@ export function showResultsModal() {
       const sigil = cls ? cls.sigil : '?';
       const total = defTotal(c);
       const hi = (val, max) => val > 0 && val === max ? ' class="ds-best"' : '';
-      const isTop = c === sorted[0];
-      const badge = isTop ? '<span class="ds-mvp">MVP</span>' : '';
       const cell = (val, max) => `<td${hi(val, max)}>${val > 0 ? val.toLocaleString() : '—'}</td>`;
       return `<tr>
-        <td class="ds-name">${sigil} ${esc(c.name.split(' ')[0])}${badge}</td>
+        <td class="ds-name">${sigil} ${esc(c.name.split(' ')[0])}</td>
         ${cell(c.dmgMitigated||0, maxMit)}
         ${cell(c.dmgAbsorbed||0, maxAbs)}
         ${cell(c.dmgReflected||0, maxRef)}
@@ -567,9 +572,9 @@ export function showResultsModal() {
       <div class="rank-up-stars">★ ★ ★</div>
       <div class="rank-up-title">Guild Rank Up!</div>
       <div class="rank-up-badges">
-        <span class="rank-badge rank-${rankUp.from}" style="font-size:1.1rem;padding:6px 16px">${rankUp.from}</span>
+        <span class="rank-badge rank-${rankCss(rankUp.from)}" style="font-size:1.1rem;padding:6px 16px">${rankUp.from}</span>
         <span class="rank-up-arrow">→</span>
-        <span class="rank-badge rank-${rankUp.to}" style="font-size:1.1rem;padding:6px 16px">${rankUp.to}</span>
+        <span class="rank-badge rank-${rankCss(rankUp.to)}" style="font-size:1.1rem;padding:6px 16px">${rankUp.to}</span>
       </div>
       <div class="rank-up-subtitle">New quests, equipment, and classes may now be available!</div>
     </div>
@@ -581,7 +586,7 @@ export function showResultsModal() {
   document.getElementById('results-content').innerHTML = `
     ${rankUpHtml}
     <div class="result-outcome ${result.success ? 'success' : 'failure'}">${result.success ? '✓ Quest Complete' : '✗ Quest Failed'}</div>
-    <div class="result-quest-name">${quest.title} <span class="rank-badge rank-${quest.rank}" style="font-size:0.7rem">${quest.rank}</span></div>
+    <div class="result-quest-name">${quest.title} <span class="rank-badge rank-${rankCss(quest.rank)}" style="font-size:0.7rem">${quest.rank}</span></div>
     <div class="result-narrative">"${result.narrative}"</div>
     <div style="font-size:0.78rem;color:var(--text-dim);text-align:center">
       Party Power: <strong style="color:${powerColor}">${result.partyPower}</strong> vs Quest: ${result.questPower} (${powerPct}%)
@@ -633,6 +638,91 @@ export function showResultsModal() {
   }
 
   // Trigger rank-up flash overlay
+  if (rankUp) {
+    const flash = document.createElement('div');
+    flash.className = 'rank-up-flash';
+    document.body.appendChild(flash);
+    setTimeout(() => flash.remove(), 1500);
+  }
+}
+
+// ── Tower Run Recap Modal ─────────────────────────────────────────────
+function showTowerResultsModal(pr) {
+  const { quest, result, levelUps, rankUp, synergyUnlocks, skillGains } = pr;
+  const floorsCleared = result.towerFloor || quest.towerFloor || 0;
+  const bestFloor = result.bestFloor || 0;
+  const isNewRecord = floorsCleared >= bestFloor && floorsCleared > 0;
+  const voluntary = result.success;
+
+  const outcomeLabel = voluntary ? 'Tower Run Complete' : 'Party Defeated';
+  const outcomeClass = voluntary ? 'success' : 'failure';
+
+  // Loot items
+  const lootItems = (result.loot || []).map(d => `<div class="result-loot-entry">${formatLootEntry(d)}</div>`).join('');
+
+  // Rewards section
+  const rewardsHtml = `
+    <div class="result-section">
+      <div class="result-section-title">Tower Rewards</div>
+      <div class="result-row"><span class="result-row-label">Gold earned</span><span class="result-row-value result-gold">+${result.goldEarned.toLocaleString()}g</span></div>
+      <div class="result-row"><span class="result-row-label">Exp per member</span><span class="result-row-value result-exp">+${result.expEarned.toLocaleString()}</span></div>
+      ${result.rankPoints ? `<div class="result-row"><span class="result-row-label">Rank points</span><span class="result-row-value result-rank">+${result.rankPoints.toLocaleString()}</span></div>` : ''}
+      ${result.loot && result.loot.length > 0 ? `<div class="result-loot-section"><div class="result-row-label">Loot</div>${lootItems}</div>` : ''}
+    </div>
+  `;
+
+  // Level ups
+  let levelUpHtml = '';
+  if (levelUps && levelUps.length > 0) {
+    const byName = {};
+    for (const lu of levelUps) {
+      if (!byName[lu.name]) byName[lu.name] = { name: lu.name, levels: [] };
+      byName[lu.name].levels.push(lu.level);
+    }
+    const entries = Object.values(byName).map(entry => {
+      const startLvl = Math.min(...entry.levels) - 1;
+      const endLvl = Math.max(...entry.levels);
+      return `<div class="result-levelup-entry"><span class="levelup-name">⭐ ${esc(entry.name)}</span><span class="levelup-levels">${startLvl} → ${endLvl}</span></div>`;
+    }).join('');
+    levelUpHtml = `<div class="result-levelup-section"><div class="levelup-title">Level Up!</div>${entries}</div>`;
+  }
+
+  const skillGainHtml = skillGains && skillGains.length > 0 ? skillGains.map(sg => {
+    const verb = sg.type === 'mastery' ? 'gained mastery' : 'learned skill';
+    return `<div class="result-skill-gain">${sg.skillIcon} ${esc(sg.memberName)} ${verb}: <strong>${esc(sg.skillName)}</strong>!</div>`;
+  }).join('') : '';
+
+  const rankUpHtml = rankUp ? `
+    <div class="result-rank-up">
+      <div class="rank-up-stars">★ ★ ★</div>
+      <div class="rank-up-title">Guild Rank Up!</div>
+      <div class="rank-up-badges">
+        <span class="rank-badge rank-${rankCss(rankUp.from)}" style="font-size:1.1rem;padding:6px 16px">${rankUp.from}</span>
+        <span class="rank-up-arrow">→</span>
+        <span class="rank-badge rank-${rankCss(rankUp.to)}" style="font-size:1.1rem;padding:6px 16px">${rankUp.to}</span>
+      </div>
+      <div class="rank-up-subtitle">New quests, equipment, and classes may now be available!</div>
+    </div>
+  ` : '';
+
+  document.getElementById('results-content').innerHTML = `
+    ${rankUpHtml}
+    <div class="tower-recap-header">
+      <div class="tower-icon-large">🗼</div>
+      <div class="tower-recap-title">The Endless Tower</div>
+    </div>
+    <div class="result-outcome ${outcomeClass}">${voluntary ? '✓' : '✗'} ${outcomeLabel}</div>
+    <div class="result-narrative">"${result.narrative}"</div>
+    <div class="tower-recap-floor-label">Floors Cleared</div>
+    <div class="tower-recap-floor">${floorsCleared}</div>
+    ${isNewRecord ? '<div class="tower-recap-record">New Personal Record!</div>' : `<div class="tower-recap-floor-label">Best: ${bestFloor}</div>`}
+    ${rewardsHtml}
+    ${levelUpHtml}
+    ${skillGainHtml}
+  `;
+
+  document.getElementById('modal-results').classList.remove('hidden');
+
   if (rankUp) {
     const flash = document.createElement('div');
     flash.className = 'rank-up-flash';

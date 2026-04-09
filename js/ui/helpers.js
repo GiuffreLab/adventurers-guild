@@ -1,5 +1,7 @@
+import { rankCss } from '../util.js';
+
 export function rankTag(rank) {
-  return `<span class="quest-rank-tag rank-${rank}" style="color:var(--rank-${rank});border-color:var(--rank-${rank})">${rank}</span>`;
+  return `<span class="quest-rank-tag rank-${rankCss(rank)}" style="color:var(--rank-${rankCss(rank)});border-color:var(--rank-${rankCss(rank)})">${rank}</span>`;
 }
 
 export function hpClass(hp, maxHp) {

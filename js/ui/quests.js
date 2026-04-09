@@ -3,7 +3,7 @@ import { RANK_ORDER, getQuest, getItem, getClass, getItemRarity, CLASSES, rankIn
 import { rankTag, fmtTime, timeAgo, showToast } from './helpers.js';
 import { generateCombatLog, getCombatSnapshot, getQuestPhase, getPhases, resetCombatLog, getSimInfo } from './combatlog.js';
 import { getQuestDifficultyTier, DIFFICULTY_TIERS } from '../questgen.js';
-import { esc } from '../util.js';
+import { esc, rankCss } from '../util.js';
 
 let questRankFilter = 'F';
 let selectedQuestId = null;
@@ -380,7 +380,7 @@ function renderQuestBoard(s) {
   const filterBtns = RANK_ORDER.map(r => {
     const unlocked = rankIndex(s.guild.rank) >= rankIndex(r);
     const active = r === questRankFilter;
-    return `<button class="rank-filter-btn${active ? ' active' : ''}${!unlocked ? ' locked' : ''}" data-rank="${r}">${r}</button>`;
+    return `<button class="rank-filter-btn rank-${rankCss(r)}${active ? ' active' : ''}${!unlocked ? ' locked' : ''}" data-rank="${r}">${r}</button>`;
   }).join('');
 
   const unlockedRank = rankIndex(s.guild.rank) >= rankIndex(questRankFilter);
@@ -481,8 +481,9 @@ function renderQuestCard(s, quest, partyStrength) {
 
   const isDone = !quest.isRepeatable && completions > 0;
   const isBoss = quest.boss;
+  const isRaidBoss = quest.raidBoss;
   const isGemMining = quest.gemMining;
-  const cardClass = `quest-card${expanded ? ' selected' : ''}${isDone ? ' done' : ''}${isBoss ? ' quest-boss' : ''}${isGemMining ? ' quest-gem-mining' : ''}`;
+  const cardClass = `quest-card${expanded ? ' selected' : ''}${isDone ? ' done' : ''}${isBoss ? ' quest-boss' : ''}${isRaidBoss ? ' quest-raid' : ''}${isGemMining ? ' quest-gem-mining' : ''}`;
   const env = quest.environment || { name: '???', icon: '?', mood: 'dungeon' };
 
   // Rarity badge
@@ -614,7 +615,7 @@ function renderQuestCard(s, quest, partyStrength) {
   return `
     <div class="${cardClass}">
       <div class="quest-header" data-quest-id="${quest.id}">
-        <span class="quest-rank-tag rank-${quest.rank}" style="color:var(--rank-${quest.rank});border-color:var(--rank-${quest.rank})">${quest.rank}</span>
+        <span class="quest-rank-tag rank-${rankCss(quest.rank)}" style="color:var(--rank-${rankCss(quest.rank)});border-color:var(--rank-${rankCss(quest.rank)})">${quest.rank}</span>
         <span class="qc-env-icon">${env.icon}</span>
         <span class="quest-title">${quest.title}</span>${typeTag}
         <div class="quest-meta">${metaRight}</div>
@@ -731,7 +732,7 @@ function renderQuestHistory(s) {
         const skillCounts = {};
         for (const a of skills) {
           const key = `${a.memberName}::${a.skill.name}`;
-          if (!skillCounts[key]) skillCounts[key] = { name: a.memberName, skill: a.skill.name, icon: a.skill.icon || '⚡', count: 0 };
+          if (!skillCounts[key]) skillCounts[key] = { name: a.memberName, skill: a.skill.name, icon: a.skill.icon || '•', count: 0 };
           skillCounts[key].count++;
         }
         const sorted = Object.values(skillCounts).sort((a, b) => b.count - a.count);

@@ -4,8 +4,10 @@ import { renderQuests, resetQuestsState, tickUpdateQuests, tickUpdateCombatVisua
 import { renderParty, resetPartyState, tickUpdateParty } from './ui/party.js';
 import { renderShop } from './ui/shop.js';
 import { renderCompendium } from './ui/compendium.js';
+import { renderTower, tickUpdateTower, initTower } from './ui/tower.js';
 import { showResultsModal } from './ui/results.js';
 import { shouldRefreshBoard } from './questgen.js';
+import { rankCss } from './util.js';
 
 let currentTab = 'hall';
 function currentQuestRankFilter() { return getQuestRankFilter(); }
@@ -55,15 +57,24 @@ export function setTab(tab) {
 
 export function render() {
   updateHeader();
+  updateTowerTabVisibility();
   if (currentTab === 'hall')   renderHall();
   if (currentTab === 'quests') renderQuests(setTab);
   if (currentTab === 'party')  renderParty();
   if (currentTab === 'shop')   renderShop();
   if (currentTab === 'compendium') renderCompendium();
+  if (currentTab === 'tower')  renderTower();
 
   if (Game.state.pendingResults) {
     showResultsModal();
   }
+}
+
+function updateTowerTabVisibility() {
+  const btn = document.getElementById('tab-btn-tower');
+  if (!btn) return;
+  const unlocked = Game.isTowerUnlocked();
+  btn.classList.toggle('hidden', !unlocked);
 }
 
 // ── Tick Update (called every second — lightweight, no innerHTML rebuild) ──
@@ -89,6 +100,9 @@ export function tickUpdate() {
 
   // Party tab gets lightweight HP bar updates (no full re-render)
   if (currentTab === 'party') tickUpdateParty();
+
+  // Tower tab gets lightweight tick for floor progression
+  if (currentTab === 'tower') tickUpdateTower();
 
   // Check if a quest just finished (structural change → full render)
   if (Game.state.pendingResults) {
@@ -126,7 +140,7 @@ function updateHeader() {
   document.getElementById('header-gold').textContent = s.gold.toLocaleString();
   const rb = document.getElementById('header-rank');
   rb.textContent = `${s.guild.rank} Rank`;
-  rb.className = `rank-badge rank-${s.guild.rank}`;
+  rb.className = `rank-badge rank-${rankCss(s.guild.rank)}`;
 }
 
 // ── Live timer update (called every 250ms) ─────────────────────────────────
@@ -143,6 +157,7 @@ let _started = false;
 export function startGame() {
   if (_started) return;
   _started = true;
+  initTower(setTab);
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => setTab(btn.dataset.tab));
   });

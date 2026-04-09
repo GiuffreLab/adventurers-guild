@@ -33,6 +33,8 @@
   --rank-B: #e67e22;
   --rank-A: #e74c3c;
   --rank-S: #f0c060;
+  --rank-Sp: #ff6b35;
+  --rank-Spp: #00e5c8;
 
   --radius-sm: 4px;
   --radius:    8px;
@@ -181,6 +183,8 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .rank-B { color: var(--rank-B); border-color: var(--rank-B); }
 .rank-A { color: var(--rank-A); border-color: var(--rank-A); }
 .rank-S { color: var(--rank-S); border-color: var(--rank-S); box-shadow: 0 0 8px rgba(240,192,96,0.3); }
+.rank-Sp { color: var(--rank-Sp); border-color: var(--rank-Sp); box-shadow: 0 0 10px rgba(255,107,53,0.4); }
+.rank-Spp { color: var(--rank-Spp); border-color: var(--rank-Spp); box-shadow: 0 0 12px rgba(0,229,200,0.4); animation: celestialShimmer 1.8s ease-in-out infinite; }
 
 /* ── Tabs ──────────────────────────────────────────────────────────────── */
 .tab-bar {
@@ -288,6 +292,8 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .rank-filter-btn[data-rank="B"].active  { background: var(--rank-B); }
 .rank-filter-btn[data-rank="A"].active  { background: var(--rank-A); }
 .rank-filter-btn[data-rank="S"].active  { background: var(--rank-S); color: #000; }
+.rank-filter-btn[data-rank="S+"].active  { background: var(--rank-Sp); color: #000; }
+.rank-filter-btn[data-rank="S++"].active  { background: var(--rank-Spp); color: #000; }
 
 .quest-list { display: flex; flex-direction: column; gap: 8px; }
 
@@ -1779,6 +1785,14 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 }
 .quest-card.quest-boss .quest-title { color: #e74c3c; font-weight: 700; }
 
+/* Raid boss — celestial-themed glow, stronger than regular boss */
+.quest-card.quest-raid {
+  border: 2px solid rgba(0, 229, 200, 0.6);
+  animation: raidGlow 1.8s ease-in-out infinite;
+  background: linear-gradient(135deg, rgba(0,229,200,0.05) 0%, rgba(0,0,0,0) 50%, rgba(0,229,200,0.03) 100%);
+}
+.quest-card.quest-raid .quest-title { color: #00e5c8; font-weight: 800; text-shadow: 0 0 8px rgba(0,229,200,0.4); }
+
 .quest-card.quest-gem-mining {
   border: 1px solid rgba(240, 192, 96, 0.5);
   animation: gemGlow 2.5s ease-in-out infinite;
@@ -1788,6 +1802,11 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 @keyframes bossGlow {
   0%, 100% { box-shadow: 0 0 4px rgba(231, 76, 60, 0.2), inset 0 0 4px rgba(231, 76, 60, 0.05); border-color: rgba(231, 76, 60, 0.3); }
   50% { box-shadow: 0 0 12px rgba(231, 76, 60, 0.5), inset 0 0 8px rgba(231, 76, 60, 0.1); border-color: rgba(231, 76, 60, 0.7); }
+}
+
+@keyframes raidGlow {
+  0%, 100% { box-shadow: 0 0 6px rgba(0, 229, 200, 0.3), inset 0 0 6px rgba(0, 229, 200, 0.05); border-color: rgba(0, 229, 200, 0.4); }
+  50% { box-shadow: 0 0 20px rgba(0, 229, 200, 0.6), inset 0 0 12px rgba(0, 229, 200, 0.1); border-color: rgba(0, 229, 200, 0.8); }
 }
 
 @keyframes gemGlow {
@@ -2549,4 +2568,435 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   .tab-content { padding-bottom: 80px; }
   .comp-body { padding-bottom: 80px; }
   .modal-box { padding-bottom: 24px; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   TOWER CLIMB
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Tower Locked ── */
+.tower-locked {
+  text-align: center;
+  padding: 60px 20px;
+  max-width: 420px;
+  margin: 0 auto;
+}
+.tower-locked .tower-icon { font-size: 3rem; margin-bottom: 12px; }
+.tower-locked h2 { color: var(--gold); margin-bottom: 8px; }
+.tower-locked .tower-flavor { color: var(--text-dim); font-size: 0.85rem; line-height: 1.5; margin-bottom: 16px; }
+.tower-locked .tower-requirement {
+  color: var(--orange);
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 10px 16px;
+  background: rgba(255,165,0,0.08);
+  border: 1px solid rgba(255,165,0,0.2);
+  border-radius: 8px;
+  display: inline-block;
+}
+
+/* ── Tower Lobby ── */
+.tower-lobby {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+.tower-header { text-align: center; margin-bottom: 24px; }
+.tower-icon-large { font-size: 2.5rem; margin-bottom: 8px; }
+.tower-header h2 { color: var(--gold); margin-bottom: 6px; }
+.tower-header .tower-flavor {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.tower-stats {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  margin-bottom: 20px;
+}
+.tower-stat { text-align: center; }
+.tower-stat-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--gold);
+  line-height: 1;
+}
+.tower-stat-label {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 4px;
+}
+
+.tower-best-party {
+  text-align: center;
+  margin-bottom: 20px;
+  padding: 12px;
+  background: rgba(255,215,0,0.04);
+  border: 1px solid rgba(255,215,0,0.1);
+  border-radius: 8px;
+}
+.tower-party-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.tower-party-member {
+  font-size: 0.82rem;
+  padding: 4px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.tower-member-sigil { margin-right: 2px; }
+
+.tower-rewards-info {
+  margin-bottom: 24px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.tower-rewards-info h3 {
+  color: var(--gold);
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+.tower-rewards-info p {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  margin-bottom: 10px;
+}
+.tower-reward-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.tower-reward-list li {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.tower-reward-list li:last-child { border-bottom: none; }
+.tower-reward-list li strong { color: var(--text-primary); }
+
+.tower-enter-btn {
+  display: block;
+  width: 100%;
+  font-size: 1rem;
+  padding: 14px;
+}
+
+/* ── Active Climb ── */
+.tower-active {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 30px 16px;
+  text-align: center;
+}
+.tower-floor-display { margin-bottom: 20px; }
+.tower-icon-small { font-size: 1.5rem; margin-bottom: 4px; }
+.tower-floor-number {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--gold);
+}
+.tower-floor-subtitle {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+.tower-progress-bar {
+  position: relative;
+  height: 28px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+}
+.tower-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), #ff9800);
+  border-radius: 14px;
+  transition: width 0.5s ease;
+}
+.tower-progress-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+.tower-combat-status { margin-bottom: 20px; }
+.tower-fighting {
+  color: var(--orange);
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 12px;
+  background: rgba(255,165,0,0.06);
+  border: 1px solid rgba(255,165,0,0.15);
+  border-radius: 8px;
+}
+.tower-waiting {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.tower-exit-btn {
+  margin-top: 12px;
+  opacity: 0.7;
+}
+.tower-exit-btn:hover { opacity: 1; }
+
+/* ── Rest Room ── */
+.tower-rest {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+.tower-rest-header { text-align: center; margin-bottom: 20px; }
+.tower-rest-header h2 { color: var(--gold); margin-bottom: 6px; }
+.tower-rest-header .tower-flavor {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  max-width: 380px;
+  margin: 0 auto;
+}
+
+.tower-rest-info {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+.tower-rest-info strong { color: var(--gold); }
+
+.tower-reward-preview {
+  padding: 16px;
+  background: rgba(255,215,0,0.04);
+  border: 1px solid rgba(255,215,0,0.12);
+  border-radius: 10px;
+  text-align: center;
+  margin-bottom: 24px;
+}
+.tower-reward-preview h3 {
+  font-size: 0.85rem;
+  color: var(--gold);
+  margin-bottom: 10px;
+}
+.tower-preview-stats {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.tower-preview-note {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-top: 8px;
+}
+
+.tower-rest-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tower-rest-actions .btn { font-size: 0.95rem; padding: 14px; }
+
+/* ── Tower Results Recap ── */
+.tower-recap-header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+.tower-recap-header .tower-icon-large { font-size: 2rem; }
+.tower-recap-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--gold);
+}
+.tower-recap-subtitle {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+.tower-recap-floor {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--gold);
+  text-align: center;
+  margin: 12px 0;
+}
+.tower-recap-floor-label {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: center;
+}
+.tower-recap-record {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--green);
+  font-weight: 600;
+  margin-top: 6px;
+}
+.tower-recap-stats {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin: 16px 0;
+  flex-wrap: wrap;
+}
+.tower-recap-stat {
+  text-align: center;
+  padding: 8px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.tower-recap-stat-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.tower-recap-stat-label {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+/* ── Compendium Tower Guide ── */
+.comp-tower-stats {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  padding: 12px;
+  margin-bottom: 16px;
+  background: rgba(255,215,0,0.04);
+  border: 1px solid rgba(255,215,0,0.1);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+.comp-tower-items {
+  margin: 10px 0 16px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.comp-tower-item-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 0.85rem;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.comp-tower-item-row:last-child { border-bottom: none; }
+.comp-tower-item-sell { color: var(--gold); font-size: 0.8rem; }
+
+/* ── Compendium Skill Badges ── */
+.comp-skill-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.comp-skill-badge.active {
+  color: var(--orange);
+  background: rgba(255,165,0,0.1);
+  border: 1px solid rgba(255,165,0,0.25);
+}
+.comp-skill-badge.passive {
+  color: var(--cyan);
+  background: rgba(0,200,220,0.08);
+  border: 1px solid rgba(0,200,220,0.2);
+}
+.comp-skill-badge.reactive {
+  color: var(--purple, #a78bfa);
+  background: rgba(167,139,250,0.1);
+  border: 1px solid rgba(167,139,250,0.25);
+}
+.comp-skill-lvl {
+  font-size: 0.72rem;
+  opacity: 0.5;
+  font-style: normal;
+  margin-left: 4px;
+}
+
+/* ── Guild Legacy + Talents ────────────────────────────────────────────── */
+.legacy-card { background: linear-gradient(135deg, var(--bg-card) 0%, rgba(255,215,0,0.03) 100%); }
+.legacy-overview { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 16px; }
+.legacy-bonuses { flex: 1; min-width: 200px; }
+.legacy-bonus-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 0.82rem; color: var(--text-dim); }
+.legacy-bonus-val { color: var(--gold); font-weight: 600; }
+.legacy-talents-summary { flex: 1; min-width: 180px; }
+.talent-points-display { font-size: 1.1rem; margin-bottom: 8px; }
+.tp-available { color: var(--gold); font-weight: 700; font-size: 1.3rem; }
+.tp-total { color: var(--text-dim); }
+.btn-sm { padding: 4px 12px; font-size: 0.75rem; }
+.btn-danger { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); cursor: pointer; border-radius: 4px; }
+.btn-danger:hover { background: rgba(239,68,68,0.25); }
+
+.talent-tree { display: flex; flex-wrap: wrap; gap: 12px; }
+.talent-class-group { flex: 1 1 280px; min-width: 260px; background: rgba(0,0,0,0.15); border-radius: 8px; padding: 10px; }
+.talent-class-header { font-size: 0.85rem; font-weight: 600; color: var(--text); margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+.talent-nodes { display: flex; flex-direction: column; gap: 6px; }
+
+.talent-node {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  border-radius: 6px; border: 1px solid var(--border);
+  transition: all 0.2s; position: relative;
+}
+.talent-node.talent-locked { opacity: 0.4; cursor: default; background: rgba(0,0,0,0.1); }
+.talent-node.talent-available { cursor: pointer; border-color: var(--gold); background: rgba(255,215,0,0.05); }
+.talent-node.talent-available:hover { background: rgba(255,215,0,0.12); transform: translateY(-1px); box-shadow: 0 2px 8px rgba(255,215,0,0.15); }
+.talent-node.talent-owned { border-color: var(--gold); background: rgba(255,215,0,0.1); box-shadow: inset 0 0 12px rgba(255,215,0,0.08); }
+.talent-node.talent-owned .talent-icon { filter: drop-shadow(0 0 4px rgba(255,215,0,0.4)); }
+
+.talent-icon { font-size: 1.3rem; flex-shrink: 0; width: 28px; text-align: center; }
+.talent-info { flex: 1; min-width: 0; }
+.talent-name { font-size: 0.82rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.talent-tier { font-size: 0.68rem; color: var(--text-dim); font-weight: 400; margin-left: 4px; }
+.talent-desc { font-size: 0.72rem; color: var(--text-dim); line-height: 1.3; margin-top: 2px; }
+.talent-cost { display: flex; gap: 3px; align-items: center; flex-shrink: 0; }
+.tp-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--gold); }
+.talent-owned .tp-dot { background: var(--gold); }
+.talent-available .tp-dot { background: rgba(255,215,0,0.3); }
+.talent-req { font-size: 0.65rem; color: var(--text-dim); margin-left: 4px; }
+
+/* ── Compendium Legacy Section ─────────────────────────────────────────── */
+.comp-legacy-tree { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.comp-legacy-group { flex: 1 1 280px; min-width: 260px; background: rgba(0,0,0,0.15); border-radius: 8px; padding: 10px; }
+.comp-legacy-class { font-size: 0.85rem; font-weight: 600; color: var(--gold); margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+.comp-legacy-talent { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.comp-legacy-talent:last-child { border-bottom: none; }
+.comp-legacy-icon { font-size: 1.1rem; flex-shrink: 0; width: 24px; text-align: center; margin-top: 2px; }
+.comp-legacy-info { flex: 1; }
+.comp-legacy-name { font-size: 0.82rem; font-weight: 600; color: var(--text); display: block; }
+.comp-legacy-tier { font-size: 0.68rem; color: var(--text-dim); font-weight: 400; margin-left: 4px; }
+.comp-legacy-desc { font-size: 0.72rem; color: var(--text-dim); line-height: 1.3; display: block; margin-top: 2px; }
 }

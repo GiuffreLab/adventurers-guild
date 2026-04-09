@@ -452,6 +452,102 @@ const QUEST_TEMPLATES = {
       }
     }),
   ],
+  'S+': [
+    tmpl('Primordial Rift', 'A rift older than creation bleeds primordial chaos at {env}. Close it before existence unravels.', 'demonic', ['Primordial Shade', 'Chaos Weaver', 'Rift Incarnate']),
+    tmpl('Throne of Eternity', 'Someone — or something — sits upon the Throne of Eternity at {env}. Dethrone it.', 'demonic', ['Eternal Guard', 'Timeless Knight', 'The Usurper']),
+    tmpl('Eclipse Convergence', 'All celestial bodies align above {env}. The resulting energy threatens to tear the world apart.', 'mountain', ['Eclipse Beast', 'Solar Phantom', 'Lunar Titan']),
+    tmpl('Heart of the Abyss', 'Descend into the beating heart of the Abyss at {env}. Destroy it from within.', 'demonic', ['Abyss Cell', 'Arterial Horror', 'The Heartbeat']),
+    tmpl('Fallen Pantheon', 'The gods who died in the first war have risen at {env}. They remember. They\'re angry.', 'mountain', ['Dead God Fragment', 'Divine Revenant', 'The Risen Pantheon']),
+    tmpl('Star Eater', 'Something is consuming the stars above {env}. It must be stopped before the sky goes dark forever.', 'demonic', ['Stellar Parasite', 'Void Constellation', 'The Star Eater']),
+    tmpl('Memory Plague', 'A plague that erases memories spreads from {env}. The world is forgetting itself.', 'haunted', ['Amnesia Wraith', 'Memory Leech', 'The Forgetting']),
+    tmpl('Infinite Mirror', 'An infinite mirror at {env} reflects realities that should never exist. Shatter it.', 'dungeon', ['Mirror Self', 'Reflected Nightmare', 'The True Reflection']),
+    tmpl('Godslayer\'s Arsenal', 'Weapons capable of killing gods have been unearthed at {env}. Everyone wants them.', 'fortress', ['Divine Hunter', 'Arsenal Guardian', 'The Godslayer Reborn']),
+    tmpl('World Tree Roots', 'The roots of the World Tree beneath {env} are rotting. If they die, everything above dies too.', 'wilderness', ['Root Blight', 'Parasitic Titan', 'The Great Rot']),
+    tmpl('Chronal Siege', 'An army from a dead timeline lays siege to {env}. They fight to rewrite history.', 'fortress', ['Temporal Soldier', 'Chronal Knight', 'General of the Unwritten']),
+    tmpl('Second Sun', 'A second sun ignites above {env}. Its light burns with malevolent intelligence.', 'mountain', ['Solar Flare Beast', 'Radiance Horror', 'The Burning Eye']),
+    tmpl('The Last Door', 'Behind the last door at {env} lies something the world was never meant to see.', 'dungeon', ['Door Warden', 'Sealed Horror', 'What Lies Beyond']),
+    tmpl('Shattered Heaven', 'Fragments of heaven rain down upon {env}. Each fragment carries divine wrath.', 'mountain', ['Heaven Shard', 'Fallen Seraph Elite', 'The Shattered One']),
+    tmpl('Entropy Nexus', 'All entropy in the universe converges at {env}. Everything nearby ages, decays, and dies.', 'demonic', ['Entropy Spawn', 'Decay Titan', 'Nexus of Unmaking']),
+    tmpl('The Dream War', 'Wars fought in dreams at {env} bleed into reality. If the dreamers lose, everyone wakes up dead.', 'haunted', ['Dream Soldier', 'Nightmare General', 'The Sleepless One']),
+    tmpl('Void Leviathan', 'A creature that dwarfs continents surfaces at {env}. Even approaching it risks annihilation.', 'demonic', ['Void Minnow', 'Abyssal Eel', 'The Void Leviathan']),
+    tmpl('World Forge Ignition', 'The World Forge at {env} reignites without a smith. Whatever it\'s forging, it shouldn\'t exist.', 'demonic', ['Forge Spark', 'Molten Creation', 'The Unforged']),
+    tmpl('Oblivion Gate', 'An Oblivion Gate opens at {env}. Through it, true nothingness pours in.', 'demonic', ['Null Entity', 'Void Sentinel', 'Oblivion Keeper']),
+    tmpl('Cosmic Tribunal', 'The universe itself puts mortals on trial at {env}. Fail, and all mortal life is erased.', 'demonic', ['Cosmic Bailiff', 'Star Judge', 'The Verdict']),
+    // ── Gem Mining quests (S+-rank: Celestial Opals, higher yield) ──
+    tmpl('Primordial Opal Heart', 'At the molten core of {env}, opals of impossible purity form in the primordial heat. The extraction will be lethal — but the gems are priceless!', 'demonic', ['Core Guardian', 'Magma Titan', 'Primordial Heart'], { gemMining: true, gemItemId: 'GEM_CELESTIAL_OPAL' }),
+    tmpl('Celestial Opal Storm', 'A storm of crystallizing celestial energy at {env} rains opals from the sky — along with things that want to keep them.', 'mountain', ['Storm Elemental', 'Opal Golem', 'Celestial Tempest'], { gemMining: true, gemItemId: 'GEM_CELESTIAL_OPAL' }),
+    tmpl('Opal Vein of Ages', 'The oldest opal vein in existence runs through {env}. These gems have been forming since before recorded history.', 'dungeon', ['Ancient Warden', 'Time Crystal', 'Epoch Sentinel'], { gemMining: true, gemItemId: 'GEM_CELESTIAL_OPAL' }),
+    // ── BOSS encounters (S+-rank) ──
+    tmpl('BOSS: Malachar, the Entropy King', 'Malachar ruled the void before creation began. He has watched the universe expand for eons, and he has decided it has gone on long enough. He does not fight — he unmakes. At {env}, he begins his work.', 'demonic', ['Entropy Vanguard', 'Void Archon', 'Malachar, the Entropy King'], {
+      boss: true, bossName: 'Malachar',
+      narratives: {
+        success: ["Malachar paused mid-erasure. 'You... resist entropy itself?' For the first time in eternity, the Entropy King reconsidered. He withdrew — for now.", "The party didn't defeat Malachar. No one can defeat entropy. But they convinced it to wait. The universe gets a little more time."],
+        failure: ["Malachar didn't even notice the party. Their attacks dissolved before reaching him. Their magic unraveled. Their armor forgot how to be solid.", "The Entropy King yawned — actually yawned — as the party's reality crumbled around them. They retreated through a world that was slowly forgetting how to exist."],
+      }
+    }),
+    tmpl('BOSS: The Dreaming God', 'At the heart of {env}, something sleeps. It has been dreaming for a billion years, and its dreams are the fabric of reality. If it wakes, everything ends. If it keeps dreaming, everything lives. Something is trying to wake it.', 'haunted', ['Dream Sentry', 'Nightmare Avatar', 'The Dreaming God'], {
+      boss: true, bossName: 'The Dreaming God',
+      narratives: {
+        success: ["The party silenced the thing trying to wake the god. In its sleep, the Dreaming God smiled, and flowers bloomed across the battlefield. Reality is safe — as long as the dream continues.", "They fought nightmares made real inside a sleeping god's mind. Every blow risked waking it. Every spell could have ended everything. But they threaded the needle perfectly."],
+        failure: ["The god stirred. Just stirred. Mountains crumbled. Oceans rose. The party fled as reality flickered like a candle in the wind.", "The nightmares were too strong. The god's eyelids fluttered. For one terrifying moment, it almost woke. The party retreated before their presence caused the apocalypse."],
+      }
+    }),
+  ],
+  'S++': [
+    tmpl('Absolute Zero', 'At {env}, heat death arrives early. Temperature drops to absolute zero. Life itself rebels against the cold.', 'demonic', ['Frost Primordial', 'Entropy Elemental', 'The Absolute']),
+    tmpl('The Unwritten', 'Something that was never meant to exist has written itself into being at {env}. It doesn\'t follow any rules.', 'demonic', ['Paradox Entity', 'Logic Breaker', 'The Unwritten']),
+    tmpl('Reality\'s Edge', 'At {env}, you stand at the literal edge of reality. Beyond it: nothing. And nothing is hungry.', 'demonic', ['Edge Walker', 'Boundary Horror', 'The Nothing']),
+    tmpl('The First Murder', 'The first violence ever committed echoes through {env}. The wound in reality has never healed.', 'haunted', ['Primal Rage', 'The First Weapon', 'Echo of Cain']),
+    tmpl('Celestial Graveyard', 'Dead gods float in the void above {env}. Something feeds on their divine corpses.', 'demonic', ['Divine Carrion', 'God Eater Spawn', 'The Scavenger God']),
+    tmpl('The Weight of Eternity', 'Time itself has become heavy at {env}. Each second weighs as much as a mountain.', 'dungeon', ['Temporal Mass', 'Gravity Wraith', 'Eternity Incarnate']),
+    tmpl('Omega Point', 'All possible futures converge at {env}. Only one will survive. Make it the right one.', 'demonic', ['Future Echo', 'Probability Storm', 'The Omega']),
+    tmpl('The Last Thought', 'The universe\'s final conscious thought manifests at {env}. It is grief incarnate.', 'haunted', ['Cosmic Sorrow', 'Final Memory', 'The Last Thought']),
+    tmpl('Genesis Reversal', 'Creation runs backward at {env}. Stars unignite. Matter undoes itself. Stop it.', 'demonic', ['Reversed Star', 'Unmade Titan', 'The Uncreator']),
+    tmpl('The Name of Death', 'Someone has learned the true name of Death at {env}. They\'re using it to kill concepts. Hope died yesterday. Courage died today.', 'haunted', ['Concept Slayer', 'Death\'s Echo', 'The Namer']),
+    tmpl('Infinity Breach', 'An actual infinity opens at {env}. Infinite enemies. Infinite danger. You have finite time.', 'demonic', ['Infinite Spawn', 'Recursive Horror', 'The Infinite Gate']),
+    tmpl('The Creator\'s Regret', 'The creator of the world left one regret at {env}. It has grown into something terrible.', 'demonic', ['Regret Incarnate', 'Creator\'s Tear', 'The Great Mistake']),
+    tmpl('Annihilation Engine', 'An engine that converts existence into non-existence activates at {env}. Shut it down.', 'fortress', ['Engine Drone', 'Annihilation Core', 'The Engine']),
+    tmpl('The Final Word', 'The final word of power — the word that ends all magic forever — is being spoken at {env}.', 'demonic', ['Silence Herald', 'Wordbreaker', 'The Final Word']),
+    tmpl('Beyond Divinity', 'Something beyond even the gods descends upon {env}. The gods themselves flee.', 'demonic', ['Meta-Divine Shard', 'Transcendence Horror', 'The Beyond All']),
+    tmpl('Eternal Return', 'The universe tries to reset at {env}. If it succeeds, no one will remember any of this ever happened.', 'demonic', ['Reset Warden', 'Cycle Enforcer', 'The Eternal Return']),
+    tmpl('Concept War', 'Abstract concepts go to war at {env}. Order fights Chaos. Time fights Space. Existence fights Void.', 'demonic', ['Concept Fragment', 'Abstract Warrior', 'The Concept of War']),
+    tmpl('The Question', 'The universe asks a question at {env}. If mortal life can\'t answer, it will be... reconsidered.', 'demonic', ['Question Manifest', 'Answer Seeker', 'The Unanswerable']),
+    tmpl('Heat Death', 'The heat death of the universe begins at {env}. All energy equalizes. All motion stops. Fight entropy itself.', 'demonic', ['Entropy Tide', 'Stillness Incarnate', 'Heat Death']),
+    tmpl('The Absolute End', 'This is it. The final threat. The thing after which there is nothing. It waits at {env}.', 'demonic', ['End Herald', 'Finality\'s Edge', 'The Absolute End']),
+    // ── Gem Mining quests (S++-rank: Celestial Opals, maximum yield) ──
+    tmpl('Genesis Opal Extraction', 'The opals at {env} formed at the moment of creation itself. Each one contains a fragment of the Big Bang. The extraction will be the most dangerous mining operation in history.', 'demonic', ['Genesis Warden', 'Creation Elemental', 'Primordial Core'], { gemMining: true, gemItemId: 'GEM_CELESTIAL_OPAL' }),
+    tmpl('Opal of Infinity', 'An opal of literally infinite value lies at {env}. Infinite guardians protect it. Good luck.', 'demonic', ['Infinite Sentinel', 'Eternal Golem', 'The Infinity Opal Guardian'], { gemMining: true, gemItemId: 'GEM_CELESTIAL_OPAL' }),
+    // ── BOSS encounters (S++-rank) ──
+    tmpl('BOSS: Ouroboros, the World Serpent Eternal', 'Ouroboros — the serpent that eats its own tail, the cycle of all creation and destruction — has stopped eating. It lifts its head at {env}. When a cycle breaks, everything within it dies.', 'demonic', ['Cycle Fragment', 'Serpent Shard', 'Ouroboros, the World Serpent Eternal'], {
+      boss: true, bossName: 'Ouroboros',
+      narratives: {
+        success: ["The party convinced Ouroboros to resume the cycle. Not through combat — through proving that existence was worth continuing. The serpent bowed its cosmic head and resumed its eternal feast.", "They fought the cycle of creation itself and won. Ouroboros will continue. The universe will continue. Because of them."],
+        failure: ["Ouroboros was not hostile. It simply stopped caring. And when the cycle stops caring, everything stops. The party fled as the laws of physics took a break.", "You cannot fight a cycle. The party tried to harm something that contains all of reality. Every blow landed on themselves."],
+      }
+    }),
+    tmpl('BOSS: The Architect Returns', 'The Architect of Oblivion returns at {env} — but this time, it brought its blueprints. It shows the party the complete plan for unmaking reality. Every step is logical. Every argument is sound. The only counter-argument is defiance.', 'demonic', ['Blueprint Horror', 'Schematic of Doom', 'The Architect of Oblivion (Ascended)'], {
+      boss: true, bossName: 'The Architect (Ascended)',
+      narratives: {
+        success: ["The Architect showed them the end of everything. The party looked at infinity, understood it completely, and said 'No.' That single word echoed across dimensions. The Architect... respected it.", "No one has ever seen the Architect's full blueprint and survived unchanged. The party saw it and chose to fight anyway. The universe exists because mortals are too stubborn to accept logic."],
+        failure: ["The Architect's logic was flawless. The party couldn't find a flaw because there wasn't one. They retreated not from power, but from truth.", "The Architect didn't fight. It simply explained. And its explanation was so complete, so undeniable, that the party momentarily forgot why they were fighting. That moment of doubt was enough."],
+      }
+    }),
+    // ── RAID BOSS encounters (S++-rank only — strongest fights in the game, celestial-only drops) ──
+    tmpl('RAID: The Primordial Triumvirate', 'Three entities older than the universe convene at {env}: Creation, Preservation, and Destruction. They have decided that this reality is a failed experiment. All three must be faced simultaneously. This is the hardest fight in existence.', 'demonic', ['Creation Incarnate', 'Preservation Eternal', 'Destruction Absolute', 'The Triumvirate United'], {
+      boss: true, raidBoss: true, bossName: 'The Primordial Triumvirate',
+      narratives: {
+        success: ["Creation, Preservation, and Destruction looked upon the party and saw something they hadn't expected: growth. The experiment wasn't failed — it was succeeding. The Triumvirate departed, satisfied at last.", "Three gods, each capable of ending everything alone. Together, they were supposed to be unstoppable. The party stopped them anyway. Songs of this battle will be sung until the stars burn out."],
+        failure: ["Creation unmade what Preservation tried to protect, while Destruction swept away the pieces. The party was caught in a cosmic argument they were never meant to survive.", "Three entities, three fundamental forces. The party fought bravely, but you cannot defeat the laws of reality with swords. Not yet. Not without more power."],
+      }
+    }),
+    tmpl('RAID: Absolute Nothingness', 'At the deepest point of {env}, there is nothing. Not void — void is something. Not darkness — darkness is something. True, absolute, conceptual nothingness. And it is aware. And it is coming.', 'demonic', ['Concept of Absence', 'The Unnamed', 'The Unthinkable', 'Absolute Nothingness'], {
+      boss: true, raidBoss: true, bossName: 'Absolute Nothingness',
+      narratives: {
+        success: ["The party gave Nothingness something it had never experienced: a reason to exist. In choosing to fight, they proved that even nothing can be something. The paradox resolved in their favor.", "They fought the absence of everything and filled it with defiance. Where there was nothing, there is now a monument to mortal will. The greatest victory in the history of existence."],
+        failure: ["How do you fight nothing? The party tried. Swords passed through. Magic dissipated. Hope dimmed. They retreated from the only enemy that doesn't need to fight to win.", "Nothingness doesn't attack. It doesn't need to. It simply exists — or rather, doesn't — and everything near it stops existing too. The party fled before they became part of the concept."],
+      }
+    }),
+  ],
 };
 
 // ── Rank-based reward scaling ───────────────────────────────────────────
@@ -465,7 +561,9 @@ const RANK_SCALES = {
   C: { gold:[400,1200], exp:[180,420],rp:[400,1000],   dur:[30,40],   diff:[3.0,5.0],  recPow:[200,400] },
   B: { gold:[1200,3000],exp:[400,900],rp:[1000,2250],  dur:[35,50],   diff:[5.0,8.0],  recPow:[400,700] },
   A: { gold:[3000,10000],exp:[800,2500],rp:[2000,5000],dur:[40,55],  diff:[8.0,14.0], recPow:[700,1200] },
-  S: { gold:[15000,35000],exp:[3000,8000],rp:[7500,15000],dur:[50,60],diff:[14.0,22.0],recPow:[1400,2200] },
+  S:      { gold:[15000,35000],  exp:[3000,8000],  rp:[7500,15000],  dur:[50,60], diff:[14.0,22.0],  recPow:[1400,2200] },
+  'S+':   { gold:[30000,60000],  exp:[6000,15000], rp:[12000,25000], dur:[55,65], diff:[20.0,35.0],  recPow:[2200,3800] },
+  'S++':  { gold:[50000,100000], exp:[10000,25000],rp:[20000,45000], dur:[60,75], diff:[30.0,55.0],  recPow:[3500,6000] },
 };
 
 // Loot table definitions per rank
@@ -498,6 +596,44 @@ const RANK_LOOT_POOLS = {
     'CEL_FISTS_OF_NIRVANA', 'CEL_GI_OF_THE_ABSOLUTE', 'CEL_PALM_OF_THE_INFINITE', 'CEL_CHAKRA_OF_ENLIGHTENMENT',
     'CEL_SOULWEAVER', 'CEL_MORTALITYS_END', 'CEL_SHROUD_OF_THE_LICH', 'CEL_SKULL_OF_ETERNAL_WHISPERS', 'CEL_PHYLACTERY_OF_SOULS',
   ],
+  'S+': [
+    // Legendary equipment only — no more common/magic tier drops
+    'EXCALIBUR', 'OATHKEEPER', 'DEATHS_WHISPER', 'RAGNAROK', 'ARTEMIS_BOW', 'STAFF_OF_AGES',
+    'ORPHEUS_LYRE', 'DEATHRATTLE_STAFF', 'ABYSSAL_SCYTHE',
+    'DRAGON_PLATE', 'ADAMANTINE_PLATE', 'PHANTOM_CHAIN', 'DRAGON_GI',
+    'CELESTIAL_ROBES', 'AEGIS', 'ORB_OF_ETERNITY', 'SKULL_OF_THE_DAMNED',
+    'AMULET_OF_FURY', 'AMULET_OF_ARCANA',
+    'STAFF_OF_DAWN', 'DRUMS_OF_ETERNITY', 'ROBES_OF_ETERNITY', 'WALL_OF_AGES',
+    'ORB_OF_CREATION', 'AMULET_OF_AGES', 'AMULET_OF_GRACE', 'MYTHRIL_SHIELD', 'GALE_QUIVER',
+    'CELESTIAL_CHAIN', 'MYTHRIL_CHAIN', 'NIRVANA_SHROUD', 'MYTHRIL_PLATE',
+    // Higher celestial density
+    'CEL_DAWNBREAKER', 'CEL_ASCENDANT_PLATE', 'CEL_ASCENDANT_WARD', 'CEL_CROWN_OF_THE_CHOSEN',
+    'CEL_GODSLAYER',
+    'CEL_OATHSWORN', 'CEL_ETERNAL_BASTION', 'CEL_INFINITUM_SHIELD', 'CEL_SENTINELS_ETERNITY',
+    'CEL_INFINITY_STAFF', 'CEL_ROBES_OF_THE_VOID', 'CEL_SINGULARITY_ORB', 'CEL_DIADEM_OF_OMNISCIENCE',
+    'CEL_VOIDFANG', 'CEL_WRAITHWEAVE', 'CEL_NULLBLADE', 'CEL_ECLIPSE_PENDANT',
+    'CEL_SCEPTER_OF_DAWN', 'CEL_VESTMENTS_OF_GRACE', 'CEL_TOME_OF_MIRACLES', 'CEL_HALO_OF_THE_BLESSED',
+    'CEL_STARFALL_BOW', 'CEL_STARHIDE_MANTLE', 'CEL_CONSTELLATION_QUIVER', 'CEL_POLARIS_PENDANT',
+    'CEL_LYRE_OF_CREATION', 'CEL_VESTMENTS_OF_COSMOS', 'CEL_DRUM_OF_ETERNITY', 'CEL_MAESTROS_SIGNET',
+    'CEL_FISTS_OF_NIRVANA', 'CEL_GI_OF_THE_ABSOLUTE', 'CEL_PALM_OF_THE_INFINITE', 'CEL_CHAKRA_OF_ENLIGHTENMENT',
+    'CEL_SOULWEAVER', 'CEL_MORTALITYS_END', 'CEL_SHROUD_OF_THE_LICH', 'CEL_SKULL_OF_ETERNAL_WHISPERS', 'CEL_PHYLACTERY_OF_SOULS',
+  ],
+  'S++': [
+    // Celestial-heavy pool — this is the endgame celestial farm
+    'CEL_DAWNBREAKER', 'CEL_ASCENDANT_PLATE', 'CEL_ASCENDANT_WARD', 'CEL_CROWN_OF_THE_CHOSEN',
+    'CEL_GODSLAYER',
+    'CEL_OATHSWORN', 'CEL_ETERNAL_BASTION', 'CEL_INFINITUM_SHIELD', 'CEL_SENTINELS_ETERNITY',
+    'CEL_INFINITY_STAFF', 'CEL_ROBES_OF_THE_VOID', 'CEL_SINGULARITY_ORB', 'CEL_DIADEM_OF_OMNISCIENCE',
+    'CEL_VOIDFANG', 'CEL_WRAITHWEAVE', 'CEL_NULLBLADE', 'CEL_ECLIPSE_PENDANT',
+    'CEL_SCEPTER_OF_DAWN', 'CEL_VESTMENTS_OF_GRACE', 'CEL_TOME_OF_MIRACLES', 'CEL_HALO_OF_THE_BLESSED',
+    'CEL_STARFALL_BOW', 'CEL_STARHIDE_MANTLE', 'CEL_CONSTELLATION_QUIVER', 'CEL_POLARIS_PENDANT',
+    'CEL_LYRE_OF_CREATION', 'CEL_VESTMENTS_OF_COSMOS', 'CEL_DRUM_OF_ETERNITY', 'CEL_MAESTROS_SIGNET',
+    'CEL_FISTS_OF_NIRVANA', 'CEL_GI_OF_THE_ABSOLUTE', 'CEL_PALM_OF_THE_INFINITE', 'CEL_CHAKRA_OF_ENLIGHTENMENT',
+    'CEL_SOULWEAVER', 'CEL_MORTALITYS_END', 'CEL_SHROUD_OF_THE_LICH', 'CEL_SKULL_OF_ETERNAL_WHISPERS', 'CEL_PHYLACTERY_OF_SOULS',
+    // Legendary filler for non-celestial slots
+    'EXCALIBUR', 'OATHKEEPER', 'DEATHS_WHISPER', 'RAGNAROK', 'ARTEMIS_BOW', 'STAFF_OF_AGES',
+    'DRAGON_PLATE', 'ADAMANTINE_PLATE', 'PHANTOM_CHAIN', 'DRAGON_GI', 'CELESTIAL_ROBES',
+  ],
 };
 
 // All celestial item IDs (used by boss loot injection)
@@ -515,7 +651,7 @@ const CELESTIAL_ITEM_IDS = [
 ];
 
 // Next-rank lookup for boss higher-tier loot
-const NEXT_RANK = { F: 'E', E: 'D', D: 'C', C: 'B', B: 'A', A: 'S', S: 'S' };
+const NEXT_RANK = { F: 'E', E: 'D', D: 'C', C: 'B', B: 'A', A: 'S', S: 'S+', 'S+': 'S++', 'S++': 'S++' };
 
 const SUCCESS_NARRATIVES = [
   "The party emerged victorious, battered but triumphant.",
@@ -556,10 +692,13 @@ function partyScalingMultiplier(partyStrength, rank) {
   if (!scale) return 1.0;
   const baseMax = scale.recPow[1]; // top end of the rank's base power
   if (partyStrength <= baseMax * 1.2) return 1.0; // party is within expected range
-  // Scale up so base quests sit around 70-95% of party power.
-  // Standard quests land Moderate→Hard, harder slots push into Epic→Legendary.
-  const target = partyStrength * 1.0; // aim for ~100% of party strength as midpoint
-  return Math.min(12.0, target / baseMax); // cap at 12x
+  // partyStrength (calculateMemberStrength) runs ~1.6-1.8x higher than memberPower
+  // (which is what resolveQuest actually uses). We need to scale quest difficulty
+  // based on the COMBAT power equivalent, not the inflated strength value.
+  // Apply a 0.65 compression factor to bridge the two formulas.
+  const combatEquivalent = partyStrength * 0.65;
+  const target = combatEquivalent * 1.1; // aim for quests at ~110% of combat power (slightly challenging)
+  return Math.min(12.0, target / baseMax);
 }
 
 export function generateQuestInstance(rank, templateIndex, seed, partyStrength) {
@@ -648,13 +787,22 @@ export function generateQuestInstance(rank, templateIndex, seed, partyStrength) 
       // Rarer quests boost equipment drop chances significantly
       const rarityDropMult = rarity === 'legendary' ? 2.0 : rarity === 'rare' ? 1.5 : rarity === 'uncommon' ? 1.2 : 1.0;
 
-      // S-rank bosses get 3x celestial drop rate; non-S bosses get standard S-rank rates
-      const bossCelestialMult = isBoss ? (rank === 'S' ? 3.0 : 1.0) : 1.0;
+      // S-tier bosses get increased celestial drop rates
+      // S: 3x, S+: 5x, S++: 8x (raid bosses: 15x with celestial-only pool)
+      const isRaid = isBoss && !!t.raidBoss;
+      const sRankCelMult = rank === 'S++' ? (isRaid ? 15.0 : 8.0)
+                         : rank === 'S+' ? 5.0
+                         : rank === 'S' ? 3.0 : 1.0;
+      const bossCelestialMult = isBoss ? sRankCelMult : 1.0;
 
       let baseChance;
       if (isCelestial) {
-        // Celestial items: rare base chance (~1.5-4%), boosted for S-rank bosses (~4.5-12%)
+        // Celestial items: rare base chance (~1.5-4%), scaled by rank tier
+        // S+ base: ~3-8%, S++ base: ~5-15%, Raid: ~18-40%
         baseChance = (0.012 + seededRand(seed + 20 + i) * 0.018) * Math.min(rarityDropMult, 1.5) * bossCelestialMult;
+      } else if (isRaid) {
+        // Raid bosses: celestial items only — suppress non-celestial equipment
+        baseChance = 0;
       } else if (isEquip) {
         // Boss quests give a slight boost to all equipment drop rates
         const bossEquipMult = isBoss ? 1.3 : 1.0;
@@ -662,9 +810,14 @@ export function generateQuestInstance(rank, templateIndex, seed, partyStrength) 
       } else {
         baseChance = 0.30 + seededRand(seed + 30 + i) * 0.50;
       }
+      // Cap chances: S+ and S++ allow higher celestial ceilings
+      const celestialCap = isRaid ? 0.45
+                         : rank === 'S++' ? 0.25
+                         : rank === 'S+' ? 0.18
+                         : (isBoss && rank === 'S') ? 0.15 : 0.07;
       return {
         itemId,
-        chance: Math.min(isCelestial ? (isBoss && rank === 'S' ? 0.15 : 0.07) : 0.90, baseChance),
+        chance: Math.min(isCelestial ? celestialCap : 0.90, baseChance),
         quantity: isEquip ? [1, 1] : [1, seededRandInt(1, 4, seed + 40 + i)],
       };
     });
@@ -693,6 +846,7 @@ export function generateQuestInstance(rank, templateIndex, seed, partyStrength) 
     gemMining: isGemMining || false,
     gemItemId: isGemMining ? t.gemItemId : null,
     boss: !!t.boss,
+    raidBoss: !!t.raidBoss,
     bossName: t.bossName || null,
     templateIndex,
     narratives: t.narratives || {

@@ -1,6 +1,6 @@
 import {
   RANK_ORDER, CLASSES, NAMES, EQUIPMENT, LOOT_ITEMS, QUESTS,
-  getItem, getClass, getQuest, computeBaseStats, randomName, getAvailableClasses,
+  getItem, getItemRarity, getClass, getQuest, computeBaseStats, randomName, getAvailableClasses,
   getRecruitCost, rankIndex, randInt, canClassEquip
 } from './data.js';
 import {
@@ -13,11 +13,15 @@ import {
   getQuestDifficultyTier, BOARD_REFRESH_MS
 } from './questgen.js';
 import { getCombatStats, getSimEvents, getBattleOutcome, getCombatDebug } from './ui/combatlog.js';
+import {
+  generateFloorQuest, calculateTowerLoot, getDefaultTowerState,
+  isTowerUnlocked, isRestFloor, isBossFloor, TOWER_CONFIG
+} from './tower.js';
 
 const Game = (() => {
 
   const SAVE_KEY = 'adventurersGuild_v1';
-  const RANK_THRESHOLDS = { F:1000, E:3000, D:7000, C:15000, B:35000, A:80000, S:null };
+  const RANK_THRESHOLDS = { F:1000, E:3000, D:7000, C:15000, B:35000, A:80000, S:200000, 'S+':500000, 'S++':null };
   const SHOP_REFRESH_MS = 10 * 60 * 1000;  // 10 minutes
   const SHOP_QUEST_REFRESH = 2; // refresh shop every N completed quests
 
@@ -26,12 +30,15 @@ const Game = (() => {
   // Default: 4 active members + Hero = 5 in combat
   // Expansion: 5 active members + Hero = 6 in combat (endgame unlock)
   const BASE_PARTY_SIZE = 4;      // default max active slots (Hero always present separately)
-  const MAX_PARTY_SIZE = 5;       // ultimate max after expansion
+  const MAX_PARTY_SIZE = 5;       // ultimate max after expansion (base game)
+  const MAX_PARTY_SIZE_TALENT = 6; // with Sixth Slot talent
   const PARTY_EXPANSION_COSTS = [1000000]; // 1M gold for the 5th active slot
 
   function getMaxPartySize() {
     const expansions = state.partyExpansions || 0;
-    return Math.min(BASE_PARTY_SIZE + expansions, MAX_PARTY_SIZE);
+    const talentSlot = hasTalent('PARTY_SIXTH_SLOT') ? 1 : 0;
+    const cap = MAX_PARTY_SIZE + talentSlot;
+    return Math.min(BASE_PARTY_SIZE + expansions + talentSlot, cap);
   }
 
   function getPartyExpansionCost() {
@@ -94,6 +101,8 @@ const Game = (() => {
       autoRun: null,      // { strategy:'safe'|'balanced'|'push', remaining, total, rank } or null
       nextMemberId: 1,
       pendingResults: null,
+      tower: getDefaultTowerState(), // Tower Climb game mode
+      guildLegacy: { overflowRP: 0, level: 0, talents: [] }, // RP overflow & talent tree at S++
     };
   }
 
@@ -194,6 +203,12 @@ const Game = (() => {
       dedupeSkills(state.player);
       if (state.party) state.party.forEach(m => dedupeSkills(m));
 
+      // Migration: add tower state if missing
+      if (!state.tower) state.tower = getDefaultTowerState();
+      // Migration: add guild legacy if missing
+      if (!state.guildLegacy) state.guildLegacy = { overflowRP: 0, level: 0, talents: [] };
+      if (!state.guildLegacy.talents) state.guildLegacy.talents = [];
+
       return true;
     } catch(e) { return false; }
   }
@@ -214,6 +229,17 @@ const Game = (() => {
     if (state.guild.eventLog.length > 20) state.guild.eventLog.pop();
   }
 
+  // ── Guild Legacy ─────────────────────────────────────────────────────────
+  // At max rank (S++), excess RP overflow into the legacy system.
+  // Every LEGACY_RP_PER_LEVEL RP earned grants a Legacy Level with stacking bonuses.
+  const LEGACY_RP_PER_LEVEL = 50000;
+  const LEGACY_BONUSES = {
+    goldBonus:      0.02,   // +2% gold per level
+    itemFind:       0.01,   // +1% item find per level
+    celestialBonus: 0.005,  // +0.5% celestial drop chance per level
+    expBonus:       0.01,   // +1% exp per level
+  };
+
   function addRankPoints(points) {
     if (!points) return null;
     state.guild.rankPoints += points;
@@ -231,7 +257,128 @@ const Game = (() => {
         logEvent(`Guild rank advanced to ${state.guild.rank} Rank!`);
       } else break;
     }
+
+    // At max rank, overflow RP into Guild Legacy
+    if (ri >= RANK_ORDER.length - 1 && RANK_THRESHOLDS[state.guild.rank] === null) {
+      if (!state.guildLegacy) state.guildLegacy = { overflowRP: 0, level: 0 };
+      state.guildLegacy.overflowRP += state.guild.rankPoints;
+      state.guild.rankPoints = 0; // All RP flows into legacy
+      const oldLevel = state.guildLegacy.level;
+      while (state.guildLegacy.overflowRP >= LEGACY_RP_PER_LEVEL) {
+        state.guildLegacy.overflowRP -= LEGACY_RP_PER_LEVEL;
+        state.guildLegacy.level++;
+        logEvent(`Guild Legacy advanced to Level ${state.guildLegacy.level}!`);
+      }
+    }
+
     return oldRank && newRank ? { from: oldRank, to: newRank } : null;
+  }
+
+  function getLegacyBonuses() {
+    const lvl = state.guildLegacy?.level || 0;
+    return {
+      goldBonus:      lvl * LEGACY_BONUSES.goldBonus,
+      itemFind:       lvl * LEGACY_BONUSES.itemFind,
+      celestialBonus: lvl * LEGACY_BONUSES.celestialBonus,
+      expBonus:       lvl * LEGACY_BONUSES.expBonus,
+      level:          lvl,
+    };
+  }
+
+  // ── Legacy Talents ──────────────────────────────────────────────────────
+  // Each Legacy level grants 1 talent point. Talents are class-augmentation upgrades
+  // organized in 3 tiers. Class talents enhance specific abilities; party talents
+  // provide broad bonuses.
+  const LEGACY_TALENTS = {
+    // ── HERO (HRO) ──
+    HRO_CHAIN_STRIKE:   { id: 'HRO_CHAIN_STRIKE',   tier: 1, cost: 1, reqLevel: 1, classId: 'HERO',        label: 'Chain Strike',       icon: '⚔', desc: 'Heroic Strike chains to a 2nd target at 50% damage.' },
+    HRO_RALLYING_HEAL:  { id: 'HRO_RALLYING_HEAL',  tier: 2, cost: 2, reqLevel: 3, classId: 'HERO',        label: 'Rallying Heal',      icon: '📣', desc: 'Rally Cry also applies a heal-over-time (3% max HP/round, 2 rounds) to all allies.' },
+    HRO_HEROIC_REVIVAL: { id: 'HRO_HEROIC_REVIVAL', tier: 3, cost: 3, reqLevel: 6, classId: 'HERO',        label: 'Heroic Revival',     icon: '✨', desc: 'Awakening also revives a random KO\'d ally at 20% HP when it triggers.' },
+
+    // ── KNIGHT (KNT) ──
+    KNT_DEF_SHRED:      { id: 'KNT_DEF_SHRED',      tier: 1, cost: 1, reqLevel: 1, classId: 'KNIGHT',     label: 'Armor Rend',         icon: '🛡', desc: 'Shield Wall hits apply -15% DEF shred to the target for 2 rounds.' },
+    KNT_COUNTER:        { id: 'KNT_COUNTER',         tier: 2, cost: 2, reqLevel: 3, classId: 'KNIGHT',     label: 'Stalwart Counter',   icon: '⚔', desc: 'Bulwark counterattacks for 50% of reflected damage.' },
+    KNT_TAUNT_AURA:     { id: 'KNT_TAUNT_AURA',     tier: 3, cost: 3, reqLevel: 6, classId: 'KNIGHT',     label: 'Oppressive Presence',icon: '😤', desc: 'Taunted enemies take +10% damage from all sources for 2 rounds.' },
+
+    // ── MAGE (MAG) ──
+    MAG_ECHO_SHIELD:    { id: 'MAG_ECHO_SHIELD',     tier: 1, cost: 1, reqLevel: 1, classId: 'MAGE',       label: 'Echo Shield',        icon: '🌀', desc: 'Spell Echo grants a shield absorbing 15% max HP for 2 rounds.' },
+    MAG_BURN_DOT:       { id: 'MAG_BURN_DOT',        tier: 2, cost: 2, reqLevel: 3, classId: 'MAGE',       label: 'Lingering Flames',   icon: '🔥', desc: 'Arcane Cataclysm leaves a burn DoT (10% MAG per round, 2 rounds) on all targets.' },
+    MAG_REFLECT:        { id: 'MAG_REFLECT',         tier: 3, cost: 3, reqLevel: 6, classId: 'MAGE',       label: 'Arcane Reflection',  icon: '💜', desc: 'Mana Shield reflects 20% of absorbed damage back at attackers.' },
+
+    // ── ROGUE (ROG) ──
+    ROG_POISON:         { id: 'ROG_POISON',           tier: 1, cost: 1, reqLevel: 1, classId: 'ROGUE',      label: 'Venomous Blades',    icon: '🗡', desc: 'Shadow Strike has a 30% chance to poison the target (5% max HP/round, 3 rounds).' },
+    ROG_SMOKE_HEAL:     { id: 'ROG_SMOKE_HEAL',       tier: 2, cost: 2, reqLevel: 3, classId: 'ROGUE',      label: 'Healing Smoke',      icon: '💨', desc: 'Smoke Bomb also heals the entire party for 5% max HP.' },
+    ROG_EXECUTE:        { id: 'ROG_EXECUTE',           tier: 3, cost: 3, reqLevel: 6, classId: 'ROGUE',      label: 'Executioner',        icon: '☠', desc: 'Assassinate always crits against enemies below 25% HP.' },
+
+    // ── CLERIC (CLR) ──
+    CLR_SHIELD_HOT:     { id: 'CLR_SHIELD_HOT',       tier: 1, cost: 1, reqLevel: 1, classId: 'CLERIC',     label: 'Sacred Warmth',      icon: '💚', desc: 'Divine Shield also applies a HoT (3% max HP/round, 3 rounds) to all allies.' },
+    CLR_HOLY_SPLASH:    { id: 'CLR_HOLY_SPLASH',      tier: 2, cost: 2, reqLevel: 3, classId: 'CLERIC',     label: 'Holy Splash',        icon: '✨', desc: '25% of Holy Light damage splashes to all enemies.' },
+    CLR_WRATH:          { id: 'CLR_WRATH',             tier: 3, cost: 3, reqLevel: 6, classId: 'CLERIC',     label: 'Righteous Wrath',    icon: '⚡', desc: 'Divine Intervention grants the saved ally +30% damage for 2 rounds.' },
+
+    // ── RANGER (RNG) ──
+    RNG_VOLLEY_SLOW:    { id: 'RNG_VOLLEY_SLOW',      tier: 1, cost: 1, reqLevel: 1, classId: 'RANGER',     label: 'Suppressing Fire',   icon: '🎯', desc: 'Volley hits reduce enemy ATK by 20% for 1 round.' },
+    RNG_SHARED_CAMO:    { id: 'RNG_SHARED_CAMO',      tier: 2, cost: 2, reqLevel: 3, classId: 'RANGER',     label: 'Shared Camouflage',  icon: '🌿', desc: 'Camouflage extends to the lowest-HP ally, granting them +20% dodge for 2 rounds.' },
+    RNG_STORM_MARK:     { id: 'RNG_STORM_MARK',       tier: 3, cost: 3, reqLevel: 6, classId: 'RANGER',     label: 'Storm Mark',         icon: '🌧', desc: 'Arrow Storm marks all surviving enemies — they take +15% damage from all sources for 2 rounds.' },
+
+    // ── BARD (BRD) ──
+    BRD_DISCORD_DMG:    { id: 'BRD_DISCORD_DMG',      tier: 1, cost: 1, reqLevel: 1, classId: 'BARD',       label: 'Sonic Amplifier',    icon: '🎵', desc: 'Discord\'s sonic damage is doubled.' },
+    BRD_CRESCENDO_ALLY: { id: 'BRD_CRESCENDO_ALLY',   tier: 2, cost: 2, reqLevel: 3, classId: 'BARD',       label: 'Grand Crescendo',    icon: '🎶', desc: 'Crescendo\'s guaranteed crit also applies to the next 2 ally attacks.' },
+    BRD_SYMPHONY_LEECH: { id: 'BRD_SYMPHONY_LEECH',   tier: 3, cost: 3, reqLevel: 6, classId: 'BARD',       label: 'Vampiric Symphony',  icon: '🎻', desc: 'Symphony of War grants +5% lifesteal to the entire party.' },
+
+    // ── MONK (MNK) ──
+    MNK_KI_BOOST:       { id: 'MNK_KI_BOOST',         tier: 1, cost: 1, reqLevel: 1, classId: 'MONK',       label: 'Deep Ki',            icon: '🔵', desc: 'Ki Barrier lifesteal increased to 40% (from 25%).' },
+    MNK_COUNTER_ATK:    { id: 'MNK_COUNTER_ATK',       tier: 2, cost: 2, reqLevel: 3, classId: 'MONK',       label: 'Retaliating Stance', icon: '👊', desc: 'Counter Stance now also counterattacks for 30% ATK damage.' },
+    MNK_FURY_PLUS:      { id: 'MNK_FURY_PLUS',         tier: 3, cost: 3, reqLevel: 6, classId: 'MONK',       label: 'Infinite Fists',     icon: '💥', desc: 'Fists of Fury gains +1 hit, and each hit can independently crit.' },
+
+    // ── NECROMANCER (NEC) ──
+    NEC_TAP_SHARE:      { id: 'NEC_TAP_SHARE',         tier: 1, cost: 1, reqLevel: 1, classId: 'NECROMANCER',label: 'Siphon Aura',        icon: '🩸', desc: 'Life Tap also heals 2 nearby allies for 15% of damage dealt.' },
+    NEC_SHIELD_TAP:     { id: 'NEC_SHIELD_TAP',        tier: 2, cost: 2, reqLevel: 3, classId: 'NECROMANCER',label: 'Vampiric Shroud',    icon: '💀', desc: 'Shroud of Decay\'s reflected damage also triggers Life Tap healing.' },
+    NEC_SUMMON_SHIELD:  { id: 'NEC_SUMMON_SHIELD',     tier: 3, cost: 3, reqLevel: 6, classId: 'NECROMANCER',label: 'Undead Vanguard',    icon: '💀', desc: 'Army of the Damned summons each absorb one hit before dying.' },
+
+    // ── PARTY-WIDE ──
+    PARTY_CEL_RESONANCE: { id: 'PARTY_CEL_RESONANCE',  tier: 2, cost: 2, reqLevel: 3, classId: null, label: 'Celestial Resonance', icon: '✦', desc: 'Celestial equipment grants +10% to all stats.' },
+    PARTY_CEL_CASCADE:   { id: 'PARTY_CEL_CASCADE',    tier: 2, cost: 2, reqLevel: 3, classId: null, label: 'Celestial Cascade',   icon: '💫', desc: 'Celestial skill procs have a 25% chance to deal AoE damage (50% to all other enemies).' },
+    PARTY_SIEGE:         { id: 'PARTY_SIEGE',           tier: 2, cost: 2, reqLevel: 3, classId: null, label: 'Siege Breaker',       icon: '🔥', desc: '+25% damage against bosses and raid bosses.' },
+    PARTY_SIXTH_SLOT:    { id: 'PARTY_SIXTH_SLOT',      tier: 3, cost: 3, reqLevel: 6, classId: null, label: 'Sixth Party Slot',    icon: '👥', desc: 'Unlock a 6th active party member slot.' },
+    PARTY_UNDYING:       { id: 'PARTY_UNDYING',          tier: 3, cost: 3, reqLevel: 6, classId: null, label: 'Undying Oath',        icon: '🔄', desc: 'Once per quest, a KO\'d party member auto-revives at 15% HP.' },
+  };
+
+  function getLegacyTalentPoints() {
+    const lvl = state.guildLegacy?.level || 0;
+    const spent = (state.guildLegacy?.talents || []).reduce((s, tid) => s + (LEGACY_TALENTS[tid]?.cost || 0), 0);
+    return { total: lvl, spent, available: lvl - spent };
+  }
+
+  function canPurchaseTalent(talentId) {
+    const t = LEGACY_TALENTS[talentId];
+    if (!t) return { ok: false, reason: 'Unknown talent.' };
+    const lvl = state.guildLegacy?.level || 0;
+    if (lvl < t.reqLevel) return { ok: false, reason: `Requires Legacy Level ${t.reqLevel}.` };
+    const { available } = getLegacyTalentPoints();
+    if (available < t.cost) return { ok: false, reason: `Need ${t.cost} talent points (${available} available).` };
+    if ((state.guildLegacy?.talents || []).includes(talentId)) return { ok: false, reason: 'Already purchased.' };
+    return { ok: true };
+  }
+
+  function purchaseTalent(talentId) {
+    const check = canPurchaseTalent(talentId);
+    if (!check.ok) return check;
+    if (!state.guildLegacy.talents) state.guildLegacy.talents = [];
+    state.guildLegacy.talents.push(talentId);
+    logEvent(`Talent unlocked: ${LEGACY_TALENTS[talentId].label}!`);
+    save();
+    return { ok: true };
+  }
+
+  function hasTalent(talentId) {
+    return (state.guildLegacy?.talents || []).includes(talentId);
+  }
+
+  function resetTalents() {
+    if (!state.guildLegacy) return;
+    state.guildLegacy.talents = [];
+    logEvent('All talents have been reset.');
+    save();
   }
 
   function addExp(memberId, amount) {
@@ -632,10 +779,11 @@ const Game = (() => {
     const baseExp  = randInt(questDef.expReward.min, questDef.expReward.max);
     // Cap the ratio multiplier to prevent runaway rewards on overleveled quests
     const cappedRatio = Math.min(ratio, 3.0);
-    // Synergy bonuses for repeated quests
-    const goldXpMult = 1 + getGoldXpBonus(questDef.id);
+    // Synergy bonuses for repeated quests + Guild Legacy bonuses
+    const legacy = getLegacyBonuses();
+    const goldXpMult = 1 + getGoldXpBonus(questDef.id) + legacy.goldBonus + legacy.expBonus;
     const rpMult = 1 + getRpBonus(questDef.id);
-    const itemFindBonus = getItemFind(questDef.id);
+    const itemFindBonus = getItemFind(questDef.id) + legacy.itemFind;
     const goldEarned = success ? Math.floor(baseGold * (0.8 + cappedRatio * 0.4) * goldXpMult) : 0;
     const expEarned  = Math.floor(baseExp * (success ? 1 : 0.2) * goldXpMult);
 
@@ -657,7 +805,10 @@ const Game = (() => {
         }
         const lootRatio = Math.min(ratio, 3.0);
         const baseChance = entry.chance * (0.7 + lootRatio * 0.3) + luckBonus * 0.02;
-        const chance = Math.min(0.95, baseChance * (1 + itemFindBonus) * questRarityMult);
+        // Legacy celestial bonus applies on top for celestial items
+        const isCelItem = getItemRarity(getItem(entry.itemId))?.id === 'celestial';
+        const celBonus = isCelItem ? legacy.celestialBonus : 0;
+        const chance = Math.min(0.95, baseChance * (1 + itemFindBonus + celBonus) * questRarityMult);
         if (Math.random() < chance) {
           loot.push({ itemId: entry.itemId, quantity: randInt(entry.quantity[0], entry.quantity[1]) });
         } else {
@@ -666,10 +817,11 @@ const Game = (() => {
       }
 
       // Boss loot guarantee: bosses always drop 4-8 items
-      // If natural rolls gave fewer than 4, fill from failed entries (highest chance first)
+      // Raid bosses: 8-12 items guaranteed
       if (questDef.boss) {
-        const bossMinLoot = 4;
-        const bossMaxLoot = 8;
+        const isRaid = !!questDef.raidBoss;
+        const bossMinLoot = isRaid ? 8 : 4;
+        const bossMaxLoot = isRaid ? 12 : 8;
         // Cap at max even if natural rolls exceeded it (unlikely but safety)
         while (loot.length > bossMaxLoot) loot.pop();
         // Fill up to minimum from failed rolls, sorted by drop chance (most likely first)
@@ -962,33 +1114,33 @@ const Game = (() => {
     { id: 'DMG_TAKEN_1',   quests: 7,   label: 'Iron Resolve I',        desc: '−5% damage taken',          dmgReduction: 0.05 },
     { id: 'AUTO_RUN_2',    quests: 8,   label: 'Battle Fervor I',       desc: 'Unlock auto-battle ×2',     autoRunMax: 2 },
     { id: 'ATK_SPD_1',     quests: 10,  label: 'Combat Momentum I',     desc: '+10% attack speed',         atkSpeedBonus: 0.10 },
-    { id: 'HEAL_1',        quests: 13,  label: 'Field Medic I',         desc: '+15% healing efficiency',    healBonus: 0.15 },
-    { id: 'ITEM_FIND_1',   quests: 16,  label: 'Treasure Hunter I',     desc: '+10% item find chance',      itemFind: 0.10 },
+    { id: 'HEAL_1',        quests: 12,  label: 'Field Medic I',         desc: '+15% healing efficiency',    healBonus: 0.15 },
+    { id: 'AUTO_RUN_5',    quests: 15,  label: 'Battle Fervor II',      desc: 'Unlock auto-battle ×5',     autoRunMax: 5 },
+    { id: 'ITEM_FIND_1',   quests: 17,  label: 'Treasure Hunter I',     desc: '+10% item find chance',      itemFind: 0.10 },
     { id: 'BOSS_1',        quests: 19,  label: 'Keen Eye I',            desc: '5% boss encounter chance',   secretBossChance: 0.05 },
-    { id: 'RP_1',          quests: 22,  label: 'War Stories I',         desc: '+15% rank points',           rpBonus: 0.15 },
-    { id: 'AUTO_RUN_5',    quests: 25,  label: 'Battle Fervor II',      desc: 'Unlock auto-battle ×5',     autoRunMax: 5 },
+    { id: 'RP_1',          quests: 21,  label: 'War Stories I',         desc: '+15% rank points',           rpBonus: 0.15 },
 
-    // Mid unlocks (every 4-5 quests) — tier 2
-    { id: 'GOLD_XP_2',     quests: 30,  label: 'Shrewd Negotiators II', desc: '+20% gold & XP',            goldXpBonus: 0.20 },
-    { id: 'DMG_2',         quests: 34,  label: 'Precise Strikes II',    desc: '+10% damage (all types)',    dmgBonus: 0.10 },
-    { id: 'DMG_TAKEN_2',   quests: 38,  label: 'Iron Resolve II',       desc: '−10% damage taken',          dmgReduction: 0.10 },
-    { id: 'ATK_SPD_2',     quests: 42,  label: 'Combat Momentum II',    desc: '+20% attack speed',          atkSpeedBonus: 0.20 },
-    { id: 'HEAL_2',        quests: 46,  label: 'Field Medic II',        desc: '+30% healing efficiency',     healBonus: 0.30 },
-    { id: 'ITEM_FIND_2',   quests: 50,  label: 'Treasure Hunter II',    desc: '+20% item find chance',       itemFind: 0.20 },
-    { id: 'BOSS_2',        quests: 54,  label: 'Keen Eye II',           desc: '10% boss encounter chance',   secretBossChance: 0.10 },
-    { id: 'RP_2',          quests: 58,  label: 'War Stories II',        desc: '+30% rank points',            rpBonus: 0.30 },
-    { id: 'AUTO_RUN_10',   quests: 50,  label: 'Battle Fervor III',     desc: 'Unlock auto-battle ×10',     autoRunMax: 10 },
+    // Mid unlocks (every 3-4 quests) — tier 2
+    { id: 'GOLD_XP_2',     quests: 24,  label: 'Shrewd Negotiators II', desc: '+20% gold & XP',            goldXpBonus: 0.20 },
+    { id: 'DMG_2',         quests: 27,  label: 'Precise Strikes II',    desc: '+10% damage (all types)',    dmgBonus: 0.10 },
+    { id: 'AUTO_RUN_10',   quests: 30,  label: 'Battle Fervor III',     desc: 'Unlock auto-battle ×10',    autoRunMax: 10 },
+    { id: 'DMG_TAKEN_2',   quests: 33,  label: 'Iron Resolve II',       desc: '−10% damage taken',          dmgReduction: 0.10 },
+    { id: 'ATK_SPD_2',     quests: 36,  label: 'Combat Momentum II',    desc: '+20% attack speed',          atkSpeedBonus: 0.20 },
+    { id: 'HEAL_2',        quests: 39,  label: 'Field Medic II',        desc: '+30% healing efficiency',     healBonus: 0.30 },
+    { id: 'ITEM_FIND_2',   quests: 42,  label: 'Treasure Hunter II',    desc: '+20% item find chance',       itemFind: 0.20 },
+    { id: 'BOSS_2',        quests: 45,  label: 'Keen Eye II',           desc: '10% boss encounter chance',   secretBossChance: 0.10 },
+    { id: 'RP_2',          quests: 48,  label: 'War Stories II',        desc: '+30% rank points',            rpBonus: 0.30 },
 
-    // Late unlocks (every 6-8 quests) — tier 3
-    { id: 'GOLD_XP_3',     quests: 68,  label: 'Shrewd Negotiators III',desc: '+35% gold & XP',             goldXpBonus: 0.35 },
-    { id: 'DMG_3',         quests: 76,  label: 'Precise Strikes III',   desc: '+18% damage (all types)',     dmgBonus: 0.18 },
-    { id: 'DMG_TAKEN_3',   quests: 84,  label: 'Iron Resolve III',      desc: '−18% damage taken',           dmgReduction: 0.18 },
-    { id: 'ATK_SPD_3',     quests: 92,  label: 'Combat Momentum III',   desc: '+30% attack speed',           atkSpeedBonus: 0.30 },
-    { id: 'AUTO_RUN_20',   quests: 75,  label: 'Battle Fervor IV',      desc: 'Unlock auto-battle ×20',     autoRunMax: 20 },
-    { id: 'HEAL_3',        quests: 108, label: 'Field Medic III',       desc: '+50% healing efficiency',      healBonus: 0.50 },
-    { id: 'ITEM_FIND_3',   quests: 116, label: 'Treasure Hunter III',   desc: '+35% item find chance',        itemFind: 0.35 },
-    { id: 'BOSS_3',        quests: 124, label: 'Keen Eye III',          desc: '15% boss encounter chance',    secretBossChance: 0.15 },
-    { id: 'RP_3',          quests: 130, label: 'War Stories III',       desc: '+50% rank points',             rpBonus: 0.50 },
+    // Late unlocks (every 4-5 quests) — tier 3
+    { id: 'AUTO_RUN_20',   quests: 50,  label: 'Battle Fervor IV',      desc: 'Unlock auto-battle ×20',     autoRunMax: 20 },
+    { id: 'GOLD_XP_3',     quests: 54,  label: 'Shrewd Negotiators III',desc: '+35% gold & XP',             goldXpBonus: 0.35 },
+    { id: 'DMG_3',         quests: 58,  label: 'Precise Strikes III',   desc: '+18% damage (all types)',     dmgBonus: 0.18 },
+    { id: 'DMG_TAKEN_3',   quests: 62,  label: 'Iron Resolve III',      desc: '−18% damage taken',           dmgReduction: 0.18 },
+    { id: 'ATK_SPD_3',     quests: 66,  label: 'Combat Momentum III',   desc: '+30% attack speed',           atkSpeedBonus: 0.30 },
+    { id: 'HEAL_3',        quests: 70,  label: 'Field Medic III',       desc: '+50% healing efficiency',      healBonus: 0.50 },
+    { id: 'ITEM_FIND_3',   quests: 74,  label: 'Treasure Hunter III',   desc: '+35% item find chance',        itemFind: 0.35 },
+    { id: 'BOSS_3',        quests: 78,  label: 'Keen Eye III',          desc: '15% boss encounter chance',    secretBossChance: 0.15 },
+    { id: 'RP_3',          quests: 82,  label: 'War Stories III',       desc: '+50% rank points',             rpBonus: 0.50 },
   ];
 
   function getPartyHash() {
@@ -1367,6 +1519,244 @@ const Game = (() => {
     if (isQuestComplete()) finishQuest();
   }
 
+  // ── Tower Climb ─────────────────────────────────────────────────────────
+
+  function towerCanEnter() {
+    if (!isTowerUnlocked(state.guild.rank)) return { ok: false, reason: 'Requires S Rank to enter the Tower.' };
+    if (state.guild.activeQuest) return { ok: false, reason: 'Party is currently on a quest.' };
+    if (state.tower && state.tower.active) return { ok: false, reason: 'Already in the Tower.' };
+    return { ok: true };
+  }
+
+  function towerEnter() {
+    const check = towerCanEnter();
+    if (!check.ok) return check;
+
+    if (!state.tower) state.tower = getDefaultTowerState();
+
+    const snapshot = buildPartySnapshot();
+    state.tower.active = {
+      floor: 1,
+      startedAt: Date.now(),
+      partySnapshot: snapshot,
+      atRest: false,
+      floorsCleared: 0,
+      accumulatedGold: 0,
+      accumulatedExp: 0,
+    };
+    state.tower.totalRuns = (state.tower.totalRuns || 0) + 1;
+
+    // Start the first floor as a quest
+    const floorQuest = generateFloorQuest(1);
+    state.guild.activeQuest = {
+      questId: floorQuest.id,
+      startedAt: Date.now(),
+      eventCount: 0,
+      partySnapshot: snapshot,
+      questData: floorQuest,
+    };
+
+    logEvent('The party enters the Endless Tower...');
+    save();
+    return { ok: true };
+  }
+
+  function towerAdvanceFloor() {
+    if (!state.tower || !state.tower.active) return { ok: false, reason: 'Not in the Tower.' };
+    if (state.guild.activeQuest) return { ok: false, reason: 'Floor battle still in progress.' };
+
+    const tower = state.tower.active;
+    tower.floor++;
+
+    // Check for rest floor
+    if (isRestFloor(tower.floor - 1)) {
+      // The party just cleared a rest checkpoint floor — show rest option
+      tower.atRest = true;
+      logEvent(`Floor ${tower.floor - 1} cleared! Rest room reached.`);
+      save();
+      return { ok: true, rest: true, floor: tower.floor - 1 };
+    }
+
+    // Start the next floor combat
+    const snapshot = buildPartySnapshot();
+    tower.partySnapshot = snapshot;
+    const floorQuest = generateFloorQuest(tower.floor);
+
+    state.guild.activeQuest = {
+      questId: floorQuest.id,
+      startedAt: Date.now(),
+      eventCount: 0,
+      partySnapshot: snapshot,
+      questData: floorQuest,
+    };
+
+    logEvent(`Ascending to floor ${tower.floor}...`);
+    save();
+    return { ok: true, rest: false, floor: tower.floor };
+  }
+
+  function towerContinueFromRest() {
+    if (!state.tower || !state.tower.active || !state.tower.active.atRest) {
+      return { ok: false, reason: 'Not at a rest room.' };
+    }
+    state.tower.active.atRest = false;
+
+    // Heal party partially at rest room (50% of missing HP)
+    const activeMembers = getActiveMembers();
+    const allMembers = [state.player, ...activeMembers];
+    for (const m of allMembers) {
+      const eff = effectiveStats(m);
+      const missing = eff.maxHp - m.stats.hp;
+      if (missing > 0) {
+        m.stats.hp = Math.min(eff.maxHp, m.stats.hp + Math.floor(missing * 0.5));
+      }
+    }
+
+    // Start the next floor
+    return towerAdvanceFloor();
+  }
+
+  function towerExit(voluntary = true) {
+    if (!state.tower || !state.tower.active) return { ok: false, reason: 'Not in the Tower.' };
+
+    const tower = state.tower.active;
+    const floorsCleared = tower.floorsCleared;
+
+    // Calculate loot
+    const rewards = calculateTowerLoot(floorsCleared);
+
+    // Update best floor record
+    if (floorsCleared > (state.tower.bestFloor || 0)) {
+      state.tower.bestFloor = floorsCleared;
+      state.tower.bestParty = tower.partySnapshot.map(m => ({
+        name: m.name, class: m.class, level: m.level,
+      }));
+    }
+
+    // Apply rewards
+    state.gold += rewards.gold;
+    const rankUp = addRankPoints(rewards.rankPoints);
+
+    const levelUps = [];
+    const skillGains = [];
+    for (const snap of tower.partySnapshot) {
+      const gained = addExp(snap.id, rewards.exp);
+      levelUps.push(...gained.levelUps);
+      skillGains.push(...gained.skillGains);
+    }
+
+    for (const drop of rewards.loot) {
+      addToInventory(drop.itemId, drop.quantity);
+    }
+
+    // Set pending results for the recap screen
+    state.pendingResults = {
+      quest: {
+        title: `Endless Tower — Floor ${floorsCleared}`,
+        rank: 'S',
+        boss: false,
+        raidBoss: false,
+        towerRun: true,
+        towerFloor: floorsCleared,
+        environment: { name: 'The Endless Tower', icon: '🗼', mood: 'dungeon' },
+      },
+      result: {
+        success: voluntary,
+        partyPower: tower.partySnapshot.reduce((s, m) => s + m.power, 0),
+        questPower: 0,
+        ratio: 0,
+        goldEarned: rewards.gold,
+        expEarned: rewards.exp,
+        rankPoints: rewards.rankPoints,
+        loot: rewards.loot,
+        narrative: voluntary
+          ? `The party returns from floor ${floorsCleared} of the Endless Tower, laden with treasures.`
+          : `The party was defeated on floor ${floorsCleared + 1}. Their tower run ends here.`,
+        activatedSkills: [],
+        towerRun: true,
+        towerFloor: floorsCleared,
+        bestFloor: state.tower.bestFloor,
+      },
+      levelUps,
+      rankUp,
+      synergyUnlocks: [],
+      skillGains,
+      combatStats: [],
+      combatEvents: [],
+      combatDebug: null,
+      resolvedAt: Date.now(),
+    };
+
+    logEvent(voluntary
+      ? `Tower run complete! Reached floor ${floorsCleared}.`
+      : `Defeated in the Tower on floor ${floorsCleared + 1}.`);
+
+    // Clear tower active state
+    state.tower.active = null;
+    state.guild.activeQuest = null;
+    save();
+
+    return { ok: true, floorsCleared, rewards };
+  }
+
+  function finishTowerFloor() {
+    if (!state.tower || !state.tower.active) return;
+    if (!state.guild.activeQuest) return;
+    if (!isQuestComplete()) return;
+
+    const aq = state.guild.activeQuest;
+    const quest = aq.questData;
+    const result = resolveQuest(quest, aq.partySnapshot);
+
+    if (!result.success) {
+      // Party defeated — end the tower run
+      towerExit(false);
+      return;
+    }
+
+    // Floor cleared — accumulate rewards
+    const tower = state.tower.active;
+    tower.floorsCleared = tower.floor;
+    tower.accumulatedGold += result.goldEarned;
+    tower.accumulatedExp += result.expEarned;
+
+    // Apply per-floor XP for level progression during the run
+    for (const snap of aq.partySnapshot) {
+      addExp(snap.id, Math.floor(result.expEarned * 0.3)); // 30% of floor exp during run
+    }
+
+    // Clear the active quest (floor done)
+    state.guild.activeQuest = null;
+
+    // Check for rest floor
+    if (isRestFloor(tower.floor)) {
+      tower.atRest = true;
+      logEvent(`Floor ${tower.floor} cleared! A rest room appears.`);
+    } else {
+      // Auto-advance to next floor
+      const nextFloor = tower.floor + 1;
+      tower.floor = nextFloor;
+      const snapshot = buildPartySnapshot();
+      tower.partySnapshot = snapshot;
+      const floorQuest = generateFloorQuest(nextFloor);
+
+      state.guild.activeQuest = {
+        questId: floorQuest.id,
+        startedAt: Date.now(),
+        eventCount: 0,
+        partySnapshot: snapshot,
+        questData: floorQuest,
+      };
+    }
+
+    save();
+  }
+
+  function getTowerState() {
+    if (!state.tower) state.tower = getDefaultTowerState();
+    return state.tower;
+  }
+
   let tickInterval = null;
   let saveInterval = null;
 
@@ -1380,7 +1770,12 @@ const Game = (() => {
       const elapsed = Math.min(rawElapsed, 2);
       healTick(elapsed);
       if (state.guild.activeQuest && isQuestComplete()) {
-        finishQuest();
+        // Tower mode: handle floor completion differently
+        if (state.tower && state.tower.active) {
+          finishTowerFloor();
+        } else {
+          finishQuest();
+        }
       }
       refreshShopIfNeeded();
       if (onTick) onTick();
@@ -1433,6 +1828,14 @@ const Game = (() => {
 
     // Engine
     startQuest, finishQuest, resolveIdle, startTick, stopTick,
+
+    // Tower Climb
+    towerCanEnter, towerEnter, towerContinueFromRest, towerExit, getTowerState,
+    finishTowerFloor, isTowerUnlocked: () => isTowerUnlocked(state.guild.rank),
+
+    // Guild Legacy & Talents
+    getLegacyBonuses, LEGACY_RP_PER_LEVEL, LEGACY_TALENTS,
+    getLegacyTalentPoints, canPurchaseTalent, purchaseTalent, hasTalent, resetTalents,
   };
 })();
 

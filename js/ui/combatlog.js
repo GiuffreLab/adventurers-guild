@@ -219,7 +219,7 @@ const T_RANGER_AOE = [
 // dmgScale: fraction of normal attack damage applied per target (lower since it hits everyone)
 const AOE_SKILLS = {
   // Ranger AoE
-  VOLLEY:               { dmgScale: 0.60, templates: T_VOLLEY,     icon: '🏹', type: 'skill',     triggerCamo: true },
+  VOLLEY:               { dmgScale: 0.60, templates: T_VOLLEY,     icon: '🎯', type: 'skill',     triggerCamo: true },
   ARROW_STORM:          { dmgScale: 0.75, templates: T_RANGER_AOE, icon: '🌧', type: 'skill',     triggerCamo: true },
   STORM_VOLLEY:         { dmgScale: 0.65, templates: T_RANGER_AOE, icon: '⚡', type: 'equip',     triggerCamo: true },
   CELESTIAL_VOLLEY:     { dmgScale: 0.70, templates: T_RANGER_AOE, icon: '🌠', type: 'equip',     triggerCamo: true },
@@ -416,9 +416,14 @@ function buildSimulation(aq, quest) {
   const envName = quest.environment ? esc(quest.environment.name) : 'the unknown';
 
   // Synergy bonuses for repeated quests
-  const dmgBonus = 1 + (Game.getDmgBonus ? Game.getDmgBonus(aq.questId) : 0);
+  let dmgBonus = 1 + (Game.getDmgBonus ? Game.getDmgBonus(aq.questId) : 0);
   const dmgReduction = Game.getDmgReduction ? Game.getDmgReduction(aq.questId) : 0;
-  const atkSpeedBonus = Game.getAtkSpeedBonus ? Game.getAtkSpeedBonus(aq.questId) : 0;
+  let atkSpeedBonus = Game.getAtkSpeedBonus ? Game.getAtkSpeedBonus(aq.questId) : 0;
+
+  // Legacy talent combat modifiers
+  const _ht = (id) => Game.hasTalent ? Game.hasTalent(id) : false;
+  const isBossQuest = !!quest.boss;
+  if (_ht('PARTY_SIEGE') && isBossQuest) dmgBonus += 0.25;
   // Initialize party auras early so healBonus can include partyHealBonus
   const simAuras = Game.getPartyAuras ? Game.getPartyAuras() : null;
   const partyHealAura = simAuras ? simAuras.heal : 0;
@@ -523,6 +528,85 @@ function buildSimulation(aq, quest) {
     return Math.min(0.75, d / (d + 80) + flatBonus);
   }
 
+  // ── Apply Legacy Talent stat modifiers ──
+  // PARTY_CEL_RESONANCE: celestial equipment grants +10% to all stats
+  if (_ht('PARTY_CEL_RESONANCE')) {
+    for (const p of partyHp) {
+      const member = Game.getMember(p.id);
+      if (!member) continue;
+      const slots = ['weapon', 'armor', 'offhand', 'accessory'];
+      let hasCelestial = false;
+      for (const slot of slots) {
+        const itemId = member.equipment?.[slot];
+        if (itemId && itemId.startsWith('CEL_')) { hasCelestial = true; break; }
+      }
+      if (hasCelestial) {
+        p.atk = Math.floor(p.atk * 1.10);
+        p.def = Math.floor(p.def * 1.10);
+        p.mag = Math.floor(p.mag * 1.10);
+        p.spd = Math.floor(p.spd * 1.10);
+        p.crit = Math.floor(p.crit * 1.10);
+        p.dodge = Math.floor(p.dodge * 1.10);
+        p.maxHp = Math.floor(p.maxHp * 1.10);
+        p.hp = p.maxHp;
+      }
+    }
+  }
+
+  // ── Class-augmentation talent flags ──
+  // Hero
+  const talentChainStrike = _ht('HRO_CHAIN_STRIKE');
+  const talentRallyingHeal = _ht('HRO_RALLYING_HEAL');
+  const talentHeroicRevival = _ht('HRO_HEROIC_REVIVAL');
+  // Knight
+  const talentDefShred = _ht('KNT_DEF_SHRED');
+  const talentKntCounter = _ht('KNT_COUNTER');
+  const talentTauntAura = _ht('KNT_TAUNT_AURA');
+  // Mage
+  const talentEchoShield = _ht('MAG_ECHO_SHIELD');
+  const talentBurnDot = _ht('MAG_BURN_DOT');
+  const talentMageReflect = _ht('MAG_REFLECT');
+  // Rogue
+  const talentPoison = _ht('ROG_POISON');
+  const talentSmokeHeal = _ht('ROG_SMOKE_HEAL');
+  const talentExecute = _ht('ROG_EXECUTE');
+  // Cleric
+  const talentSacredWarmth = _ht('CLR_SHIELD_HOT');
+  const talentHolySplash = _ht('CLR_HOLY_SPLASH');
+  const talentWrath = _ht('CLR_WRATH');
+  // Ranger
+  const talentVolleySlow = _ht('RNG_VOLLEY_SLOW');
+  const talentSharedCamo = _ht('RNG_SHARED_CAMO');
+  const talentStormMark = _ht('RNG_STORM_MARK');
+  // Bard
+  const talentDiscordDmg = _ht('BRD_DISCORD_DMG');
+  const talentCrescendoAlly = _ht('BRD_CRESCENDO_ALLY');
+  const talentSymphonyLeech = _ht('BRD_SYMPHONY_LEECH');
+  // Monk
+  const talentDeepKi = _ht('MNK_KI_BOOST');
+  const talentRetaliating = _ht('MNK_COUNTER_ATK');
+  const talentInfiniteFists = _ht('MNK_FURY_PLUS');
+  // Necromancer
+  const talentSiphonAura = _ht('NEC_TAP_SHARE');
+  const talentVampiricShroud = _ht('NEC_SHIELD_TAP');
+  const talentUndeadVanguard = _ht('NEC_SUMMON_SHIELD');
+  // Party-wide
+  const talentCelCascade = _ht('PARTY_CEL_CASCADE');
+  const talentUndying = _ht('PARTY_UNDYING');
+  let undyingUsed = false;
+
+  // Talent status trackers
+  const defShredTargets = {}; // { enemyId: roundsRemaining } — KNT_DEF_SHRED
+  const tauntedEnemies = {}; // { enemyId: roundsRemaining } — KNT_TAUNT_AURA
+  const poisonTargets = {}; // { enemyId: { rounds, dmgPerTick } } — ROG_POISON
+  const burnTargets = {}; // { enemyId: { rounds, dmgPerTick } } — MAG_BURN_DOT
+  const sacredWarmthRounds = {}; // { memberId: roundsRemaining } — CLR_SHIELD_HOT HoT
+  const echoShieldHP = {}; // { memberId: shieldHpRemaining } — MAG_ECHO_SHIELD
+  const wrathBuff = {}; // { memberId: roundsRemaining } — CLR_WRATH +30% dmg
+  const stormMarkRounds = {}; // { enemyId: roundsRemaining } — RNG_STORM_MARK
+  const crescendoAllyCharges = { count: 0 }; // BRD_CRESCENDO_ALLY — next N ally attacks auto-crit
+  let symphonyLeechActive = false; // BRD_SYMPHONY_LEECH — party lifesteal
+
   // Scale enemy count with party size — larger parties face more foes
   // Base 3 enemies for 4 members, +1 per extra member (up to 6 for a party of 7)
   const partyCount = partyHp.length;
@@ -544,8 +628,9 @@ function buildSimulation(aq, quest) {
   const partyPower = members.reduce((s, m) => s + (m.power || 20), 0);
   const questPower = (quest.difficulty || 1) * 25;
   const difficultyRatio = partyPower / Math.max(1, questPower);
-  // Clamp the scaling factor: 0.6x (very overleveled) to 2.0x (very underleveled)
-  const difficultyScale = Math.min(2.0, Math.max(0.6, 1.0 / Math.max(0.5, difficultyRatio)));
+  // Clamp the scaling factor: 0.75x (very overleveled) to 2.5x (very underleveled)
+  // Raised floor from 0.6 to 0.75 so overpowered parties still face meaningful combat
+  const difficultyScale = Math.min(2.5, Math.max(0.75, 1.0 / Math.max(0.5, difficultyRatio)));
   // Boss fights: enemies are tougher — 40% more HP pool, 30% more ATK
   const isBoss = !!quest.boss;
   const bossHpMult = isBoss ? 1.4 : 1.0;
@@ -723,6 +808,10 @@ function buildSimulation(aq, quest) {
     if (m.class === 'BARD' && memberSkills.includes('CRESCENDO')) {
       bardsWithCrescendo.add(m.id);
       crescendoCooldowns[m.id] = 0;
+    }
+    // Vampiric Symphony (BRD_SYMPHONY_LEECH) — Symphony of War grants party lifesteal
+    if (m.class === 'BARD' && memberSkills.includes('SYMPHONY_OF_WAR') && talentSymphonyLeech) {
+      symphonyLeechActive = true;
     }
     if (m.class === 'CLERIC' && memberSkills.includes('DIVINE_SHIELD')) {
       clericsWithDivineShield.add(m.id);
@@ -997,6 +1086,58 @@ function buildSimulation(aq, quest) {
       if (markedEnemies[id] > 0) markedEnemies[id]--;
       if (markedEnemies[id] <= 0) delete markedEnemies[id];
     }
+    // Tick down talent debuffs
+    for (const id of Object.keys(defShredTargets)) {
+      if (defShredTargets[id] > 0) defShredTargets[id]--;
+      if (defShredTargets[id] <= 0) delete defShredTargets[id];
+    }
+    for (const id of Object.keys(tauntedEnemies)) {
+      if (tauntedEnemies[id] > 0) tauntedEnemies[id]--;
+      if (tauntedEnemies[id] <= 0) delete tauntedEnemies[id];
+    }
+    for (const id of Object.keys(stormMarkRounds)) {
+      if (stormMarkRounds[id] > 0) stormMarkRounds[id]--;
+      if (stormMarkRounds[id] <= 0) delete stormMarkRounds[id];
+    }
+    for (const id of Object.keys(wrathBuff)) {
+      if (wrathBuff[id] > 0) wrathBuff[id]--;
+      if (wrathBuff[id] <= 0) delete wrathBuff[id];
+    }
+    // Talent poison DoT ticks
+    for (const eid of Object.keys(poisonTargets)) {
+      const pt = poisonTargets[eid];
+      const enemy = enemies.find(e => e.id === eid && e.alive);
+      if (enemy && pt.rounds > 0) {
+        enemy.hp = Math.max(0, enemy.hp - pt.dmgPerTick);
+        pt.rounds--;
+        if (enemy.hp <= 0) { enemy.alive = false; fallenEnemies.push(enemy.name); }
+        if (pt.rounds <= 0) delete poisonTargets[eid];
+      } else { delete poisonTargets[eid]; }
+    }
+    // Talent burn DoT ticks
+    for (const eid of Object.keys(burnTargets)) {
+      const bt = burnTargets[eid];
+      const enemy = enemies.find(e => e.id === eid && e.alive);
+      if (enemy && bt.rounds > 0) {
+        enemy.hp = Math.max(0, enemy.hp - bt.dmgPerTick);
+        bt.rounds--;
+        if (enemy.hp <= 0) { enemy.alive = false; fallenEnemies.push(enemy.name); }
+        if (bt.rounds <= 0) delete burnTargets[eid];
+      } else { delete burnTargets[eid]; }
+    }
+    // Sacred Warmth HoT ticks
+    for (const mid of Object.keys(sacredWarmthRounds)) {
+      const p = partyHp.find(m => m.id === mid && m.hp > 0);
+      if (p && sacredWarmthRounds[mid] > 0) {
+        const hotAmt = Math.max(1, Math.floor(p.maxHp * 0.03));
+        const before = p.hp;
+        p.hp = Math.min(p.maxHp, p.hp + hotAmt);
+        const actual = p.hp - before;
+        if (actual > 0 && combatStats[p.id]) combatStats[p.id].healingReceived += actual;
+        sacredWarmthRounds[mid]--;
+        if (sacredWarmthRounds[mid] <= 0) delete sacredWarmthRounds[mid];
+      } else { delete sacredWarmthRounds[mid]; }
+    }
     // Tick down skill cooldowns (round-robin)
     for (const mid of Object.keys(skillCooldowns)) {
       const cds = skillCooldowns[mid];
@@ -1085,6 +1226,8 @@ function buildSimulation(aq, quest) {
       const attacker = sPickWeighted(livingParty, es + 10);
       const target = sPick(livingEnemies, es + 11);
       let baseDmg = calcPartyDmg(attacker, es + 12, dmgBonus);
+      // Wrath buff (CLR_WRATH) — +30% damage for buffed allies
+      if (wrathBuff[attacker.id] > 0) baseDmg = Math.floor(baseDmg * 1.30);
       // Bloodlust (Champion) — 1.5× on next attack after a kill
       if (bloodlustActive[attacker.id]) {
         baseDmg = Math.floor(baseDmg * 1.5);
@@ -1094,12 +1237,23 @@ function buildSimulation(aq, quest) {
       if (spellEchoRounds[attacker.id] > 0) baseDmg = Math.floor(baseDmg * 1.50);
       // Mark for Death amplification
       if (markedEnemies[target.id]) baseDmg = Math.floor(baseDmg * 1.20);
+      // Storm Mark (RNG_STORM_MARK) — +15% damage from all sources
+      if (stormMarkRounds[target.id] > 0) baseDmg = Math.floor(baseDmg * 1.15);
+      // Taunted enemies (KNT_TAUNT_AURA) take +10% damage
+      if (tauntedEnemies[target.id] > 0) baseDmg = Math.floor(baseDmg * 1.10);
+      // Def Shred (KNT_DEF_SHRED) — target takes more damage (simulate -15% DEF)
+      if (defShredTargets[target.id] > 0) baseDmg = Math.floor(baseDmg * 1.12);
+      // Executioner (ROG_EXECUTE) — always crit enemies below 25% HP
+      const isExecute = talentExecute && attacker.class === 'ROGUE' && target.hp < target.maxHp * 0.25;
 
       // Bard Crescendo — guaranteed devastating crit (2.5×), consumes the buff
       const isCrescendo = crescendoActive;
-      const isCrit = isCrescendo || sRand(es + 13) < critChance(attacker);
-      const critMult = isCrescendo ? 2.5 : 1.5;
+      // Crescendo Ally — next 2 ally attacks also auto-crit
+      const isCrescendoAlly = !isCrescendo && crescendoAllyCharges.count > 0;
+      const isCrit = isCrescendo || isCrescendoAlly || isExecute || sRand(es + 13) < critChance(attacker);
+      const critMult = isCrescendo ? 2.5 : (isCrescendoAlly ? 2.0 : 1.5);
       const dmg = isCrit ? Math.floor(baseDmg * critMult) : baseDmg;
+      if (isCrescendoAlly) crescendoAllyCharges.count--;
       if (isCrescendo) {
         crescendoActive = false;
         _bufState.crescendoActive = false;
@@ -1110,6 +1264,43 @@ function buildSimulation(aq, quest) {
       }
       target.hp = Math.max(0, target.hp - dmg);
       if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += dmg;
+
+      // Symphony Leech (BRD_SYMPHONY_LEECH) — 5% lifesteal for entire party
+      if (symphonyLeechActive && attacker.hp > 0) {
+        const leechAmt = Math.max(1, Math.floor(dmg * 0.05));
+        const beforeLL = attacker.hp;
+        attacker.hp = Math.min(attacker.maxHp, attacker.hp + leechAmt);
+        const actualLL = attacker.hp - beforeLL;
+        if (actualLL > 0 && combatStats[attacker.id]) {
+          combatStats[attacker.id].healingDone += actualLL;
+          combatStats[attacker.id].healingReceived += actualLL;
+        }
+      }
+      // Chain Strike (HRO_CHAIN_STRIKE) — Heroic Strike chains to a 2nd target at 50% dmg
+      if (talentChainStrike && attacker.class === 'HERO' && livingEnemies.length > 1) {
+        const chainTarget = livingEnemies.find(e => e.id !== target.id) || livingEnemies[0];
+        if (chainTarget && chainTarget.id !== target.id) {
+          const chainDmg = Math.max(1, Math.floor(dmg * 0.50));
+          chainTarget.hp = Math.max(0, chainTarget.hp - chainDmg);
+          if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += chainDmg;
+          if (chainTarget.hp <= 0) { chainTarget.alive = false; fallenEnemies.push(chainTarget.name); }
+        }
+      }
+      // Venomous Blades (ROG_POISON) — 30% chance to poison on Shadow Strike
+      if (talentPoison && attacker.class === 'ROGUE' && sRand(es + 200) < 0.30 && target.hp > 0) {
+        poisonTargets[target.id] = { rounds: 3, dmgPerTick: Math.max(1, Math.floor(target.maxHp * 0.05)) };
+      }
+      // Celestial Cascade (PARTY_CEL_CASCADE) — celestial skill procs deal 50% AoE
+      if (talentCelCascade && isCrit && sRand(es + 201) < 0.25) {
+        const splashDmg = Math.max(1, Math.floor(dmg * 0.50));
+        for (const e of livingEnemies) {
+          if (e.id !== target.id && e.hp > 0) {
+            e.hp = Math.max(0, e.hp - splashDmg);
+            if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += splashDmg;
+            if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); }
+          }
+        }
+      }
 
       const classId = attacker.class || 'HERO';
       if (isCrescendo) {
@@ -1130,7 +1321,8 @@ function buildSimulation(aq, quest) {
 
       // Monk Ki Barrier — lifesteal on hit
       if (monksWithKiBarrier.has(attacker.id) && attacker.hp > 0) {
-        const lifeSteal = Math.max(1, Math.floor(dmg * 0.25));
+        const kiRate = talentDeepKi ? 0.40 : 0.25; // Deep Ki (MNK_KI_BOOST) — increased lifesteal
+        const lifeSteal = Math.max(1, Math.floor(dmg * kiRate));
         const before = attacker.hp;
         attacker.hp = Math.min(attacker.maxHp, attacker.hp + lifeSteal);
         const actual = attacker.hp - before;
@@ -1272,6 +1464,30 @@ function buildSimulation(aq, quest) {
               snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
               text = sPick(T_CAMOUFLAGE, es + 96)(attacker.name);
               icon = '🍃'; type = 'buff';
+              // Shared Camouflage (RNG_SHARED_CAMO) — extends to lowest-HP ally
+              if (talentSharedCamo) {
+                const lowestAlly = partyHp.filter(p => p.hp > 0 && p.id !== attacker.id).sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp))[0];
+                if (lowestAlly) camoRounds[lowestAlly.id] = 2;
+              }
+            }
+            // Suppressing Fire (RNG_VOLLEY_SLOW) — Volley hits reduce enemy ATK
+            if (talentVolleySlow && attacker.class === 'RANGER') {
+              for (const e of currentLiving) {
+                if (e.alive) e.atk = Math.max(1, Math.floor(e.atk * 0.80));
+              }
+            }
+            // Storm Mark (RNG_STORM_MARK) — Arrow Storm marks all surviving enemies +15% dmg for 2 rounds
+            if (talentStormMark && (skillId === 'ARROW_STORM' || skillId === 'STORM_VOLLEY')) {
+              for (const e of currentLiving) {
+                if (e.alive) stormMarkRounds[e.id] = 2;
+              }
+            }
+            // Lingering Flames (MAG_BURN_DOT) — Arcane Cataclysm leaves burn DoT
+            if (talentBurnDot && (skillId === 'ARCANE_CATACLYSM' || skillId === 'ARCANE_CATACLYSM_EQ')) {
+              const burnDmg = Math.max(1, Math.floor((attacker.mag || 10) * 0.10));
+              for (const e of currentLiving) {
+                if (e.alive) burnTargets[e.id] = { rounds: 2, dmgPerTick: burnDmg };
+              }
             }
 
             // Mage Spell Echo — activate after AoE skill cast
@@ -1281,7 +1497,13 @@ function buildSimulation(aq, quest) {
               snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
               text = sPick(T_SPELL_ECHO, es + 95)(attacker.name);
               icon = '🌀'; type = 'buff';
+              // Echo Shield (MAG_ECHO_SHIELD) — Spell Echo also grants a shield
+              if (talentEchoShield) {
+                echoShieldHP[attacker.id] = Math.max(1, Math.floor(attacker.maxHp * 0.15));
+              }
             }
+            // Arcane Reflection (MAG_REFLECT) — Mana Shield reflects 20% of absorbed dmg (tracked via echoShieldHP)
+            // (Reflection happens in the enemy attack section when echoShieldHP absorbs damage)
 
             // Check for kills
             const killed = currentLiving.filter(e => !e.alive);
@@ -1320,6 +1542,20 @@ function buildSimulation(aq, quest) {
             attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmt);
             const actualHeal = attacker.hp - before;
             if (combatStats[attacker.id]) combatStats[attacker.id].healingDone += actualHeal;
+            // Siphon Aura (NEC_TAP_SHARE) — Life Tap also heals 2 nearby allies for 15% of damage
+            if (talentSiphonAura) {
+              const allies = partyHp.filter(p => p.hp > 0 && p.id !== attacker.id).sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp)).slice(0, 2);
+              for (const ally of allies) {
+                const siphonHeal = Math.max(1, Math.floor(baseDmg * 0.15));
+                const bef = ally.hp;
+                ally.hp = Math.min(ally.maxHp, ally.hp + siphonHeal);
+                const act = ally.hp - bef;
+                if (act > 0) {
+                  if (combatStats[attacker.id]) combatStats[attacker.id].healingDone += act;
+                  if (combatStats[ally.id]) combatStats[ally.id].healingReceived += act;
+                }
+              }
+            }
             text = sPick(T_LIFE_TAP, es)(attacker.name, target.name, baseDmg, actualHeal);
             icon = '🩸'; type = 'magic';
             if (target.hp <= 0) {
@@ -1337,8 +1573,9 @@ function buildSimulation(aq, quest) {
             // Necromancer Army of the Damned — 3 rounds of risen army + auto-Blight
             const armyCount = Math.max(1, fallenEnemies.length);
             const armyBaseDmg = Math.max(2, Math.floor(attacker.mag * 0.8));
+            // Undead Vanguard (NEC_SUMMON_SHIELD) — army lasts +1 round (absorbs one more hit wave)
             armyDmgPerTick = armyCount * Math.floor(armyBaseDmg * (1 + minionDmgBonusTotal) * 2.5);
-            armyRounds = 3;
+            armyRounds = talentUndeadVanguard ? 4 : 3;
             armySource = attacker;
             _bufState.armyRounds = armyRounds;
             // Auto-apply Blight alongside the army
@@ -1366,18 +1603,19 @@ function buildSimulation(aq, quest) {
             const isEquipProc = !isCelestial && skill.source === 'equipment';
             if (isCelestial) {
               text = sPick(T_CELESTIAL_SKILL, es)(attacker.name, skill.name, target.name, baseDmg);
-              icon = '✦'; type = 'celestial';
+              icon = skill.icon || '✦'; type = 'celestial';
             } else if (isEquipProc) {
               text = sPick(T_EQUIP_SKILL, es)(attacker.name, skill.name, target.name, baseDmg);
-              icon = skill.icon || '⚡'; type = 'equip';
+              icon = skill.icon || '•'; type = 'equip';
             } else {
               text = sPick(T_SKILL, es)(attacker.name, skill.name, target.name, baseDmg);
-              icon = skill.icon || '⚡'; type = 'skill';
+              icon = skill.icon || '•'; type = 'skill';
             }
 
             // Monk Ki Barrier lifesteal on skill use
             if (monksWithKiBarrier.has(attacker.id) && attacker.hp > 0) {
-              const lifeSteal = Math.max(1, Math.floor(baseDmg * 0.25));
+              const kiRate2 = talentDeepKi ? 0.40 : 0.25;
+              const lifeSteal = Math.max(1, Math.floor(baseDmg * kiRate2));
               const before = attacker.hp;
               attacker.hp = Math.min(attacker.maxHp, attacker.hp + lifeSteal);
               const actual = attacker.hp - before;
@@ -1398,7 +1636,26 @@ function buildSimulation(aq, quest) {
               snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
               text = sPick(T_SPELL_ECHO, es + 95)(attacker.name);
               icon = '🌀'; type = 'buff';
+              // Echo Shield (MAG_ECHO_SHIELD) — also on standard skill cast
+              if (talentEchoShield && attacker.class === 'MAGE') {
+                echoShieldHP[attacker.id] = Math.max(1, Math.floor(attacker.maxHp * 0.15));
+              }
             }
+            // Healing Smoke (ROG_SMOKE_HEAL) — Smoke Bomb heals entire party 5% max HP
+            if (talentSmokeHeal && skillId === 'SMOKE_BOMB') {
+              const livingMembers = partyHp.filter(p => p.hp > 0);
+              for (const p of livingMembers) {
+                const smokHeal = Math.max(1, Math.floor(p.maxHp * 0.05));
+                const bef = p.hp;
+                p.hp = Math.min(p.maxHp, p.hp + smokHeal);
+                const act = p.hp - bef;
+                if (act > 0 && combatStats[p.id]) combatStats[p.id].healingReceived += act;
+              }
+            }
+            // Retaliating Stance (MNK_COUNTER_ATK) — Counter Stance also counterattacks
+            // (handled reactively when enemies attack monks — see enemy attack section)
+            // Vampiric Shroud (NEC_SHIELD_TAP) — Shroud of Decay reflect triggers Life Tap
+            // (handled in necrotic reflect section below)
 
             if (target.hp <= 0) {
               target.alive = false;
@@ -1502,6 +1759,21 @@ function buildSimulation(aq, quest) {
       if (unbreakableDR[target.id] > 0) {
         actualDmg = Math.max(1, Math.floor(actualDmg * 0.20)); // 80% DR
       }
+      // Echo Shield (MAG_ECHO_SHIELD) — absorb damage with shield first
+      if (echoShieldHP[target.id] > 0) {
+        const absorbed = Math.min(actualDmg, echoShieldHP[target.id]);
+        echoShieldHP[target.id] -= absorbed;
+        actualDmg -= absorbed;
+        actualDmg = Math.max(0, actualDmg);
+        if (combatStats[target.id]) combatStats[target.id].dmgAbsorbed += absorbed;
+        // Arcane Reflection (MAG_REFLECT) — reflect 20% of absorbed damage back
+        if (talentMageReflect && absorbed > 0) {
+          const reflDmg = Math.max(1, Math.floor(absorbed * 0.20));
+          attacker.hp = Math.max(0, attacker.hp - reflDmg);
+          if (attacker.hp <= 0) { attacker.alive = false; fallenEnemies.push(attacker.name); }
+        }
+        if (echoShieldHP[target.id] <= 0) delete echoShieldHP[target.id];
+      }
 
       // Track DEF/shield/DR mitigation (rawDmg - actualDmg)
       if (combatStats[target.id]) combatStats[target.id].dmgMitigated += Math.max(0, rawDmg - actualDmg);
@@ -1524,6 +1796,17 @@ function buildSimulation(aq, quest) {
         const reflectDmg = Math.max(1, Math.floor(necroticReflectMag * 0.35));
         attacker.hp = Math.max(0, attacker.hp - reflectDmg);
         if (combatStats[target.id]) { combatStats[target.id].dmgDealt += reflectDmg; combatStats[target.id].dmgReflected += reflectDmg; }
+        // Vampiric Shroud (NEC_SHIELD_TAP) — necrotic reflect also triggers Life Tap healing
+        if (talentVampiricShroud) {
+          const tapHeal = Math.max(1, Math.floor(reflectDmg * 0.40));
+          const necro = partyHp.find(p => p.hp > 0 && p.class === 'NECROMANCER');
+          if (necro) {
+            const bef = necro.hp;
+            necro.hp = Math.min(necro.maxHp, necro.hp + tapHeal);
+            const act = necro.hp - bef;
+            if (act > 0 && combatStats[necro.id]) { combatStats[necro.id].healingDone += act; combatStats[necro.id].healingReceived += act; }
+          }
+        }
         events.push({ text, type, icon, phase: 'battle' });
         snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
         text = sPick(T_NECROTIC_REFLECT, es + 98)(reflectDmg, attacker.name);
@@ -1533,6 +1816,15 @@ function buildSimulation(aq, quest) {
           fallenEnemies.push(attacker.name);
         }
       }
+      // Retaliating Stance (MNK_COUNTER_ATK) — Monks with Counter Stance counterattack
+      if (talentRetaliating && target.class === 'MONK' && target.hp > 0 && attacker.alive) {
+        const counterDmg = Math.max(1, Math.floor((target.atk || 10) * 0.30));
+        attacker.hp = Math.max(0, attacker.hp - counterDmg);
+        if (combatStats[target.id]) combatStats[target.id].dmgDealt += counterDmg;
+        if (attacker.hp <= 0) { attacker.alive = false; fallenEnemies.push(attacker.name); }
+      }
+      // Oppressive Presence (KNT_TAUNT_AURA) — Taunted enemies take +10% dmg for 2 rounds
+      // Applied when Bulwark intercepts (see below), tracked in tauntedEnemies
 
       // Knight Bulwark — intercept ANY hit on an ally every 3 rounds
       const dmgTaken = actualDmg;
@@ -1551,6 +1843,28 @@ function buildSimulation(aq, quest) {
         knight.hp = Math.max(0, knight.hp - dmgTaken);
         if (combatStats[knight.id]) { combatStats[knight.id].dmgTaken += dmgTaken; combatStats[knight.id].dmgAbsorbed += dmgTaken; }
         coverCooldowns[knight.id] = 3;
+        // Stalwart Counter (KNT_COUNTER) — counterattack for 50% of reflected damage
+        if (talentKntCounter) {
+          const counterDmg = Math.max(1, Math.floor(dmgTaken * 0.50));
+          // Find the enemy who attacked (use attacker variable from outer scope — but in enemy attack block 'attacker' IS the enemy)
+          // Since we're inside the enemy attack handler, we'll pick a random living enemy
+          const counterTarget = sPick(livingEnemies, es + 300);
+          if (counterTarget) {
+            counterTarget.hp = Math.max(0, counterTarget.hp - counterDmg);
+            if (combatStats[knight.id]) combatStats[knight.id].dmgDealt += counterDmg;
+            if (counterTarget.hp <= 0) { counterTarget.alive = false; fallenEnemies.push(counterTarget.name); }
+          }
+        }
+        // Def Shred (KNT_DEF_SHRED) — Shield Wall hits apply -15% DEF shred for 2 rounds
+        if (talentDefShred) {
+          // Shred the attacking enemy
+          const shredTarget = sPick(livingEnemies, es + 301);
+          if (shredTarget) defShredTargets[shredTarget.id] = 2;
+        }
+        // Oppressive Presence (KNT_TAUNT_AURA) — taunt the attacker for 2 rounds
+        if (talentTauntAura && attacker.alive) {
+          tauntedEnemies[attacker.id] = 2;
+        }
         events.push({ text, type, icon, phase: 'battle' });
         snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
         text = sPick(T_BULWARK, es + 81)(knight.name, target.name, dmgTaken);
@@ -1619,6 +1933,16 @@ function buildSimulation(aq, quest) {
             }
           }
         }
+      }
+
+      // Undying Oath (PARTY_UNDYING) — once per quest, revive at 15% HP instead of KO
+      if (target.hp <= 0 && talentUndying && !undyingUsed) {
+        undyingUsed = true;
+        target.hp = Math.max(1, Math.floor(target.maxHp * 0.15));
+        events.push({ text, type, icon, phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        text = `${target.name} is saved by the party's Undying Oath!`;
+        icon = '🔄'; type = 'heal';
       } else if (target.hp <= 0) {
         // Target KO'd — try Forgo Death (Necromancer), Unbreakable Will, Divine Intervention, then KO
         // Forgo Death — sacrifice a minion to survive at 20% HP
@@ -1649,6 +1973,8 @@ function buildSimulation(aq, quest) {
             snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
             text = sPick(T_DIVINE_INTERVENTION, es + 71)(diSave.name, target.name);
             icon = '🕊'; type = 'divine';
+            // Righteous Wrath (CLR_WRATH) — saved ally gets +30% dmg for 2 rounds
+            if (talentWrath) wrathBuff[target.id] = 2;
           } else {
             events.push({ text, type, icon, phase: 'battle' });
             snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
@@ -1680,6 +2006,23 @@ function buildSimulation(aq, quest) {
         }
       }
 
+      // Heroic Revival (HRO_HEROIC_REVIVAL) — when Awakening triggers on a Hero, also revive a random KO'd ally at 20% HP
+      // (This piggybacks off the Hero Awakening passive — if a Hero just proc'd Awakening this round, check for KO'd allies)
+      if (talentHeroicRevival) {
+        const koAllies = partyHp.filter(p => p.hp <= 0);
+        const livingHeroes = partyHp.filter(p => p.hp > 0 && p.class === 'HERO');
+        // Simple heuristic: if a hero is alive and any ally is KO'd, 15% chance per round to trigger revival
+        if (livingHeroes.length > 0 && koAllies.length > 0 && sRand(es + 400) < 0.15) {
+          const revived = sPick(koAllies, es + 401);
+          revived.hp = Math.max(1, Math.floor(revived.maxHp * 0.20));
+          events.push({ text, type, icon, phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+          text = `${livingHeroes[0].name}'s heroic spirit revives ${revived.name} at ${revived.hp} HP!`;
+          icon = '✨'; type = 'heal';
+        }
+        }
+      }
+
       // Hero Rally Cry — triggers when any ally drops below 30% HP
       const woundedAlly = partyHp.find(p => p.hp > 0 && p.hp < p.maxHp * 0.30);
       if (woundedAlly) {
@@ -1701,6 +2044,12 @@ function buildSimulation(aq, quest) {
             snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
             text = sPick(T_RALLY_CRY, es + 85)(availableHero.name, woundedAlly.name, actual);
             icon = '📣'; type = 'buff';
+            // Rallying Heal (HRO_RALLYING_HEAL) — Rally also applies HoT (3% max HP/round, 2 rounds) to all
+            if (talentRallyingHeal) {
+              for (const p of partyHp) {
+                if (p.hp > 0) sacredWarmthRounds[p.id] = 2; // reuse the HoT tracker
+              }
+            }
           }
         }
       }
@@ -1807,6 +2156,20 @@ function buildSimulation(aq, quest) {
           const shieldText = sPick(T_DIVINE_SHIELD, es + 98)(healer.name);
           events.push({ text: shieldText, type: 'buff', icon: '⛨', phase: 'battle' });
           snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+          // Sacred Warmth (CLR_SHIELD_HOT) — Divine Shield also applies HoT to all allies
+          if (talentSacredWarmth) {
+            for (const p of livingParty) { sacredWarmthRounds[p.id] = 3; }
+          }
+        }
+        // Holy Splash (CLR_HOLY_SPLASH) — 25% of Holy Light damage splashes to all enemies
+        if (talentHolySplash && healer.class === 'CLERIC') {
+          const splashDmg = Math.max(1, Math.floor(healAmt * 0.25));
+          const currentLivingEnemies = enemies.filter(e => e.alive);
+          for (const e of currentLivingEnemies) {
+            e.hp = Math.max(0, e.hp - splashDmg);
+            if (combatStats[healer.id]) combatStats[healer.id].dmgDealt += splashDmg;
+            if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); }
+          }
         }
         // Cleric Resurrection — revive a fallen party member after healing
         const deadParty = partyHp.filter(p => p.hp <= 0);
@@ -1846,7 +2209,7 @@ function buildSimulation(aq, quest) {
           p.hp > 0 && bardsWithDiscord.has(p.id) && discordCooldowns[p.id] === 0 && discordRounds === 0
         );
         if (discordBard) {
-          discordRounds = 3; // 3 DoT ticks; fumble/ATK reduction active while rounds > 0 after decrement
+          discordRounds = talentDiscordDmg ? 4 : 3; // Sonic Amplifier: doubled damage = extra tick
           discordSource = discordBard.name;
           discordCooldowns[discordBard.id] = 4;
           _bufState.discordRounds = discordRounds;
@@ -1865,6 +2228,8 @@ function buildSimulation(aq, quest) {
           crescendoSourceId = crescBard.id;
           crescendoCooldowns[crescBard.id] = 3;
           _bufState.crescendoActive = true;
+          // Grand Crescendo (BRD_CRESCENDO_ALLY) — crit also applies to next 2 ally attacks
+          if (talentCrescendoAlly) crescendoAllyCharges.count = 2;
           const crescText = sPick(T_CRESCENDO, es + 115)(crescBard.name);
           events.push({ text: crescText, type: 'buff', icon: '🎶', phase: 'battle' });
           snapshots.push(makeSnapshot(partyHp, enemies, _bufState));

@@ -10,3 +10,13 @@ export function esc(str) {
   if (typeof str !== 'string') return String(str ?? '');
   return str.replace(/[&<>"']/g, c => ESC_MAP[c]);
 }
+
+/**
+ * Convert a rank string to a CSS-safe class/variable suffix.
+ * 'S+' → 'Sp', 'S++' → 'Spp', all others unchanged.
+ */
+export function rankCss(rank) {
+  if (rank === 'S++') return 'Spp';
+  if (rank === 'S+') return 'Sp';
+  return rank;
+}

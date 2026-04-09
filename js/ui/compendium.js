@@ -1,7 +1,8 @@
 // ── Compendium — In-game encyclopedia ─────────────────────────────────────
 import Game from '../game.js';
-import { CLASSES, RANK_ORDER, EQUIPMENT, ITEM_RARITIES, getItemRarity } from '../data.js';
+import { CLASSES, RANK_ORDER, EQUIPMENT, LOOT_ITEMS, ITEM_RARITIES, getItemRarity } from '../data.js';
 import { SKILLS, getClassSkills, getClassMasteries, HERO_SPECS, HERO_RESPEC_COSTS, getSpecSkills } from '../skills.js';
+import { rankCss } from '../util.js';
 
 let _currentSection = 'overview';
 
@@ -12,7 +13,9 @@ const SECTIONS = [
   { id: 'classes',    label: 'Classes & Skills',   icon: '⚔' },
   { id: 'equipment',  label: 'Equipment & Procs',  icon: '🛡' },
   { id: 'combat',     label: 'Combat Mechanics',   icon: '💥' },
+  { id: 'tower',      label: 'Tower Climb',        icon: '🗼' },
   { id: 'synergy',    label: 'Party Synergy',      icon: '🔗' },
+  { id: 'legacy',     label: 'Guild Legacy',       icon: '🏆' },
   { id: 'ranks',      label: 'Ranking System',     icon: '⭐' },
 ];
 
@@ -52,7 +55,9 @@ export function renderCompendium() {
       case 'classes':   body.innerHTML = renderClasses(); break;
       case 'equipment': body.innerHTML = renderEquipment(); break;
       case 'combat':    body.innerHTML = renderCombat(); break;
+      case 'tower':     body.innerHTML = renderTowerGuide(); break;
       case 'synergy':   body.innerHTML = renderSynergy(); break;
+      case 'legacy':    body.innerHTML = renderLegacyGuide(); break;
       case 'ranks':     body.innerHTML = renderRanks(); break;
     }
   } catch (err) {
@@ -66,7 +71,7 @@ function renderOverview() {
   return `
     <div class="comp-section">
       <h2 class="comp-title">Welcome to the Adventurers Guild</h2>
-      <p class="comp-text">You are the leader of a fledgling guild of adventurers. Recruit heroes, equip them with powerful gear, send them on dangerous quests, and climb the ranks from F to S.</p>
+      <p class="comp-text">You are the leader of a fledgling guild of adventurers. Recruit heroes, equip them with powerful gear, send them on dangerous quests, and climb the ranks from F all the way to S++. Reach S-Rank to unlock the Endless Tower, and push into S++ to face Raid Bosses — the ultimate challenge.</p>
 
       <h3 class="comp-subtitle">Getting Started</h3>
       <p class="comp-text">You begin with a <strong>Hero</strong> and <strong>200 gold</strong>. Head to the <strong>Party</strong> tab to recruit your first companions — all 9 classes are available from the start. Your first few recruits cost 50–150g, so you can assemble a party of 3 quickly.</p>
@@ -138,22 +143,28 @@ function renderClasses() {
 
     const skillList = skills.map(s => {
       const isPassive = s.type === 'passive' || s.procChance >= 1.0;
-      const pct = isPassive ? 'passive' : `${Math.round(s.procChance * 100)}%`;
+      const badge = isPassive
+        ? '<span class="comp-skill-badge passive">Passive</span>'
+        : `<span class="comp-skill-badge active">Active ${Math.round(s.procChance * 100)}%</span>`;
+      const lvl = s.unlockLevel ? ` <em class="comp-skill-lvl">Lv.${s.unlockLevel}</em>` : '';
       return `<div class="comp-skill-row">
         <span class="comp-skill-icon">${s.icon || '•'}</span>
-        <span class="comp-skill-name">${s.name}</span>
-        <span class="comp-skill-type">${pct}</span>
+        <span class="comp-skill-name">${s.name}${lvl}</span>
+        ${badge}
         <span class="comp-skill-desc">${s.description || ''}</span>
       </div>`;
     }).join('');
 
     const masteryList = masteries.map(s => {
       const isPassive = s.type === 'passive' || s.procChance >= 1.0;
-      const pct = isPassive ? 'passive' : `${Math.round(s.procChance * 100)}%`;
+      const badge = isPassive
+        ? '<span class="comp-skill-badge passive">Passive</span>'
+        : `<span class="comp-skill-badge active">Active ${Math.round(s.procChance * 100)}%</span>`;
+      const lvl = s.unlockLevel ? ` <em class="comp-skill-lvl">Lv.${s.unlockLevel}</em>` : '';
       return `<div class="comp-skill-row comp-mastery">
         <span class="comp-skill-icon">${s.icon || '•'}</span>
-        <span class="comp-skill-name">${s.name}</span>
-        <span class="comp-skill-type">${pct}</span>
+        <span class="comp-skill-name">${s.name}${lvl}</span>
+        ${badge}
         <span class="comp-skill-desc">${s.description || ''}</span>
       </div>`;
     }).join('');
@@ -188,11 +199,15 @@ function renderClasses() {
     const specSkills = getSpecSkills(trackId);
     const skillRows = specSkills.map(s => {
       const isPassive = s.type === 'passive' || s.procChance >= 1.0;
-      const pct = s.reactive ? 'reactive' : (isPassive ? 'passive' : `${Math.round(s.procChance * 100)}%`);
+      const badge = s.reactive
+        ? '<span class="comp-skill-badge reactive">Reactive</span>'
+        : isPassive
+          ? '<span class="comp-skill-badge passive">Passive</span>'
+          : `<span class="comp-skill-badge active">Active ${Math.round(s.procChance * 100)}%</span>`;
       return `<div class="comp-skill-row">
         <span class="comp-skill-icon">${s.icon || '•'}</span>
-        <span class="comp-skill-name">${s.name} <em style="opacity:0.5">(Lv.${s.unlockLevel})</em></span>
-        <span class="comp-skill-type">${pct}</span>
+        <span class="comp-skill-name">${s.name} <em class="comp-skill-lvl">Lv.${s.unlockLevel}</em></span>
+        ${badge}
         <span class="comp-skill-desc">${s.description || ''}</span>
       </div>`;
     }).join('');
@@ -238,7 +253,7 @@ function renderEquipment() {
     rare:      'Solid mid-game gear with broader stat coverage. Some rare items grant skill procs.',
     epic:      'Strong endgame equipment. Many pieces grant active skill procs.',
     legendary: 'Best-in-slot below celestial. Every legendary grants a unique active skill proc.',
-    celestial: 'God-tier S-Rank drops. Each class has a full 4-piece set with massive stats and celestial-tier skill procs with special visual effects.',
+    celestial: 'God-tier S/S+/S++ drops. Each class has a full 4-piece set with massive stats and celestial-tier skill procs with special visual effects. Drop rates increase at S+ and S++, and Raid Bosses guarantee celestial-only loot.',
   };
   const rarityInfo = rarityOrder.map(id => ({
     id,
@@ -376,6 +391,71 @@ function renderCombat() {
       <p class="comp-text"><strong>Guardian Spirit:</strong> When any ally drops below 25% HP, the Warden Hero heals them for 30% of their max HP. 3-round cooldown.</p>
       <p class="comp-text"><strong>War Banner:</strong> Passive party aura — ATK +12%, DEF +10%, SPD +8%, CRIT +5%. Always active.</p>
       <p class="comp-text"><strong>Second Dawn:</strong> When 2+ allies are KO'd, the Warden revives ALL fallen allies at 25% HP. Once per fight.</p>
+
+      <h3 class="comp-subtitle">Raid Bosses (S++ Only)</h3>
+      <p class="comp-text">Raid Bosses are the ultimate combat encounters, exclusive to S++ rank. They are significantly more powerful than standard bosses and use the same combat simulation, but with dramatically higher difficulty scaling.</p>
+      <p class="comp-text"><strong>Celestial-only loot:</strong> Raid Bosses suppress all non-celestial equipment drops. Every piece of gear that drops from a raid is guaranteed celestial rarity.</p>
+      <p class="comp-text"><strong>Guaranteed drops:</strong> Normal bosses guarantee 4–8 loot drops. Raid Bosses guarantee 8–12 drops, making them the most rewarding encounters in the game.</p>
+      <p class="comp-text"><strong>Drop rate boost:</strong> Celestial drop chance is massively amplified on raids (up to 45% cap vs 25% for normal S++ quests). This makes raid bosses the fastest path to completing celestial sets.</p>
+    </div>
+  `;
+}
+
+// ── Tower Climb Guide ─────────────────────────────────────────────────────
+function renderTowerGuide() {
+  const bestFloor = Game.state?.tower?.bestFloor || 0;
+  const totalRuns = Game.state?.tower?.totalRuns || 0;
+
+  // Tower gem bag items
+  const towerItems = ['TOWER_GEM_BAG_MINOR', 'TOWER_GEM_BAG_MAJOR', 'TOWER_GEM_BAG_SUPREME']
+    .map(id => LOOT_ITEMS[id])
+    .filter(Boolean);
+
+  const towerItemRows = towerItems.map(it => {
+    const rarity = getItemRarity(it);
+    return `
+      <div class="comp-tower-item-row">
+        <span style="color:${rarity?.color || '#ccc'}">${it.name}</span>
+        <span class="comp-tower-item-sell">Sell: ${it.sellPrice?.toLocaleString() || '?'}g</span>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="comp-section">
+      <h2 class="comp-title">The Endless Tower</h2>
+      <p class="comp-text">The Tower Climb is an endgame game mode that unlocks at S-Rank. Send your party into the Endless Tower — an ever-escalating gauntlet of increasingly difficult floors with unique rewards.</p>
+
+      ${bestFloor > 0 || totalRuns > 0 ? `
+        <div class="comp-tower-stats">
+          <span><strong>Best Floor:</strong> ${bestFloor}</span>
+          <span><strong>Total Runs:</strong> ${totalRuns}</span>
+        </div>
+      ` : ''}
+
+      <h3 class="comp-subtitle">How It Works</h3>
+      <p class="comp-text"><strong>Entering the Tower:</strong> From the Tower tab, send your current active party into the tower. Each floor is a combat encounter that gets progressively harder. Your party's HP carries over between floors.</p>
+      <p class="comp-text"><strong>Rest Rooms:</strong> Every 10 floors you reach a rest room. Here you can choose to continue climbing (your party is partially healed) or teleport back to the guild with your rewards. Pushing further means bigger rewards — but risk losing everything if your party falls.</p>
+      <p class="comp-text"><strong>Party Defeat:</strong> If your party is defeated, the run ends immediately. You still receive rewards for all the floors you cleared before the defeat, but you won't benefit from continuing further.</p>
+
+      <h3 class="comp-subtitle">Difficulty Scaling</h3>
+      <p class="comp-text">The tower starts at roughly S-Rank difficulty and scales upward with each floor. Boss floors appear at floors 10, 20, 30, 50, 75, and 100, featuring named bosses with significantly higher power.</p>
+      <p class="comp-text">Enemy tiers increase as you climb: basic tower guardians on early floors give way to elite constructs, shadow entities, and eventually celestial-tier threats on the highest floors.</p>
+
+      <h3 class="comp-subtitle">Tower Rewards</h3>
+      <p class="comp-text"><strong>Gold & Experience:</strong> Each floor cleared awards gold and experience. These scale with floor number — higher floors are worth substantially more.</p>
+      <p class="comp-text"><strong>Rank Points:</strong> Tower runs award rank points based on total floors cleared, helping push toward S+ and S++ promotions.</p>
+      <p class="comp-text"><strong>Celestial Drops:</strong> Starting from floor 10, you gain an increasing chance at celestial equipment drops. The chance grows by roughly 4% every 10 floors, up to a 50% maximum, with up to 5 celestial items possible per run.</p>
+
+      <h3 class="comp-subtitle">Tower Gem Bags</h3>
+      <p class="comp-text">The tower drops exclusive gem bags that can't be found anywhere else. These valuable items can be sold for large sums of gold.</p>
+      <div class="comp-tower-items">
+        ${towerItemRows}
+      </div>
+      <p class="comp-text">Minor gem bags start dropping early, but the Supreme variant only appears on very high floors.</p>
+
+      <h3 class="comp-subtitle">Best Floor Tracker</h3>
+      <p class="comp-text">The tower tracks your highest floor reached and the party composition that achieved it. Try different team combinations to push for a new personal record.</p>
     </div>
   `;
 }
@@ -423,14 +503,16 @@ function renderRanks() {
     C: 'Challenging content. Epic gear and more dangerous enemies.',
     B: 'High-tier quests with legendary loot possibilities.',
     A: 'Elite content. The strongest non-S quests live here.',
-    S: 'The pinnacle. Celestial equipment drops, the hardest bosses, and the biggest rewards.',
+    S: 'The endgame begins. Celestial equipment starts dropping. The Tower Climb unlocks.',
+    'S+': 'Higher celestial drop rates and denser legendary loot pools. The challenge escalates.',
+    'S++': 'The true pinnacle. Raid Boss encounters appear — the hardest fights in the game with guaranteed celestial drops.',
   };
 
   const rows = RANK_ORDER.map(r => {
     const current = Game.state?.guild?.rank === r;
     return `
       <div class="comp-rank-row${current ? ' current' : ''}">
-        <span class="rank-badge rank-${r}" style="font-size:1rem;padding:4px 12px">${r}</span>
+        <span class="rank-badge rank-${rankCss(r)}" style="font-size:1rem;padding:4px 12px">${r}</span>
         <span class="comp-rank-desc">${rankDescriptions[r] || ''}</span>
         ${current ? '<span class="comp-rank-current">← You are here</span>' : ''}
       </div>
@@ -441,8 +523,74 @@ function renderRanks() {
     <div class="comp-section">
       <h2 class="comp-title">Ranking System</h2>
       <p class="comp-text">Completing quests earns rank points. Accumulate enough and your guild promotes to the next rank. Higher ranks unlock harder quests, better shop inventory, and more powerful loot drops.</p>
-      <p class="comp-text">Rank points scale with quest difficulty — S-Rank quests award far more rank points than F-Rank ones. The "War Stories" synergy bonus further amplifies rank point gains.</p>
+      <p class="comp-text">Rank points scale with quest difficulty — higher rank quests award far more rank points. S-Rank is split into three sub-tiers: S, S+, and S++. Reaching S+ requires 500,000 rank points, and S++ is the final tier with no upper limit. The "War Stories" synergy bonus further amplifies rank point gains.</p>
       ${rows}
+    </div>
+  `;
+}
+
+// ── Guild Legacy Guide ────────────────────────────────────────────────────
+function renderLegacyGuide() {
+  const talents = Game.LEGACY_TALENTS;
+  if (!talents) {
+    return `<div class="comp-section"><h2 class="comp-title">Guild Legacy</h2><p class="comp-text">Guild Legacy unlocks at S++ rank.</p></div>`;
+  }
+
+  // Group talents by class/party
+  const groups = {};
+  for (const [id, t] of Object.entries(talents)) {
+    const key = t.classId || 'PARTY';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(t);
+  }
+
+  const classOrder = Object.keys(CLASSES);
+  let talentRows = '';
+
+  for (const cid of classOrder) {
+    if (!groups[cid]) continue;
+    const cls = CLASSES[cid];
+    const sorted = groups[cid].sort((a, b) => a.tier - b.tier);
+    talentRows += `<div class="comp-legacy-group">
+      <div class="comp-legacy-class">${cls?.label || cid}</div>
+      ${sorted.map(t => `<div class="comp-legacy-talent">
+        <span class="comp-legacy-icon">${t.icon}</span>
+        <div class="comp-legacy-info">
+          <span class="comp-legacy-name">${t.label} <span class="comp-legacy-tier">Tier ${t.tier} &middot; ${t.cost} pt${t.cost > 1 ? 's' : ''} &middot; Req Lv.${t.reqLevel}</span></span>
+          <span class="comp-legacy-desc">${t.desc}</span>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  // Party-wide
+  if (groups.PARTY) {
+    const sorted = groups.PARTY.sort((a, b) => a.tier - b.tier);
+    talentRows += `<div class="comp-legacy-group">
+      <div class="comp-legacy-class">Party-Wide</div>
+      ${sorted.map(t => `<div class="comp-legacy-talent">
+        <span class="comp-legacy-icon">${t.icon}</span>
+        <div class="comp-legacy-info">
+          <span class="comp-legacy-name">${t.label} <span class="comp-legacy-tier">Tier ${t.tier} &middot; ${t.cost} pt${t.cost > 1 ? 's' : ''} &middot; Req Lv.${t.reqLevel}</span></span>
+          <span class="comp-legacy-desc">${t.desc}</span>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  return `
+    <div class="comp-section">
+      <h2 class="comp-title">Guild Legacy</h2>
+      <p class="comp-text">Upon reaching S++ (maximum rank), excess rank points overflow into the Guild Legacy system. Every ${(Game.LEGACY_RP_PER_LEVEL || 50000).toLocaleString()} overflow RP earns one Legacy Level, which provides passive bonuses and one talent point.</p>
+
+      <h3 class="comp-subtitle">Passive Bonuses (per level)</h3>
+      <p class="comp-text">Each Legacy Level grants: +2% gold, +1% item find, +1% EXP, +0.5% celestial drop rate. These stack indefinitely.</p>
+
+      <h3 class="comp-subtitle">Talent System</h3>
+      <p class="comp-text">Each Legacy Level also grants one talent point. Talents augment class abilities — addressing weaknesses and amplifying strengths. There are 3 tiers of talents per class (costing 1, 2, and 3 points respectively), plus 5 party-wide talents that benefit the entire guild.</p>
+      <p class="comp-text">Tier requirements: Tier 1 talents need Legacy Lv.1+, Tier 2 needs Lv.3+, and Tier 3 needs Lv.6+. Talents can be reset for free from the Guild Hall.</p>
+
+      <div class="comp-legacy-tree">${talentRows}</div>
     </div>
   `;
 }

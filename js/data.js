@@ -1,5 +1,5 @@
 // ── Rank Order ────────────────────────────────────────────────────────────────
-export const RANK_ORDER = ['F', 'E', 'D', 'C', 'B', 'A', 'S'];
+export const RANK_ORDER = ['F', 'E', 'D', 'C', 'B', 'A', 'S', 'S+', 'S++'];
 
 // ── Classes ───────────────────────────────────────────────────────────────────
 export const CLASSES = {
@@ -2691,6 +2691,11 @@ export const LOOT_ITEMS = {
   GEM_RUBY:            { id:'GEM_RUBY',            name:'Ruby Hoard',              sellPrice:75000,   desc:'Blood-red rubies that seem to pulse with inner fire. A dragon\'s ransom.' },
   GEM_STAR_DIAMOND:    { id:'GEM_STAR_DIAMOND',    name:'Pouch of Star Diamonds',  sellPrice:120000,  desc:'Diamonds that refract light into tiny stars. Said to be crystallized starlight from a fallen celestial.' },
   GEM_CELESTIAL_OPAL:  { id:'GEM_CELESTIAL_OPAL',  name:'Celestial Opals',         sellPrice:250000,  desc:'Opals that shift through impossible colors — hues that don\'t exist in nature. Worth more than most kingdoms.' },
+
+  // ── Tower Climb Rewards ──────────────────────────────────────────────────
+  TOWER_GEM_BAG_MINOR:    { id:'TOWER_GEM_BAG_MINOR',    name:'Tower Gem Satchel',         sellPrice:200000,  desc:'A reinforced satchel of mixed gems collected during the tower ascent. Contains crystals from every tier of the tower.' },
+  TOWER_GEM_BAG_MAJOR:    { id:'TOWER_GEM_BAG_MAJOR',    name:'Tower Gem Chest',           sellPrice:500000,  desc:'A heavy chest overflowing with rare gems extracted from the tower\'s deepest vaults. Worth a king\'s ransom.' },
+  TOWER_GEM_BAG_SUPREME:  { id:'TOWER_GEM_BAG_SUPREME',  name:'Tower Gem Hoard',           sellPrice:1000000, desc:'The legendary gem hoard from the tower\'s highest reaches. Contains gems that shouldn\'t exist — each one a national treasure.' },
 };
 
 // ── Quests ────────────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 import Game from '../game.js';
-import { getQuest, getClass, RANK_ORDER } from '../data.js';
+import { getQuest, getClass, RANK_ORDER, CLASSES } from '../data.js';
 import { rankTag, timeAgo, hpClass } from './helpers.js';
-import { esc } from '../util.js';
+import { esc, rankCss } from '../util.js';
 import { getQuestPhase } from './combatlog.js';
 
 let _rendered = false;
@@ -27,11 +27,13 @@ function _fullRenderHall(el) {
   const activeMembers = Game.getActiveMembers();
   const allParty = [s.player, ...activeMembers];
 
+  const legacyCard = (s.guildLegacy && s.guildLegacy.level > 0) ? renderLegacyCard(s) : '';
   el.innerHTML = `
     <div class="hall-grid">
       ${renderActiveQuestCard(s)}
       ${renderPartyOverviewCard(s, allParty)}
       ${renderGuildProgressCard(s)}
+      ${legacyCard}
       ${renderEventLogCard(s)}
     </div>
   `;
@@ -153,17 +155,29 @@ function renderGuildProgressCard(s) {
   const threshold = Game.RANK_THRESHOLDS[s.guild.rank];
   const pct = threshold ? Math.round((s.guild.rankPoints / threshold) * 100) : 100;
   const nextRank = RANK_ORDER[RANK_ORDER.indexOf(s.guild.rank) + 1] || null;
-  const progressSection = threshold
-    ? `<div class="rank-progress-label"><span>${s.guild.rankPoints} / ${threshold} pts</span><span>→ ${nextRank} Rank</span></div>
-       <div class="progress-bar"><div class="progress-fill rank-bar" style="width:${pct}%"></div></div>`
-    : `<div class="rank-progress-label"><span style="color:var(--rank-S)">Maximum rank achieved!</span></div>`;
+
+  let progressSection;
+  if (threshold) {
+    progressSection = `<div class="rank-progress-label"><span>${s.guild.rankPoints.toLocaleString()} / ${threshold.toLocaleString()} pts</span><span>→ ${nextRank} Rank</span></div>
+       <div class="progress-bar"><div class="progress-fill rank-bar" style="width:${pct}%"></div></div>`;
+  } else {
+    // Max rank — show legacy overflow progress
+    const legacy = s.guildLegacy || { overflowRP: 0, level: 0 };
+    const legacyPct = Math.round((legacy.overflowRP / Game.LEGACY_RP_PER_LEVEL) * 100);
+    progressSection = `
+      <div class="rank-progress-label"><span style="color:var(--rank-S)">Maximum rank achieved!</span></div>
+      <div style="margin-top:6px">
+        <div class="rank-progress-label"><span style="color:var(--gold)">Legacy Lv.${legacy.level}</span><span>${legacy.overflowRP.toLocaleString()} / ${Game.LEGACY_RP_PER_LEVEL.toLocaleString()} RP</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${legacyPct}%;background:linear-gradient(90deg,var(--gold),#f0c040)"></div></div>
+      </div>`;
+  }
 
   return `
     <div class="card">
       <div class="card-title">Guild Standing</div>
       <div class="rank-progress-section">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <span class="rank-badge rank-${s.guild.rank}" style="font-size:1rem;padding:4px 14px">${s.guild.rank}</span>
+          <span class="rank-badge rank-${rankCss(s.guild.rank)}" style="font-size:1rem;padding:4px 14px">${s.guild.rank}</span>
           <span style="color:var(--text-dim);font-size:0.875rem">Quests completed: <strong style="color:var(--text)">${s.guild.completedQuests.length}</strong></span>
         </div>
         ${progressSection}
@@ -181,4 +195,126 @@ function renderEventLogCard(s) {
           <span class="event-text">${e.text}</span>
         </div>`).join('');
   return `<div class="card"><div class="card-title">Recent Events</div><div class="event-log">${rows}</div></div>`;
+}
+
+// ── Guild Legacy + Talents Card ──────────────────────────────────────────────
+function renderLegacyCard(s) {
+  const legacy = s.guildLegacy;
+  const bonuses = Game.getLegacyBonuses();
+  const tp = Game.getLegacyTalentPoints();
+  const talents = Game.LEGACY_TALENTS;
+
+  // Passive bonuses summary
+  const bonusRows = [
+    { label: 'Gold Bonus', val: `+${(bonuses.goldBonus * 100).toFixed(0)}%`, icon: '💰' },
+    { label: 'Item Find', val: `+${(bonuses.itemFind * 100).toFixed(0)}%`, icon: '🔍' },
+    { label: 'EXP Bonus', val: `+${(bonuses.expBonus * 100).toFixed(0)}%`, icon: '📈' },
+    { label: 'Celestial Bonus', val: `+${(bonuses.celestialBonus * 100).toFixed(1)}%`, icon: '✦' },
+  ];
+
+  const bonusHtml = bonusRows.map(b =>
+    `<div class="legacy-bonus-row"><span>${b.icon} ${b.label}</span><span class="legacy-bonus-val">${b.val}</span></div>`
+  ).join('');
+
+  // Build talent tree grouped by class then party-wide
+  const classIds = Object.keys(CLASSES);
+  const purchased = new Set(legacy.talents || []);
+
+  // Group talents
+  const classTalents = {};
+  const partyTalents = [];
+  for (const [id, t] of Object.entries(talents)) {
+    if (t.classId) {
+      if (!classTalents[t.classId]) classTalents[t.classId] = [];
+      classTalents[t.classId].push(t);
+    } else {
+      partyTalents.push(t);
+    }
+  }
+
+  let talentHtml = '';
+  // Class talent sections
+  for (const cid of classIds) {
+    const cls = getClass(cid);
+    if (!classTalents[cid]) continue;
+    const rows = classTalents[cid].sort((a, b) => a.tier - b.tier).map(t => renderTalentNode(t, purchased, tp, legacy.level)).join('');
+    talentHtml += `<div class="talent-class-group">
+      <div class="talent-class-header">${cls?.label || cid}</div>
+      <div class="talent-nodes">${rows}</div>
+    </div>`;
+  }
+  // Party-wide section
+  if (partyTalents.length > 0) {
+    const rows = partyTalents.sort((a, b) => a.tier - b.tier).map(t => renderTalentNode(t, purchased, tp, legacy.level)).join('');
+    talentHtml += `<div class="talent-class-group">
+      <div class="talent-class-header">🌐 Party-Wide</div>
+      <div class="talent-nodes">${rows}</div>
+    </div>`;
+  }
+
+  return `
+    <div class="card legacy-card" style="grid-column:1/-1">
+      <div class="card-title" style="color:var(--gold)">Guild Legacy <span style="font-size:0.8em;color:var(--text-dim)">(Lv.${legacy.level})</span></div>
+      <div class="legacy-overview">
+        <div class="legacy-bonuses">
+          <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:6px">Passive Bonuses</div>
+          ${bonusHtml}
+        </div>
+        <div class="legacy-talents-summary">
+          <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:6px">Talent Points</div>
+          <div class="talent-points-display">
+            <span class="tp-available">${tp.available}</span> / <span class="tp-total">${tp.total}</span>
+            <span style="color:var(--text-dim);font-size:0.75rem">(${tp.spent} spent)</span>
+          </div>
+          ${tp.spent > 0 ? `<button class="btn btn-sm btn-danger" onclick="window._resetTalents()">Reset Talents</button>` : ''}
+        </div>
+      </div>
+      <div class="talent-tree">
+        <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:8px">Talent Tree</div>
+        ${talentHtml}
+      </div>
+    </div>
+  `;
+}
+
+function renderTalentNode(t, purchased, tp, legacyLevel) {
+  const owned = purchased.has(t.id);
+  const canBuy = !owned && tp.available >= t.cost && legacyLevel >= t.reqLevel;
+  const locked = !owned && legacyLevel < t.reqLevel;
+  const tierLabel = t.tier === 1 ? 'I' : t.tier === 2 ? 'II' : 'III';
+
+  let stateClass = 'talent-locked';
+  if (owned) stateClass = 'talent-owned';
+  else if (canBuy) stateClass = 'talent-available';
+
+  const costDots = Array(t.cost).fill('<span class="tp-dot"></span>').join('');
+
+  return `
+    <div class="talent-node ${stateClass}" ${canBuy ? `onclick="window._purchaseTalent('${t.id}')"` : ''} title="${t.desc}">
+      <div class="talent-icon">${t.icon}</div>
+      <div class="talent-info">
+        <div class="talent-name">${t.label} <span class="talent-tier">T${tierLabel}</span></div>
+        <div class="talent-desc">${t.desc}</div>
+      </div>
+      <div class="talent-cost">${costDots}${locked ? `<span class="talent-req">Lv.${t.reqLevel}</span>` : ''}</div>
+    </div>
+  `;
+}
+
+// Wire up global handlers for talent interactions
+if (typeof window !== 'undefined') {
+  window._purchaseTalent = (id) => {
+    const result = Game.purchaseTalent(id);
+    if (result.ok) {
+      _rendered = false;
+      renderHall();
+    }
+  };
+  window._resetTalents = () => {
+    if (confirm('Reset all talent points? This is free.')) {
+      Game.resetTalents();
+      _rendered = false;
+      renderHall();
+    }
+  };
 }
