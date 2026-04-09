@@ -113,10 +113,20 @@ export function renderParty() {
     const isActive = s.activeSlots.includes(m.id);
     const statusClass = isActive ? 'status-active' : (eff.hp < eff.maxHp * 0.5 ? 'status-injured' : 'status-reserve');
     const statusLabel = type === 'player' ? 'Leader' : (isActive ? 'Active' : 'Reserve');
+    // Hero specialization badge
+    let specBadge = '';
+    if (m.class === 'HERO') {
+      if (m.heroSpec && HERO_SPECS[m.heroSpec]) {
+        const spec = HERO_SPECS[m.heroSpec];
+        specBadge = `<span class="hero-spec-badge">${spec.icon} ${spec.label}</span>`;
+      } else if (m.level >= 10) {
+        specBadge = `<span class="hero-spec-badge hero-spec-warn">⚠ No Spec</span>`;
+      }
+    }
     return `
       <div class="roster-row${isActive ? ' in-active' : ''}" data-member-id="${m.id}">
         <div class="roster-info">
-          <div class="roster-name">${esc(m.name)} <span class="member-sigil">${cls.sigil}</span></div>
+          <div class="roster-name">${esc(m.name)} <span class="member-sigil">${cls.sigil}</span>${specBadge}</div>
           <div class="roster-sub">Lv.${m.level} ${cls.label} · Power: ${Math.round(Game.memberPower(m))}</div>
         </div>
         <div class="roster-hp progress-bar">
