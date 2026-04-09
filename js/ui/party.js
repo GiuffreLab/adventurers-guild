@@ -340,8 +340,9 @@ function renderEquipmentPanel(m, s) {
     const grantedSkillObjs = grantedSkillIds.map(id => getSkill(id)).filter(Boolean);
     const rarity = item ? getItemRarity(item) : null;
 
+    const rarityClass = rarity ? ` equip-rarity-${rarity.id}` : '';
     let slotHtml = `
-      <div class="equip-slot-card${isOpen ? ' open' : ''}${item ? ' has-item' : ''}" data-slot="${slot}">
+      <div class="equip-slot-card${isOpen ? ' open' : ''}${item ? ' has-item' : ''}${rarityClass}" data-slot="${slot}">
         <div class="equip-slot-header" data-slot-click="${slot}">
           <span class="equip-slot-icon">${slotIcons[slot]}</span>
           <div class="equip-slot-info">
@@ -398,7 +399,7 @@ function renderEquipmentPanel(m, s) {
           // 2h weapon tag
           const is2h = it.twoHanded;
           return `
-            <div class="equip-picker-item${classOk ? '' : ' class-locked'}" ${classOk ? `data-equip-item="${it.id}" data-equip-slot="${slot}"` : ''}>
+            <div class="equip-picker-item${classOk ? '' : ' class-locked'} rarity-${iRarity.id}" ${classOk ? `data-equip-item="${it.id}" data-equip-slot="${slot}"` : ''}>
               <div class="equip-picker-item-main">
                 <span class="equip-picker-item-name" style="color:${iRarity.color}">${it.name}${qtyTag} <span class="item-rarity-badge" style="color:${iRarity.color};border-color:${iRarity.color}30">${iRarity.label}</span></span>
                 <span class="equip-picker-item-bonus">${bStr}</span>

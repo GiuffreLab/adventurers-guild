@@ -1,6 +1,7 @@
 import Game from '../game.js';
 import { getItem, getItemRarity, CLASSES, ITEM_RARITIES } from '../data.js';
 import { showToast } from './helpers.js';
+import { floatText } from './effects.js';
 
 let shopMode = 'buy';
 
@@ -78,10 +79,11 @@ export function renderShop() {
           const classReqStr = item.classReq
             ? item.classReq.map(cid => CLASSES[cid]?.label || cid).join(', ')
             : 'Any class';
+          const nameGlow = rarity.id === 'celestial' ? ' item-name-celestial' : rarity.id === 'legendary' ? ' item-name-legendary' : rarity.id === 'epic' ? ' item-name-epic' : '';
           return `
-            <div class="shop-item">
+            <div class="shop-item rarity-${rarity.id}">
               <div class="shop-item-info">
-                <div class="shop-item-name" style="color:${rarity.color}">${item.name} <span class="item-rarity-badge" style="color:${rarity.color};border-color:${rarity.color}30">${rarity.label}</span></div>
+                <div class="shop-item-name${nameGlow}" style="color:${rarity.color}">${item.name} <span class="item-rarity-badge" style="color:${rarity.color};border-color:${rarity.color}30">${rarity.label}</span></div>
                 <div class="shop-item-meta"><span class="shop-item-slot">${item.slot}</span><span class="shop-item-class-req">${classReqStr}</span></div>
                 <div class="shop-item-bonus">${bonusStr}</div>
                 <div class="shop-item-desc">${item.desc}</div>
@@ -123,7 +125,7 @@ export function renderShop() {
           const rarity = getItemRarity(item);
           const kept = !!e.kept;
           return `
-            <div class="shop-item${kept ? ' shop-item-kept' : ''}">
+            <div class="shop-item${kept ? ' shop-item-kept' : ''} rarity-${rarity.id}">
               <div class="shop-item-info">
                 <div class="shop-item-name" style="color:${rarity.color}">
                   ${kept ? '<span class="kept-icon" title="Kept — won\'t be sold">🔒</span> ' : ''}${item.name}${rarity.id !== 'common' ? ` <span class="item-rarity-badge" style="color:${rarity.color};border-color:${rarity.color}30">${rarity.label}</span>` : ''} ${e.quantity > 1 ? `<span style="color:var(--text-muted)">×${e.quantity}</span>` : ''}
@@ -198,7 +200,7 @@ export function renderShop() {
   el.querySelectorAll('.btn-buy').forEach(btn => {
     btn.addEventListener('click', () => {
       const result = Game.buyItem(btn.dataset.itemId);
-      if (result.ok) { showToast('Purchased!', 'success'); Game.save(); }
+      if (result.ok) { showToast('Purchased!', 'success'); Game.save(); floatText(`-${result.cost || ''}g`, '#e74c3c', btn); }
       else showToast(result.reason, 'error');
       renderShop();
       updateHeader();
@@ -213,6 +215,7 @@ export function renderShop() {
       if (result.ok && result.count > 0) {
         showToast(`Sold ${result.count} items for ${result.earned.toLocaleString()}g`, 'success');
         Game.save();
+        floatText(`+${result.earned.toLocaleString()}g`, '#2ecc71');
       } else {
         showToast('No items to sell.', 'error');
       }
@@ -235,7 +238,7 @@ export function renderShop() {
   el.querySelectorAll('.btn-sell').forEach(btn => {
     btn.addEventListener('click', () => {
       const result = Game.sellItem(btn.dataset.itemId, 1);
-      if (result.ok) { showToast(`Sold for ${result.earned}g`, 'success'); Game.save(); }
+      if (result.ok) { showToast(`Sold for ${result.earned}g`, 'success'); Game.save(); floatText(`+${result.earned}g`, '#2ecc71', btn); }
       else showToast(result.reason, 'error');
       renderShop();
       updateHeader();

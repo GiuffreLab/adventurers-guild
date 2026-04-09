@@ -2,6 +2,7 @@ import Game from '../game.js';
 import { getItem, getItemRarity, CLASSES, EQUIPMENT } from '../data.js';
 import { getSkill, SKILLS } from '../skills.js';
 import { esc, rankCss } from '../util.js';
+import { floatText, confettiBurst, screenFlash, particleBurst } from './effects.js';
 
 function formatLootEntry(d) {
   const item = getItem(d.itemId);
@@ -11,7 +12,9 @@ function formatLootEntry(d) {
     ? item.classReq.map(cid => CLASSES[cid]?.label || cid).join(', ')
     : 'Any class';
   const qty = d.quantity > 1 ? ` \u00d7${d.quantity}` : '';
-  return `<span style="color:${rarity.color}">${item.name}</span>${qty} <span class="item-rarity-badge" style="color:${rarity.color};border-color:${rarity.color}30">${rarity.label}</span> <span class="result-loot-class-req">${classReqStr}</span>`;
+  const dropAnim = rarity.id !== 'common' ? ` loot-drop-${rarity.id}` : '';
+  const nameGlow = rarity.id === 'celestial' ? ' item-name-celestial' : rarity.id === 'legendary' ? ' item-name-legendary' : rarity.id === 'epic' ? ' item-name-epic' : '';
+  return `<span class="result-loot-entry${dropAnim}"><span class="${nameGlow}" style="color:${rarity.color}">${item.name}</span>${qty} <span class="item-rarity-badge" style="color:${rarity.color};border-color:${rarity.color}30">${rarity.label}</span> <span class="result-loot-class-req">${classReqStr}</span></span>`;
 }
 
 // ── Fight Log Export ──────────────────────────────────────────────────
@@ -643,6 +646,49 @@ export function showResultsModal() {
     flash.className = 'rank-up-flash';
     document.body.appendChild(flash);
     setTimeout(() => flash.remove(), 1500);
+    // Celebratory effects for rank-up
+    setTimeout(() => confettiBurst(), 200);
+    setTimeout(() => screenFlash('rgba(240,192,96,0.25)', 800), 100);
+  }
+
+  // Floating reward numbers
+  if (result.success) {
+    setTimeout(() => floatText(`+${result.goldEarned}g`, '#f0c060'), 300);
+    setTimeout(() => floatText(`+${result.expEarned} XP`, '#4ecdc4'), 500);
+    // Particle burst for celestial/legendary loot
+    if (result.loot && result.loot.length > 0) {
+      const hasCelestial = result.loot.some(d => { const it = getItem(d.itemId); return it && it.rarity === 'celestial'; });
+      const hasLegendary = result.loot.some(d => { const it = getItem(d.itemId); return it && it.rarity === 'legendary'; });
+      if (hasCelestial) {
+        setTimeout(() => {
+          screenFlash('rgba(0,229,200,0.2)', 600);
+          confettiBurst();
+        }, 600);
+      } else if (hasLegendary) {
+        setTimeout(() => {
+          const lootSection = document.querySelector('.result-loot-section');
+          if (lootSection) {
+            const rect = lootSection.getBoundingClientRect();
+            particleBurst(rect.left + rect.width / 2, rect.top, {
+              count: 10, colors: ['#e74c3c', '#ff6b6b', '#f0c060'], spread: 60, duration: 700
+            });
+          }
+        }, 600);
+      }
+    }
+  }
+
+  // Level-up particles
+  if (levelUps.length > 0) {
+    setTimeout(() => {
+      const section = document.querySelector('.result-levelup-section');
+      if (section) {
+        const rect = section.getBoundingClientRect();
+        particleBurst(rect.left + rect.width / 2, rect.top + rect.height / 2, {
+          count: 14, colors: ['#f0c060', '#ffe066', '#ffcc33'], spread: 50, duration: 800
+        });
+      }
+    }, 400);
   }
 }
 

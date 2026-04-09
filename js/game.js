@@ -1028,10 +1028,11 @@ const Game = (() => {
     const entry = state.shop.stock.find(s => s.itemId === itemId && s.quantity > 0);
     if (!entry) return { ok:false, reason:'Out of stock' };
     if (state.gold < entry.price) return { ok:false, reason:`Need ${entry.price}g (have ${state.gold}g)` };
-    state.gold -= entry.price;
+    const cost = entry.price;
+    state.gold -= cost;
     entry.quantity--;
     addToInventory(itemId, 1);
-    return { ok:true };
+    return { ok:true, cost };
   }
 
   function toggleKeepItem(itemId) {

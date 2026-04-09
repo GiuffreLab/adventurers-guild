@@ -138,9 +138,21 @@ export function tickUpdate() {
   }
 }
 
+let _prevGold = null;
 function updateHeader() {
   const s = Game.state;
-  document.getElementById('header-gold').textContent = s.gold.toLocaleString();
+  const goldEl = document.getElementById('header-gold');
+  goldEl.textContent = s.gold.toLocaleString();
+  // Pulse gold display when value changes
+  if (_prevGold !== null && _prevGold !== s.gold) {
+    const display = goldEl.closest('.gold-display');
+    if (display) {
+      display.classList.remove('gold-changed');
+      void display.offsetWidth; // force reflow for re-trigger
+      display.classList.add('gold-changed');
+    }
+  }
+  _prevGold = s.gold;
   const rb = document.getElementById('header-rank');
   rb.textContent = `${s.guild.rank} Rank`;
   rb.className = `rank-badge rank-${rankCss(s.guild.rank)}`;
