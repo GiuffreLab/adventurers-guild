@@ -254,7 +254,7 @@ function renderCharSheet(el, s) {
   el.innerHTML = `
     <div class="char-sheet">
       <div class="char-sheet-topbar">
-        <button class="btn btn-sm btn-ghost" id="btn-back-roster">← Roster</button>
+        <button class="btn btn-sm btn-roster" id="btn-back-roster">← Roster</button>
         <div class="char-sheet-actions">
           ${!isPlayer ? `<button class="btn btn-sm ${toggleClass}" id="btn-toggle-active">${toggleLabel}</button>` : ''}
           ${!isPlayer ? `<button class="btn btn-sm btn-danger" id="btn-dismiss-member">Dismiss</button>` : ''}
@@ -750,7 +750,7 @@ function renderRecruit(el, s) {
     <div class="card">
       <div class="section-header">
         <div class="card-title" style="margin:0">Recruit Adventurer</div>
-        <button class="btn btn-sm btn-ghost" id="btn-back-roster">← Back</button>
+        <button class="btn btn-sm btn-roster" id="btn-back-roster">← Back</button>
       </div>
       <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:12px">Gold: <strong style="color:var(--gold)">${s.gold}g</strong> · Roster: ${s.party.length}/8 · Next recruit: <strong style="color:var(--gold)">${cost}g</strong></div>
       <div class="recruit-list">${rows || '<div class="empty-state">No classes available.</div>'}</div>
