@@ -482,7 +482,7 @@ const Game = (() => {
 
     const member = {
       id: `m${state.nextMemberId++}`,
-      name: randomName(),
+      name: randomName(classId, state.party),
       class: classId,
       level: 1, exp: 0,
       stats,

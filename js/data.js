@@ -70,15 +70,75 @@ export const CLASSES = {
 
 // ── Names ─────────────────────────────────────────────────────────────────────
 export const NAMES = {
-  first: ['Kael','Mira','Torben','Yuki','Aldric','Seraphine','Daxon','Lyra','Gareth','Nessa',
-          'Bram','Isolde','Caden','Vex','Oryn','Thea','Ravik','Sable','Fenrick','Aela',
-          'Zori','Hadley','Meryn','Colt','Tavish','Wren','Edric','Calyx','Petra','Oswin',
-          'Brynn','Lucan','Sylva','Dorin','Kerris','Ash','Tomas','Ilwen','Corvus','Sona',
-          'Riven','Elara','Jorik','Fiora','Thane','Lina','Bastien','Neve','Caelum','Suri'],
-  last:  ['Ironwood','Ashvale','Stormborn','Coldwell','Brightblade','Duskwood','Fernholt',
-          'Greymoor','Holloway','Ironclad','Lightfoot','Mossgrove','Nighthollow','Oakhearth',
-          'Quicksilver','Ravenwood','Swiftarrow','Thornwall','Underhill','Westmark',
-          'Cindervane','Frosthelm','Dawnstrider','Stonecroft','Wolfsbane','Emberglow','Mistwalker','Silverbark','Blackthorn','Dunehallow'],
+  // ── Shared first names (all classes draw from here, no repeats in active party) ──
+  first: [
+    'Kael','Mira','Torben','Yuki','Aldric','Seraphine','Daxon','Lyra','Gareth','Nessa',
+    'Bram','Isolde','Caden','Vex','Oryn','Thea','Ravik','Sable','Fenrick','Aela',
+    'Zori','Hadley','Meryn','Colt','Tavish','Wren','Edric','Calyx','Petra','Oswin',
+    'Brynn','Lucan','Sylva','Dorin','Kerris','Ash','Tomas','Ilwen','Corvus','Sona',
+    'Riven','Elara','Jorik','Fiora','Thane','Lina','Bastien','Neve','Caelum','Suri',
+    'Rowan','Asha','Darian','Freya','Halden','Maren','Orin','Sage','Caius','Zia',
+    'Lennox','Elowen','Holt','Vesper','Idris','Rhea','Caspian','Ember','Quillan','Nyx',
+    'Cedric','Yara','Bran','Selene','Darrow','Lux','Tristan','Ivy','Magnus','Rune',
+    'Soren','Jael','Leif','Kira','Theron','Maia','Cyrus','Gwynn','Torin','Liora',
+  ],
+  // ── Class-themed surname pools ──
+  last: {
+    HERO: [
+      'Brightblade','Dawnstrider','Valorheart','Oathkeeper','Trueguard','Lionmane',
+      'Goldcrest','Glorysword','Shieldborn','Stormheart','Ironvow','Crownwell',
+      'Bravemark','Dawnforge','Proudhelm','Embervow','Steelhart','Gallantry',
+      'Sundershield','Highcrest',
+    ],
+    KNIGHT: [
+      'Ironwall','Stonecroft','Steelhold','Bulwark','Shieldrest','Hammerfall',
+      'Greyfort','Rampart','Ironclad','Thornwall','Stonehelm','Bastionridge',
+      'Coldwell','Holdfast','Wardstone','Anvilcrest','Dreadfort','Titanhold',
+      'Wallguard','Siegeborn',
+    ],
+    MAGE: [
+      'Starweave','Spellforge','Arcwright','Mysthaven','Runeglow','Crystalvane',
+      'Flamecrest','Stormpeak','Frostwhisper','Voidwalker','Astralmark','Emberglow',
+      'Moonscribe','Nethervane','Riftborn','Spellwick','Glyphward','Skyfire',
+      'Aethersong','Dawnmantle',
+    ],
+    ROGUE: [
+      'Shadowveil','Nighthollow','Quicksilver','Silentblade','Duskmantle','Blindside',
+      'Knifewood','Ashvale','Darkwyn','Swiftfoot','Mistwalker','Hollowgrave',
+      'Greymoor','Shadeborn','Vipercross','Ghostwalk','Shroudvane','Blackthorn',
+      'Fadewell','Whisperwind',
+    ],
+    CLERIC: [
+      'Lightward','Hollowell','Sunblest','Dawnpray','Gracewell','Faithhold',
+      'Gentleheart','Solacemere','Brightveil','Stillwater','Ashworth','Chapelgard',
+      'Mercythorn','Hallowed','Peacebinder','Verdanthart','Oakhearth','Silvergrace',
+      'Mossgrove','Goldenleaf',
+    ],
+    RANGER: [
+      'Swiftarrow','Deepwood','Hawkridge','Fernholt','Windrunner','Briarmark',
+      'Greenthorn','Wolfsbane','Pathfinder','Wildmere','Trailforge','Eaglecrest',
+      'Thornbrush','Longstride','Deerhollow','Ravenstrack','Underhill','Stormbow',
+      'Barkhide','Highglen',
+    ],
+    BARD: [
+      'Songweaver','Lyreheart','Goldentongue','Merryvale','Chordwyn','Bellsong',
+      'Silverlute','Brightverse','Wandersong','Talespinner','Meadshire','Revelstoke',
+      'Jinglemark','Moonsong','Balladeer','Harmoncroft','Rhythmvale','Echowell',
+      'Strumhallow','Jesterfield',
+    ],
+    MONK: [
+      'Ironpalm','Stillpeak','Stonefist','Cloudstep','Ashwind','Calmwater',
+      'Thunderstrike','Jadecrest','Peakwalker','Silentgale','Ridgemonk','Emberfist',
+      'Swifthand','Cranefall','Zenith','Templeborn','Gravelbane','Mistpeak',
+      'Flareheart','Windrift',
+    ],
+    NECROMANCER: [
+      'Gravewell','Bonehallow','Duskveil','Withermere','Ashcroft','Deathwhisper',
+      'Darkhollow','Soulrend','Cryptmoor','Blight','Corpsemantle','Nightgrave',
+      'Tombvane','Hollowbone','Rotfield','Plaguewind','Spiritcall','Shadowgrave',
+      'Mourncrest','Grimthorn',
+    ],
+  },
 };
 
 // ── Item Rarity ──────────────────────────────────────────────────────────────
@@ -2977,9 +3037,19 @@ export function computeBaseStats(classId, level) {
   return stats;
 }
 
-export function randomName() {
-  const first = NAMES.first[Math.floor(Math.random() * NAMES.first.length)];
-  const last  = NAMES.last[Math.floor(Math.random() * NAMES.last.length)];
+export function randomName(classId, existingMembers = []) {
+  // Build set of first names already in use
+  const usedFirsts = new Set(existingMembers.map(m => m.name.split(' ')[0]));
+
+  // Pick a first name not already in the party
+  const available = NAMES.first.filter(n => !usedFirsts.has(n));
+  const pool = available.length > 0 ? available : NAMES.first; // fallback if all 84 used
+  const first = pool[Math.floor(Math.random() * pool.length)];
+
+  // Pick a class-themed surname (fallback to HERO pool if classId missing)
+  const surnames = NAMES.last[classId] || NAMES.last.HERO;
+  const last = surnames[Math.floor(Math.random() * surnames.length)];
+
   return `${first} ${last}`;
 }
 
