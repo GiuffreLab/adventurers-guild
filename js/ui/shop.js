@@ -57,6 +57,10 @@ function buildUpgradePanel() {
 export function renderShop() {
   const s = Game.state;
   const el = document.getElementById('tab-shop');
+  // Safety: if shop stock was never populated, refresh now
+  if (!s.shop.stock || s.shop.stock.length === 0) {
+    Game.refreshShop();
+  }
   const refreshMs = Game.shopRefreshMs();
   const min = Math.floor(refreshMs / 60000);
   const sec = Math.floor((refreshMs % 60000) / 1000);
@@ -97,8 +101,6 @@ export function renderShop() {
           `;
         }).join('');
   } else {
-    const gemEntries = s.inventory.filter(e => e.itemId.startsWith('GEM_'));
-    if (gemEntries.length > 0) console.log('[GEM DEBUG] Sell tab render — gem items in inventory:', JSON.stringify(gemEntries));
     const sellable = s.inventory.filter(e => {
       const item = getItem(e.itemId);
       return item && (item.sellPrice || item.buyPrice) && e.quantity > 0;

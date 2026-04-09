@@ -1916,10 +1916,10 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   font-size: 0.62rem; font-weight: 700; padding: 1px 6px;
   border-radius: 3px; text-transform: uppercase; letter-spacing: 0.04em;
 }
-.rarity-common    { display: none; }
-.rarity-uncommon  { background: rgba(46,204,113,0.15); color: var(--green); }
-.rarity-rare      { background: rgba(155,89,182,0.15); color: var(--purple); }
-.rarity-legendary { background: rgba(240,192,96,0.15); color: var(--gold); }
+.rarity-badge.rarity-common    { display: none; }
+.rarity-badge.rarity-uncommon  { background: rgba(46,204,113,0.15); color: var(--green); }
+.rarity-badge.rarity-rare      { background: rgba(155,89,182,0.15); color: var(--purple); }
+.rarity-badge.rarity-legendary { background: rgba(240,192,96,0.15); color: var(--gold); }
 
 /* ── Special Quest Card Effects ─────────────────────────────────────── */
 

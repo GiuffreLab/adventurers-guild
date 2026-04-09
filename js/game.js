@@ -1523,9 +1523,6 @@ const Game = (() => {
 
     for (const drop of result.loot) {
       addToInventory(drop.itemId, drop.quantity);
-      if (quest.gemMining) {
-        console.log(`[GEM DEBUG] Added to inventory: ${drop.itemId} x${drop.quantity}. Inventory now:`, JSON.stringify(state.inventory.filter(e => e.itemId.startsWith('GEM_'))));
-      }
     }
 
     let synergyUnlocks = [];
