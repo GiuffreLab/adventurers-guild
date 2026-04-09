@@ -134,27 +134,26 @@ export function renderTutorial() {
   const step = STEPS[Game.state.tutorial.step];
   if (!step) return;
 
-  // Remove previous target highlight
-  document.querySelectorAll('.tutorial-target').forEach(el => el.classList.remove('tutorial-target'));
-
   _ensureOverlay();
   const targetEl = step.target ? document.querySelector(step.target) : null;
 
-  // Build spotlight + elevate target element above backdrop
+  // Build spotlight + cut hole in backdrop via clip-path
   if (targetEl) {
-    targetEl.classList.add('tutorial-target');
     const rect = targetEl.getBoundingClientRect();
     const pad = 6;
-    _overlayEl.querySelector('.tutorial-spotlight').style.cssText = `
-      position: fixed;
-      top: ${rect.top - pad}px;
-      left: ${rect.left - pad}px;
-      width: ${rect.width + pad * 2}px;
-      height: ${rect.height + pad * 2}px;
-      display: block;
-    `;
+    const spotlight = _overlayEl.querySelector('.tutorial-spotlight');
+    spotlight.style.top = (rect.top - pad) + 'px';
+    spotlight.style.left = (rect.left - pad) + 'px';
+    spotlight.style.width = (rect.width + pad * 2) + 'px';
+    spotlight.style.height = (rect.height + pad * 2) + 'px';
+    spotlight.style.display = 'block';
+
+    // Cut a hole in the backdrop so the target area is visible & clickable
+    _setBackdropHole(rect, pad);
   } else {
     _overlayEl.querySelector('.tutorial-spotlight').style.display = 'none';
+    // Full backdrop, no hole
+    _overlayEl.querySelector('.tutorial-backdrop').style.clipPath = '';
   }
 
   // Position tooltip
@@ -227,21 +226,34 @@ function _ensureOverlay() {
     <div class="tutorial-spotlight"></div>
     <div class="tutorial-tooltip"></div>
   `;
-  // Allow clicks through to spotlighted elements
-  _overlayEl.querySelector('.tutorial-backdrop').addEventListener('click', (e) => {
-    e.stopPropagation();
-  });
   document.body.appendChild(_overlayEl);
 }
 
 function _removeOverlay() {
-  // Clean up any spotlight-elevated elements
-  document.querySelectorAll('.tutorial-target').forEach(el => el.classList.remove('tutorial-target'));
   if (_overlayEl) {
     _overlayEl.remove();
     _overlayEl = null;
   }
   _stopChecking();
+}
+
+// Cut a rectangular hole in the backdrop using clip-path so the target
+// area is fully visible and clickable (no z-index elevation needed).
+function _setBackdropHole(rect, pad) {
+  const backdrop = _overlayEl?.querySelector('.tutorial-backdrop');
+  if (!backdrop) return;
+  const t = Math.max(0, rect.top - pad);
+  const l = Math.max(0, rect.left - pad);
+  const r = Math.min(window.innerWidth, rect.right + pad);
+  const b = Math.min(window.innerHeight, rect.bottom + pad);
+  // Polygon: full screen with a rectangular hole punched out
+  backdrop.style.clipPath = `polygon(
+    0% 0%, 0% 100%,
+    ${l}px 100%, ${l}px ${t}px,
+    ${r}px ${t}px, ${r}px ${b}px,
+    ${l}px ${b}px, ${l}px 100%,
+    100% 100%, 100% 0%
+  )`;
 }
 
 function _advanceStep() {
@@ -279,7 +291,7 @@ function _startChecking() {
       renderTutorial(); // re-render with enabled button + done message
     }
 
-    // Re-position spotlight if target moved (e.g., after render)
+    // Re-position spotlight + backdrop hole if target moved (e.g., after render)
     if (step.target) {
       const targetEl = document.querySelector(step.target);
       if (targetEl) {
@@ -287,12 +299,12 @@ function _startChecking() {
         const pad = 6;
         const spotlight = _overlayEl?.querySelector('.tutorial-spotlight');
         if (spotlight) {
-          spotlight.style.position = 'fixed';
           spotlight.style.top = (rect.top - pad) + 'px';
           spotlight.style.left = (rect.left - pad) + 'px';
           spotlight.style.width = (rect.width + pad * 2) + 'px';
           spotlight.style.height = (rect.height + pad * 2) + 'px';
         }
+        _setBackdropHole(rect, pad);
       }
     }
   }, 300);

@@ -286,9 +286,10 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0, 0, 0, 0.55);
   pointer-events: auto;
+  /* clip-path is set dynamically to cut a hole around the spotlight target */
 }
 .tutorial-spotlight {
-  position: absolute;
+  position: fixed;
   border-radius: var(--radius);
   box-shadow: 0 0 12px 4px rgba(0, 229, 200, 0.3);
   border: 2px solid rgba(0, 229, 200, 0.4);
@@ -296,19 +297,14 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   z-index: 10000;
   pointer-events: none;
   display: none;
-  transition: all 0.3s ease;
+  transition: top 0.3s ease, left 0.3s ease, width 0.3s ease, height 0.3s ease;
   animation: tutorialPulse 2s ease-in-out infinite;
 }
 @keyframes tutorialPulse {
   0%, 100% { box-shadow: 0 0 12px 4px rgba(0, 229, 200, 0.3); }
   50% { box-shadow: 0 0 20px 8px rgba(0, 229, 200, 0.5); }
 }
-/* Spotlighted target element gets elevated above the backdrop */
-.tutorial-target {
-  position: relative !important;
-  z-index: 10000 !important;
-  pointer-events: auto !important;
-}
+/* No longer needed — clip-path approach keeps target in normal DOM flow */
 .tutorial-tooltip {
   position: fixed;
   z-index: 10001;
