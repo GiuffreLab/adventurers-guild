@@ -6,6 +6,7 @@ import { renderShop } from './ui/shop.js';
 import { renderCompendium } from './ui/compendium.js';
 import { renderTower, tickUpdateTower, initTower } from './ui/tower.js';
 import { showResultsModal } from './ui/results.js';
+import { initTutorial, renderTutorial, isTutorialActive } from './ui/tutorial.js';
 import { shouldRefreshBoard } from './questgen.js';
 import { rankCss } from './util.js';
 
@@ -30,6 +31,8 @@ export function initNewGameModal() {
     document.getElementById('game').classList.remove('hidden');
     setTab('hall');
     startGame();
+    // Start tutorial for new players
+    setTimeout(() => initTutorial(), 300);
   });
 }
 
@@ -159,8 +162,14 @@ export function startGame() {
   _started = true;
   initTower(setTab);
   document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => setTab(btn.dataset.tab));
+    btn.addEventListener('click', () => {
+      setTab(btn.dataset.tab);
+      // Re-render tutorial after tab switch so it can reposition
+      if (isTutorialActive()) setTimeout(() => renderTutorial(), 50);
+    });
   });
+  // Resume tutorial if it was in progress
+  if (isTutorialActive()) setTimeout(() => initTutorial(), 300);
   document.getElementById('btn-dismiss-results').addEventListener('click', () => {
     const autoRun = Game.state.autoRun;
     Game.state.pendingResults = null;

@@ -103,6 +103,7 @@ const Game = (() => {
       pendingResults: null,
       tower: getDefaultTowerState(), // Tower Climb game mode
       guildLegacy: { overflowRP: 0, level: 0, talents: [] }, // RP overflow & talent tree at S++
+      tutorial: { step: 0, dismissed: false }, // Tutorial progression
     };
   }
 
@@ -208,6 +209,8 @@ const Game = (() => {
       // Migration: add guild legacy if missing
       if (!state.guildLegacy) state.guildLegacy = { overflowRP: 0, level: 0, talents: [] };
       if (!state.guildLegacy.talents) state.guildLegacy.talents = [];
+      // Migration: add tutorial state if missing (mark as dismissed for existing saves)
+      if (!state.tutorial) state.tutorial = { step: 0, dismissed: true };
 
       return true;
     } catch(e) { return false; }
@@ -220,6 +223,53 @@ const Game = (() => {
   function deleteSave() {
     localStorage.removeItem(SAVE_KEY);
     state = null;
+  }
+
+  function exportSave() {
+    if (!state) return null;
+    save(); // ensure latest state is captured
+    const data = JSON.stringify(state);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const guildName = state.guild?.name || 'adventurers-guild';
+    const date = new Date().toISOString().slice(0, 10);
+    a.download = `${guildName.replace(/[^a-zA-Z0-9]/g, '_')}_${date}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    return { ok: true };
+  }
+
+  function importSave(jsonString) {
+    try {
+      const parsed = JSON.parse(jsonString);
+      // Basic structure validation
+      if (!parsed.version || !parsed.guild || !parsed.party) {
+        return { ok: false, reason: 'Invalid save file — missing required data' };
+      }
+      // Reject saves from a newer game version (can't migrate forward)
+      if (parsed.version > 1) {
+        return { ok: false, reason: `Save is from a newer game version (v${parsed.version}). Update the game first.` };
+      }
+      // Back up current save before overwriting
+      const backup = localStorage.getItem(SAVE_KEY);
+      // Store imported data and reload through normal load() path for migrations
+      localStorage.setItem(SAVE_KEY, jsonString);
+      const success = load();
+      if (!success) {
+        // Restore backup if import failed
+        if (backup) localStorage.setItem(SAVE_KEY, backup);
+        else localStorage.removeItem(SAVE_KEY);
+        return { ok: false, reason: 'Save file failed validation' };
+      }
+      save(); // persist any migrations applied by load()
+      return { ok: true, guildName: state.guild?.name, guildRank: state.guild?.rank };
+    } catch (e) {
+      return { ok: false, reason: 'Could not parse save file — is it valid JSON?' };
+    }
   }
 
   // ── Mutations ──────────────────────────────────────────────────────────────
@@ -1845,6 +1895,9 @@ const Game = (() => {
     // Guild Legacy & Talents
     getLegacyBonuses, LEGACY_RP_PER_LEVEL, LEGACY_TALENTS,
     getLegacyTalentPoints, canPurchaseTalent, purchaseTalent, hasTalent, resetTalents,
+
+    // Save Management
+    exportSave, importSave,
   };
 })();
 

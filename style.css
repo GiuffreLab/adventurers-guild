@@ -274,6 +274,125 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .event-text { color: var(--text-dim); }
 .event-empty { color: var(--text-muted); font-style: italic; font-size: 0.8rem; }
 
+/* ── Tutorial System ──────────────────────────────────────────────────── */
+.tutorial-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 9999;
+  pointer-events: none;
+}
+.tutorial-backdrop {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.55);
+  pointer-events: auto;
+}
+.tutorial-spotlight {
+  position: absolute;
+  border-radius: var(--radius);
+  box-shadow: 0 0 12px 4px rgba(0, 229, 200, 0.3);
+  border: 2px solid rgba(0, 229, 200, 0.4);
+  background: transparent;
+  z-index: 10000;
+  pointer-events: none;
+  display: none;
+  transition: all 0.3s ease;
+  animation: tutorialPulse 2s ease-in-out infinite;
+}
+@keyframes tutorialPulse {
+  0%, 100% { box-shadow: 0 0 12px 4px rgba(0, 229, 200, 0.3); }
+  50% { box-shadow: 0 0 20px 8px rgba(0, 229, 200, 0.5); }
+}
+/* Spotlighted target element gets elevated above the backdrop */
+.tutorial-target {
+  position: relative !important;
+  z-index: 10000 !important;
+  pointer-events: auto !important;
+}
+.tutorial-tooltip {
+  position: fixed;
+  z-index: 10001;
+  width: 320px;
+  background: var(--bg-card);
+  border: 2px solid var(--cyan);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 229, 200, 0.15);
+  pointer-events: auto;
+  animation: tutorialFadeIn 0.3s ease;
+}
+.tutorial-tooltip.tutorial-centered {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+@keyframes tutorialFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.tutorial-centered { animation-name: tutorialFadeInCenter; }
+@keyframes tutorialFadeInCenter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.tutorial-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.tutorial-step-count {
+  font-size: 0.7rem;
+  color: var(--cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+.tutorial-skip {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  transition: color 0.15s;
+}
+.tutorial-skip:hover { color: var(--text); }
+.tutorial-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.tutorial-body {
+  font-size: 0.84rem;
+  color: var(--text-dim);
+  line-height: 1.55;
+  margin-bottom: 14px;
+}
+.tutorial-body strong { color: var(--cyan); }
+.tutorial-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+.tutorial-next {
+  background: var(--cyan) !important;
+  color: var(--bg) !important;
+  font-weight: 700;
+  border: none;
+  padding: 6px 18px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.tutorial-next:hover { opacity: 0.85; }
+
+/* ── Save Management ──────────────────────────────────────────────────── */
+.save-mgmt-card { }
+.save-mgmt-info { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 10px; }
+.save-mgmt-actions { display: flex; gap: 8px; margin-bottom: 8px; }
+.save-mgmt-hint { font-size: 0.72rem; color: var(--text-muted); font-style: italic; }
+
 /* ── Quest Board ───────────────────────────────────────────────────────── */
 .rank-filter { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
 .rank-filter-btn {
@@ -2297,6 +2416,68 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .comp-rarity-desc {
   color: var(--text-dim);
   font-size: 0.85rem;
+}
+
+/* Loot drops by rank table */
+.comp-loot-table {
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.comp-loot-header,
+.comp-loot-row {
+  display: grid;
+  grid-template-columns: 50px 1fr 1fr;
+  gap: 8px;
+  padding: 6px 12px;
+  align-items: center;
+  font-size: 0.8rem;
+}
+.comp-loot-header {
+  background: var(--bg-card-alt);
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.comp-loot-row { border-top: 1px solid var(--border); color: var(--text-dim); }
+.comp-loot-row:nth-child(even) { background: var(--bg-card-alt); }
+
+/* Step-by-step guide */
+.comp-steps {
+  display: flex; flex-direction: column; gap: 8px;
+  margin: 10px 0 16px;
+}
+.comp-step {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 10px 14px;
+  background: var(--bg-card-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.comp-step-num {
+  flex-shrink: 0;
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: var(--cyan);
+  color: var(--bg);
+  font-weight: 700; font-size: 0.78rem;
+}
+.comp-step-text {
+  font-size: 0.84rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.comp-step-text strong { color: var(--text); }
+.comp-step-text code {
+  background: var(--bg);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.78rem;
+  color: var(--cyan);
 }
 
 /* Item proc table */

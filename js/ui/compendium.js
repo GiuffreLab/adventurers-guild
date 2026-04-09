@@ -17,6 +17,7 @@ const SECTIONS = [
   { id: 'synergy',    label: 'Party Synergy',      icon: '🔗' },
   { id: 'legacy',     label: 'Guild Legacy',       icon: '🏆' },
   { id: 'ranks',      label: 'Ranking System',     icon: '⭐' },
+  { id: 'saves',      label: 'Save & Backup',      icon: '💾' },
 ];
 
 // ── Main Render ───────────────────────────────────────────────────────────
@@ -59,6 +60,7 @@ export function renderCompendium() {
       case 'synergy':   body.innerHTML = renderSynergy(); break;
       case 'legacy':    body.innerHTML = renderLegacyGuide(); break;
       case 'ranks':     body.innerHTML = renderRanks(); break;
+      case 'saves':     body.innerHTML = renderSavesGuide(); break;
     }
   } catch (err) {
     console.error('Compendium render error:', err);
@@ -330,6 +332,22 @@ function renderEquipment() {
       <h3 class="comp-subtitle">Rarity Tiers</h3>
       ${rarityRows}
 
+      <h3 class="comp-subtitle">Loot Drops by Rank</h3>
+      <p class="comp-text">Each guild rank drops equipment from specific rarity tiers. Normal quests draw from the rank's pool. Boss quests skip the current tier entirely and drop gear from the next tier up, with a chance at two tiers up, plus a small chance at celestial drops regardless of rank.</p>
+      <div class="comp-loot-table">
+        <div class="comp-loot-header"><span>Rank</span><span>Normal Drops</span><span>Boss Drops</span></div>
+        <div class="comp-loot-row"><span class="rank-F">F</span><span>Common</span><span>Magic, Magic+Rare, Celestial</span></div>
+        <div class="comp-loot-row"><span class="rank-E">E</span><span>Magic</span><span>Magic+Rare, Rare, Celestial</span></div>
+        <div class="comp-loot-row"><span class="rank-D">D</span><span>Magic, Rare</span><span>Rare, Rare+Epic, Celestial</span></div>
+        <div class="comp-loot-row"><span class="rank-C">C</span><span>Rare</span><span>Rare+Epic, Epic+Legendary, Celestial</span></div>
+        <div class="comp-loot-row"><span class="rank-B">B</span><span>Rare, Epic</span><span>Epic+Legendary, Legendary+Celestial</span></div>
+        <div class="comp-loot-row"><span class="rank-A">A</span><span>Epic, Legendary</span><span>Legendary+Celestial</span></div>
+        <div class="comp-loot-row"><span class="rank-S">S</span><span>Legendary, Celestial</span><span>Legendary, Celestial (increased)</span></div>
+        <div class="comp-loot-row"><span class="rank-S">S+</span><span>Legendary, Celestial+</span><span>Legendary, Celestial (highest)</span></div>
+        <div class="comp-loot-row"><span class="rank-S">S++</span><span>Legendary, Celestial++</span><span>Legendary, Celestial (highest)</span></div>
+      </div>
+      <p class="comp-text" style="margin-top:8px; font-size:0.78rem; color:var(--text-muted)">Celestial drop rates from bosses are very low at early ranks but scale significantly at S and above. Boss fights are designed to be meaningful progression milestones — beating one rewards you with gear from the next tier of content.</p>
+
       <h3 class="comp-subtitle">Equipment Skill Procs</h3>
       <p class="comp-text">Some rare, epic, legendary, and celestial items grant unique skills when equipped. Active procs trigger each round based on their proc chance, last for 1 round, then enter a 2-round cooldown. Passive procs are always active. These appear in combat alongside class skills and rotate via the round-robin cooldown system.</p>
       <div class="comp-item-table">
@@ -591,6 +609,90 @@ function renderLegacyGuide() {
       <p class="comp-text">Tier requirements: Tier 1 talents need Legacy Lv.1+, Tier 2 needs Lv.3+, and Tier 3 needs Lv.6+. Talents can be reset for free from the Guild Hall.</p>
 
       <div class="comp-legacy-tree">${talentRows}</div>
+    </div>
+  `;
+}
+
+// ── Save & Backup Guide ──────────────────────────────────────────────────
+function renderSavesGuide() {
+  return `
+    <div class="comp-section">
+      <h2 class="comp-title">Save & Backup</h2>
+      <p class="comp-text">Your game saves automatically to your browser's local storage as you play. This means your progress is tied to the specific browser on the specific device you're playing on. If you clear your browser data, switch browsers, or move to a different device, your save won't carry over unless you export it first.</p>
+
+      <h3 class="comp-subtitle">How to Export Your Save</h3>
+      <p class="comp-text">Exporting creates a backup file you can store anywhere — your desktop, a USB drive, cloud storage, etc.</p>
+      <div class="comp-steps">
+        <div class="comp-step">
+          <span class="comp-step-num">1</span>
+          <div class="comp-step-text">Open the <strong>Guild Hall</strong> tab (your home screen).</div>
+        </div>
+        <div class="comp-step">
+          <span class="comp-step-num">2</span>
+          <div class="comp-step-text">Scroll down to the <strong>Save Management</strong> card at the bottom.</div>
+        </div>
+        <div class="comp-step">
+          <span class="comp-step-num">3</span>
+          <div class="comp-step-text">Click <strong>Export Save</strong>. A <code>.json</code> file will download to your device — this is your save file.</div>
+        </div>
+        <div class="comp-step">
+          <span class="comp-step-num">4</span>
+          <div class="comp-step-text">Store the file somewhere safe. The filename includes your guild name and the date, so you can keep multiple backups.</div>
+        </div>
+      </div>
+
+      <h3 class="comp-subtitle">How to Import a Save</h3>
+      <p class="comp-text">Importing loads a previously exported save file. This will replace your current progress, so export your current save first if you want to keep it.</p>
+      <div class="comp-steps">
+        <div class="comp-step">
+          <span class="comp-step-num">1</span>
+          <div class="comp-step-text">Open the <strong>Guild Hall</strong> tab.</div>
+        </div>
+        <div class="comp-step">
+          <span class="comp-step-num">2</span>
+          <div class="comp-step-text">Scroll down to the <strong>Save Management</strong> card.</div>
+        </div>
+        <div class="comp-step">
+          <span class="comp-step-num">3</span>
+          <div class="comp-step-text">Click <strong>Import Save</strong> and select your <code>.json</code> save file.</div>
+        </div>
+        <div class="comp-step">
+          <span class="comp-step-num">4</span>
+          <div class="comp-step-text">If the file is valid, your game will reload with the imported progress. You'll see a confirmation message with your guild name and rank.</div>
+        </div>
+      </div>
+
+      <h3 class="comp-subtitle">Moving to Another Device</h3>
+      <div class="comp-steps">
+        <div class="comp-step">
+          <span class="comp-step-num">1</span>
+          <div class="comp-step-text"><strong>Export</strong> your save on the device you're currently playing on.</div>
+        </div>
+        <div class="comp-step">
+          <span class="comp-step-num">2</span>
+          <div class="comp-step-text">Transfer the <code>.json</code> file to your other device (email it to yourself, use cloud storage, airdrop, etc.).</div>
+        </div>
+        <div class="comp-step">
+          <span class="comp-step-num">3</span>
+          <div class="comp-step-text">Open the game on the new device and <strong>Import</strong> the save file.</div>
+        </div>
+      </div>
+
+      <h3 class="comp-subtitle">Good to Know</h3>
+      <div class="comp-steps">
+        <div class="comp-step">
+          <span class="comp-step-num">!</span>
+          <div class="comp-step-text">If an import fails (corrupted or incompatible file), your current save is automatically restored — nothing is lost.</div>
+        </div>
+        <div class="comp-step">
+          <span class="comp-step-num">!</span>
+          <div class="comp-step-text">Save files from older game versions will be automatically updated when imported. Save files from newer versions cannot be loaded on older versions of the game.</div>
+        </div>
+        <div class="comp-step">
+          <span class="comp-step-num">!</span>
+          <div class="comp-step-text">It's a good habit to export a backup before major gameplay milestones — like attempting a tough boss or resetting talents.</div>
+        </div>
+      </div>
     </div>
   `;
 }

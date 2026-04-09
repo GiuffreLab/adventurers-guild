@@ -2,6 +2,7 @@ import Game from '../game.js';
 import { getQuest, getClass, RANK_ORDER, CLASSES } from '../data.js';
 import { rankTag, timeAgo, hpClass } from './helpers.js';
 import { esc, rankCss } from '../util.js';
+import { showToast } from './helpers.js';
 import { getQuestPhase } from './combatlog.js';
 
 let _rendered = false;
@@ -35,8 +36,40 @@ function _fullRenderHall(el) {
       ${renderGuildProgressCard(s)}
       ${legacyCard}
       ${renderEventLogCard(s)}
+      ${renderSaveManagementCard(s)}
     </div>
   `;
+
+  // Wire save management buttons
+  const exportBtn = el.querySelector('#btn-export-save');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', () => {
+      const result = Game.exportSave();
+      if (result?.ok) showToast('Save exported!', 'success');
+    });
+  }
+  const importBtn = el.querySelector('#btn-import-save');
+  const importFile = el.querySelector('#import-save-file');
+  if (importBtn && importFile) {
+    importBtn.addEventListener('click', () => importFile.click());
+    importFile.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const result = Game.importSave(evt.target.result);
+        if (result.ok) {
+          showToast(`Loaded save: ${result.guildName} (${result.guildRank}-Rank)`, 'success');
+          _rendered = false;
+          renderHall();
+        } else {
+          showToast(result.reason, 'error');
+        }
+        importFile.value = '';
+      };
+      reader.readAsText(file);
+    });
+  }
 }
 
 // ── Lightweight update (called every tick — no innerHTML replacement) ──────
@@ -195,6 +228,24 @@ function renderEventLogCard(s) {
           <span class="event-text">${e.text}</span>
         </div>`).join('');
   return `<div class="card"><div class="card-title">Recent Events</div><div class="event-log">${rows}</div></div>`;
+}
+
+// ── Save Management Card ─────────────────────────────────────────────────────
+
+function renderSaveManagementCard(s) {
+  const lastSaved = s.lastSaved ? new Date(s.lastSaved).toLocaleString() : 'Never';
+  return `
+    <div class="card save-mgmt-card">
+      <div class="card-title">Save Management</div>
+      <div class="save-mgmt-info">Last saved: ${lastSaved}</div>
+      <div class="save-mgmt-actions">
+        <button class="btn btn-sm" id="btn-export-save">Export Save</button>
+        <button class="btn btn-sm" id="btn-import-save">Import Save</button>
+        <input type="file" id="import-save-file" accept=".json" style="display:none">
+      </div>
+      <div class="save-mgmt-hint">Export your save to back it up or move it to another device.</div>
+    </div>
+  `;
 }
 
 // ── Guild Legacy + Talents Card ──────────────────────────────────────────────

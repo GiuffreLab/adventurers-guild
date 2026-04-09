@@ -2,6 +2,8 @@
 
 A browser-based idle RPG where you manage a guild of adventurers, send them on quests, and climb the ranks from a fledgling F-Rank guild to legendary S-Rank.
 
+This is a project built purely for fun — a pick-up-and-play RPG that runs in any browser on any device with zero installs, accounts, or downloads. Open it in a tab, check in when you feel like it, and let your guild grow over time. If you enjoy it, consider giving the repo a star — it helps others find the game and keeps the motivation going.
+
 **[Play Now](https://giuffrelab.github.io/adventurers-guild/)**
 
 [![pages-build-deployment](https://github.com/GiuffreLab/adventurers-guild/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/GiuffreLab/adventurers-guild/actions/workflows/pages/pages-build-deployment)
@@ -95,6 +97,28 @@ Gear comes in six rarities and four slots (Weapon, Armor, Accessory, Offhand):
 - **Celestial** — God-tier S-Rank drops. Each class has a full 4-piece celestial set (weapon, armor, offhand, accessory) with massive stats and powerful celestial skill procs that get special visual effects in combat.
 
 Two-handed weapons (Bard instruments, Hero greatswords, Monk staves) carry ~1.5x the stat budget of one-handed weapons to compensate for the lost offhand slot.
+
+### Loot by Guild Rank
+
+Each guild rank drops equipment from specific rarity tiers. Normal quests draw from the rank's pool, while boss quests skip the current tier entirely and reward gear from the next tier up (with a chance at two tiers up), plus a small chance at celestial drops regardless of rank.
+
+| Rank | Normal Quest Drops | Boss Drops |
+|------|-------------------|------------|
+| F | Common | Magic, Magic+Rare, Celestial |
+| E | Magic | Magic+Rare, Rare, Celestial |
+| D | Magic, Rare | Rare, Rare+Epic, Celestial |
+| C | Rare | Rare+Epic, Epic+Legendary, Celestial |
+| B | Rare, Epic | Epic+Legendary, Legendary+Celestial |
+| A | Epic, Legendary | Legendary+Celestial |
+| S | Legendary, Celestial | Legendary, Celestial (increased) |
+| S+ | Legendary, Celestial (increased) | Legendary, Celestial (highest) |
+| S++ | Legendary, Celestial (highest) | Legendary, Celestial (highest) |
+
+Celestial drop rates from bosses are very low at early ranks but scale significantly at S and above.
+
+## Save Management
+
+Game progress is saved automatically in your browser's local storage. To back up your save or move it to another device, use the Export and Import buttons in the Guild Hall. Export downloads your save as a JSON file, and Import loads one back in. Importing a save will overwrite your current progress — your existing save is backed up automatically and restored if the import fails.
 
 ## Running Locally
 
