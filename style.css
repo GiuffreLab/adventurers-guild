@@ -2234,8 +2234,8 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 }
 .comp-skill-row {
   display: grid;
-  grid-template-columns: 24px 140px 60px 1fr;
-  gap: 6px;
+  grid-template-columns: 24px 130px 80px 1fr;
+  gap: 8px;
   padding: 4px 0;
   font-size: 0.83rem;
   align-items: start;
@@ -2291,10 +2291,10 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .comp-item-header,
 .comp-item-row {
   display: grid;
-  grid-template-columns: 160px 65px 55px 140px 60px 1fr 110px;
-  gap: 8px;
+  grid-template-columns: 145px 55px 85px 135px 50px 1fr 95px;
+  gap: 6px;
   padding: 8px 12px;
-  font-size: 0.83rem;
+  font-size: 0.82rem;
   align-items: start;
 }
 .comp-item-header {
@@ -2308,10 +2308,10 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .comp-item-row {
   border-top: 1px solid var(--border);
 }
-.comp-item-name { font-weight: 600; }
+.comp-item-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
 .comp-item-slot { color: var(--text-muted); text-transform: capitalize; }
-.comp-item-class { color: var(--text-muted); }
-.comp-item-skill { color: var(--text); }
+.comp-item-class { color: var(--text-muted); font-size: 0.78rem; }
+.comp-item-skill { color: var(--text); overflow: hidden; text-overflow: ellipsis; }
 .comp-item-proc { text-align: center; }
 .comp-proc-chance { color: var(--cyan); font-weight: 600; }
 .comp-proc-passive { color: var(--text-muted); font-style: italic; font-size: 0.78rem; }
@@ -2401,8 +2401,8 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   .comp-nav-btn { padding: 6px 10px; font-size: 0.78rem; border-left: none; border-bottom: 2px solid transparent; }
   .comp-nav-btn.active { border-left-color: transparent; border-bottom-color: var(--cyan); }
   .comp-body { padding: 16px; max-height: none; }
-  .comp-skill-row { grid-template-columns: 24px 100px 50px 1fr; }
-  .comp-item-header, .comp-item-row { grid-template-columns: 130px 50px 50px 120px 50px 1fr 90px; font-size: 0.78rem; }
+  .comp-skill-row { grid-template-columns: 24px 100px 75px 1fr; }
+  .comp-item-header, .comp-item-row { grid-template-columns: 120px 45px 75px 110px 45px 1fr 80px; font-size: 0.78rem; }
 }
 
 /* ── Responsive: Phone (≤480px) ───────────────────────────────────────── */
