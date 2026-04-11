@@ -6,7 +6,7 @@ import {
 import {
   getSkill, getUnlockedClassSkills, getUnlockedClassMasteries,
   getEquipmentSkill, getMemberActiveSkills, applyPassiveSkills, rollActiveSkills,
-  collectPartyAuras, HERO_SPECS, HERO_RESPEC_COSTS, getUnlockedSpecSkills
+  collectPartyAuras, HERO_SPECS, getUnlockedSpecSkills, HERO_SPEC_REPLACED_SKILLS
 } from './skills.js';
 import {
   calculatePartyStrength, generateQuestBoard, shouldRefreshBoard,
@@ -24,6 +24,31 @@ const Game = (() => {
   const RANK_THRESHOLDS = { F:1000, E:3000, D:7000, C:15000, B:35000, A:80000, S:200000, 'S+':500000, 'S++':null };
   const SHOP_REFRESH_MS = 10 * 60 * 1000;  // 10 minutes
   const SHOP_QUEST_REFRESH = 2; // refresh shop every N completed quests
+
+  // ── Hero Spec Replacement Model (§3.1.1) ───────────────────────────────
+  // Replacement list lives in skills/index.js so the UI can filter the
+  // Class Skills table to match what the sim actually uses.
+  function applyHeroSpecReplacement(member) {
+    if (!member || member.class !== 'HERO' || !member.heroSpec) return;
+    if (!Array.isArray(member.skills)) return;
+    member.skills = member.skills.filter(id => !HERO_SPEC_REPLACED_SKILLS.includes(id));
+  }
+
+  // ── Progression Caps ──────────────────────────────────────────────────────
+  // PLAYER_LEVEL_CAP — hard ceiling for member levels. Set just above the
+  // L20 final-skill unlock to give 5 levels of "mastered" stat growth without
+  // letting raw stats dwarf the §3.10 talent / mastery balance work.
+  const PLAYER_LEVEL_CAP = 25;
+
+  // LEGACY_LEVEL_CAP — hard ceiling for Guild Legacy levels. The value equals
+  // the total talent point cost of every currently-designed talent so that a
+  // completionist player can purchase everything exactly once. Breakdown:
+  //   • Class talents: 10 classes × (1 + 2 + 3) = 60 pts
+  //   • Party-wide:    2 + 2 + 2 + 3 + 3        = 12 pts
+  //   • Total:                                  = 72 pts
+  // Once the cap is reached, excess RP is discarded rather than silently
+  // accumulating — no new talent points, no unbounded LEGACY_BONUSES growth.
+  const LEGACY_LEVEL_CAP = 72;
 
   // ── Party Expansion ───────────────────────────────────────────────────────
   // Active slots (NOT including the Hero/player who is always present)
@@ -81,7 +106,7 @@ const Game = (() => {
         level: 1, exp: 0,
         stats: computeStats(playerClass, 1),
         equipment: { weapon:null, armor:null, accessory:null, offhand:null },
-        skills: [],
+        skills: getUnlockedClassSkills(playerClass, 1).map(s => s.id),
         questsCompleted: 0,
         heroSpec: null,       // 'vanguard' | 'champion' | 'warden' | null
       },
@@ -204,6 +229,89 @@ const Game = (() => {
       dedupeSkills(state.player);
       if (state.party) state.party.forEach(m => dedupeSkills(m));
 
+      // Class rework migration — strip skill IDs that have been retired from
+      // class progression (Monk: KI_BARRIER / INNER_FOCUS / COUNTER_STANCE,
+      // Necromancer: DARK_PACT). These definitions still exist in SKILLS as
+      // source:'legacy' so any stale references resolve, but they must be
+      // removed from per-member skill lists so reconcile picks up the new
+      // replacement skills without duplication.
+      const RETIRED_CLASS_SKILL_IDS = new Set([
+        'KI_BARRIER', 'INNER_FOCUS', 'COUNTER_STANCE', 'DARK_PACT',
+      ]);
+      const stripRetiredSkills = (member) => {
+        if (!member || !member.skills) return;
+        member.skills = member.skills.filter(id => !RETIRED_CLASS_SKILL_IDS.has(id));
+      };
+      stripRetiredSkills(state.player);
+      if (state.party) state.party.forEach(m => stripRetiredSkills(m));
+
+      // Strip any skill IDs that no longer resolve to a definition. Equipment
+      // proc refactors occasionally delete/rename skills (e.g. ETERNAL_WARD →
+      // CELESTIAL_WARD); without this pass, save data carries the dead ID
+      // forever and it renders as a bare UPPERCASE string in the UI.
+      const stripDeadSkills = (member) => {
+        if (!member || !member.skills) return;
+        member.skills = member.skills.filter(id => getSkill(id) != null);
+      };
+      stripDeadSkills(state.player);
+      if (state.party) state.party.forEach(m => stripDeadSkills(m));
+
+      // Reconcile equipment-granted skills — if an equipped item's grantedSkill
+      // was renamed or rebound (see equipment refactors), make sure the new
+      // skill ID shows up in the member's skill list without requiring a
+      // re-equip. Walks every equipment slot and adds any missing grants.
+      const reconcileEquipmentSkills = (member) => {
+        if (!member || !member.equipment) return;
+        if (!member.skills) member.skills = [];
+        for (const slot of Object.keys(member.equipment)) {
+          const itemId = member.equipment[slot];
+          if (!itemId) continue;
+          const item = getItem(itemId);
+          if (!item) continue;
+          const grants = [].concat(item.grantedSkill || [], item.grantedSkills || []);
+          for (const sk of grants) {
+            if (sk && getSkill(sk) && !member.skills.includes(sk)) {
+              member.skills.push(sk);
+            }
+          }
+        }
+      };
+      reconcileEquipmentSkills(state.player);
+      if (state.party) state.party.forEach(m => reconcileEquipmentSkills(m));
+
+      // Reconcile class skills — ensure every member has all class skills they
+      // should have at their current level. Covers newly added skills (e.g.
+      // level-1 starters) without requiring a level-up trigger.
+      const reconcileClassSkills = (member) => {
+        if (!member || !member.class) return;
+        if (!member.skills) member.skills = [];
+        // Strip legacy/retired skills from save (source: 'legacy' or type: 'legacy')
+        member.skills = member.skills.filter(id => {
+          const sk = getSkill(id);
+          if (!sk) return true; // unknown — leave alone (might be equipment)
+          return sk.source !== 'legacy' && sk.type !== 'legacy';
+        });
+        const shouldHave = getUnlockedClassSkills(member.class, member.level || 1);
+        for (const sk of shouldHave) {
+          if (!member.skills.includes(sk.id)) member.skills.push(sk.id);
+        }
+        const shouldHaveMasteries = getUnlockedClassMasteries(member.class, member.level || 1);
+        for (const sk of shouldHaveMasteries) {
+          if (!member.skills.includes(sk.id)) member.skills.push(sk.id);
+        }
+        // Hero spec replacement: strip baseline L10/14/18 if specced (§3.1.1)
+        applyHeroSpecReplacement(member);
+        // Also grant any spec skills the Hero should have at current level
+        if (member.class === 'HERO' && member.heroSpec) {
+          const specUnlocks = getUnlockedSpecSkills(member.heroSpec, member.level || 1);
+          for (const sk of specUnlocks) {
+            if (!member.skills.includes(sk.id)) member.skills.push(sk.id);
+          }
+        }
+      };
+      reconcileClassSkills(state.player);
+      if (state.party) state.party.forEach(m => reconcileClassSkills(m));
+
       // Migration: add tower state if missing
       if (!state.tower) state.tower = getDefaultTowerState();
       // Migration: add guild legacy if missing
@@ -292,6 +400,17 @@ const Game = (() => {
 
   function addRankPoints(points) {
     if (!points) return null;
+    // LEGACY_LEVEL_CAP: once the Guild Legacy is at the talent-point ceiling
+    // AND the guild rank is already S++ (max rank), drop the incoming RP on
+    // the floor. We still accept RP if there's rank progress left, because
+    // the cap only affects overflow into the Legacy track — regular ranks
+    // up through S++ are untouched.
+    const legacyAtCap = (state.guildLegacy?.level || 0) >= LEGACY_LEVEL_CAP;
+    const ri0 = rankIndex(state.guild.rank);
+    const atMaxRank = ri0 >= RANK_ORDER.length - 1 && RANK_THRESHOLDS[state.guild.rank] === null;
+    if (legacyAtCap && atMaxRank) {
+      return null; // No new points accepted — player is fully capped.
+    }
     state.guild.rankPoints += points;
     let oldRank = null;
     let newRank = null;
@@ -314,10 +433,19 @@ const Game = (() => {
       state.guildLegacy.overflowRP += state.guild.rankPoints;
       state.guild.rankPoints = 0; // All RP flows into legacy
       const oldLevel = state.guildLegacy.level;
-      while (state.guildLegacy.overflowRP >= LEGACY_RP_PER_LEVEL) {
+      while (state.guildLegacy.level < LEGACY_LEVEL_CAP && state.guildLegacy.overflowRP >= LEGACY_RP_PER_LEVEL) {
         state.guildLegacy.overflowRP -= LEGACY_RP_PER_LEVEL;
         state.guildLegacy.level++;
         logEvent(`Guild Legacy advanced to Level ${state.guildLegacy.level}!`);
+        if (state.guildLegacy.level >= LEGACY_LEVEL_CAP) {
+          logEvent(`Guild Legacy has reached its MAX level of ${LEGACY_LEVEL_CAP}!`);
+        }
+      }
+      // Cap hit mid-award — discard any leftover overflow RP so the bar
+      // reads 0/50000 and future quests don't silently bank into a pool
+      // that will never convert to a level.
+      if (state.guildLegacy.level >= LEGACY_LEVEL_CAP) {
+        state.guildLegacy.overflowRP = 0;
       }
     }
 
@@ -343,26 +471,26 @@ const Game = (() => {
     // ── HERO (HRO) ──
     HRO_CHAIN_STRIKE:   { id: 'HRO_CHAIN_STRIKE',   tier: 1, cost: 1, reqLevel: 1, classId: 'HERO',        label: 'Chain Strike',       icon: '⚔', desc: 'Heroic Strike chains to a 2nd target at 50% damage.' },
     HRO_RALLYING_HEAL:  { id: 'HRO_RALLYING_HEAL',  tier: 2, cost: 2, reqLevel: 3, classId: 'HERO',        label: 'Rallying Heal',      icon: '📣', desc: 'Rally Cry also applies a heal-over-time (3% max HP/round, 2 rounds) to all allies.' },
-    HRO_HEROIC_REVIVAL: { id: 'HRO_HEROIC_REVIVAL', tier: 3, cost: 3, reqLevel: 6, classId: 'HERO',        label: 'Heroic Revival',     icon: '✨', desc: 'Awakening also revives a random KO\'d ally at 20% HP when it triggers.' },
+    HRO_WHIRLWIND_HEAL: { id: 'HRO_WHIRLWIND_HEAL', tier: 3, cost: 3, reqLevel: 6, classId: 'HERO',        label: 'Whirlwind Heal',     icon: '🌀', desc: 'Whirlwind Dance heals the party for 4% max HP per enemy struck.' },
 
     // ── KNIGHT (KNT) ──
-    KNT_DEF_SHRED:      { id: 'KNT_DEF_SHRED',      tier: 1, cost: 1, reqLevel: 1, classId: 'KNIGHT',     label: 'Armor Rend',         icon: '🛡', desc: 'Shield Wall hits apply -15% DEF shred to the target for 2 rounds.' },
-    KNT_COUNTER:        { id: 'KNT_COUNTER',         tier: 2, cost: 2, reqLevel: 3, classId: 'KNIGHT',     label: 'Stalwart Counter',   icon: '⚔', desc: 'Bulwark counterattacks for 50% of reflected damage.' },
+    KNT_DEF_SHRED:      { id: 'KNT_DEF_SHRED',      tier: 1, cost: 1, reqLevel: 1, classId: 'KNIGHT',     label: 'Armor Rend',         icon: '🛡', desc: 'Shield Charge hits shred the target\'s armor — they take +15% damage for 2 rounds.' },
+    KNT_COUNTER:        { id: 'KNT_COUNTER',         tier: 2, cost: 2, reqLevel: 3, classId: 'KNIGHT',     label: 'Stalwart Counter',   icon: '⚔', desc: 'Bulwark counterattacks for 50% of the intercepted damage.' },
     KNT_TAUNT_AURA:     { id: 'KNT_TAUNT_AURA',     tier: 3, cost: 3, reqLevel: 6, classId: 'KNIGHT',     label: 'Oppressive Presence',icon: '😤', desc: 'Taunted enemies take +10% damage from all sources for 2 rounds.' },
 
     // ── MAGE (MAG) ──
-    MAG_ECHO_SHIELD:    { id: 'MAG_ECHO_SHIELD',     tier: 1, cost: 1, reqLevel: 1, classId: 'MAGE',       label: 'Echo Shield',        icon: '🌀', desc: 'Spell Echo grants a shield absorbing 15% max HP for 2 rounds.' },
-    MAG_BURN_DOT:       { id: 'MAG_BURN_DOT',        tier: 2, cost: 2, reqLevel: 3, classId: 'MAGE',       label: 'Lingering Flames',   icon: '🔥', desc: 'Arcane Cataclysm leaves a burn DoT (10% MAG per round, 2 rounds) on all targets.' },
-    MAG_REFLECT:        { id: 'MAG_REFLECT',         tier: 3, cost: 3, reqLevel: 6, classId: 'MAGE',       label: 'Arcane Reflection',  icon: '💜', desc: 'Mana Shield reflects 20% of absorbed damage back at attackers.' },
+    MAG_BLIZZARD_FROST: { id: 'MAG_BLIZZARD_FROST', tier: 1, cost: 1, reqLevel: 1, classId: 'MAGE',       label: 'Frostbite',          icon: '❄', desc: 'Blizzard has a 60% chance to chill all enemies — they suffer Frostbite (-15% ATK, 20% fumble) for 2 rounds.' },
+    MAG_METEOR_BURN:    { id: 'MAG_METEOR_BURN',    tier: 2, cost: 2, reqLevel: 3, classId: 'MAGE',       label: 'Lingering Flames',   icon: '🔥', desc: 'Meteor Storm leaves a burn DoT (15% MAG per round, 3 rounds) on all targets.' },
+    MAG_ARCANE_REFLECT: { id: 'MAG_ARCANE_REFLECT', tier: 3, cost: 3, reqLevel: 6, classId: 'MAGE',       label: 'Arcane Reflection',  icon: '💜', desc: 'Mages reflect 20% of damage taken back at attackers.' },
 
     // ── ROGUE (ROG) ──
-    ROG_POISON:         { id: 'ROG_POISON',           tier: 1, cost: 1, reqLevel: 1, classId: 'ROGUE',      label: 'Venomous Blades',    icon: '🗡', desc: 'Shadow Strike has a 30% chance to poison the target (5% max HP/round, 3 rounds).' },
+    ROG_POISON:         { id: 'ROG_POISON',           tier: 1, cost: 1, reqLevel: 1, classId: 'ROGUE',      label: 'Venomous Blades',    icon: '🗡', desc: 'Shadow Strike has a 30% chance to poison the target (7% max HP/round, 3 rounds). Poisoned enemies also deal -15% damage.' },
     ROG_SMOKE_HEAL:     { id: 'ROG_SMOKE_HEAL',       tier: 2, cost: 2, reqLevel: 3, classId: 'ROGUE',      label: 'Healing Smoke',      icon: '💨', desc: 'Smoke Bomb also heals the entire party for 5% max HP.' },
     ROG_EXECUTE:        { id: 'ROG_EXECUTE',           tier: 3, cost: 3, reqLevel: 6, classId: 'ROGUE',      label: 'Executioner',        icon: '☠', desc: 'Assassinate always crits against enemies below 25% HP.' },
 
     // ── CLERIC (CLR) ──
     CLR_SHIELD_HOT:     { id: 'CLR_SHIELD_HOT',       tier: 1, cost: 1, reqLevel: 1, classId: 'CLERIC',     label: 'Sacred Warmth',      icon: '💚', desc: 'Divine Shield also applies a HoT (3% max HP/round, 3 rounds) to all allies.' },
-    CLR_HOLY_SPLASH:    { id: 'CLR_HOLY_SPLASH',      tier: 2, cost: 2, reqLevel: 3, classId: 'CLERIC',     label: 'Holy Splash',        icon: '✨', desc: '25% of Holy Light damage splashes to all enemies.' },
+    CLR_SMITE_BURN:     { id: 'CLR_SMITE_BURN',       tier: 2, cost: 2, reqLevel: 3, classId: 'CLERIC',     label: 'Righteous Burn',     icon: '🔥', desc: 'Smite also applies a burning DoT (12% MAG per round, 3 rounds) to its target.' },
     CLR_WRATH:          { id: 'CLR_WRATH',             tier: 3, cost: 3, reqLevel: 6, classId: 'CLERIC',     label: 'Righteous Wrath',    icon: '⚡', desc: 'Divine Intervention grants the saved ally +30% damage for 2 rounds.' },
 
     // ── RANGER (RNG) ──
@@ -371,19 +499,19 @@ const Game = (() => {
     RNG_STORM_MARK:     { id: 'RNG_STORM_MARK',       tier: 3, cost: 3, reqLevel: 6, classId: 'RANGER',     label: 'Storm Mark',         icon: '🌧', desc: 'Arrow Storm marks all surviving enemies — they take +15% damage from all sources for 2 rounds.' },
 
     // ── BARD (BRD) ──
-    BRD_DISCORD_DMG:    { id: 'BRD_DISCORD_DMG',      tier: 1, cost: 1, reqLevel: 1, classId: 'BARD',       label: 'Sonic Amplifier',    icon: '🎵', desc: 'Discord\'s sonic damage is doubled.' },
+    BRD_DISCORD_DMG:    { id: 'BRD_DISCORD_DMG',      tier: 1, cost: 1, reqLevel: 1, classId: 'BARD',       label: 'Lingering Discord',  icon: '🎵', desc: 'Discord\'s duration is extended by 1 round (3 → 4).' },
     BRD_CRESCENDO_ALLY: { id: 'BRD_CRESCENDO_ALLY',   tier: 2, cost: 2, reqLevel: 3, classId: 'BARD',       label: 'Grand Crescendo',    icon: '🎶', desc: 'Crescendo\'s guaranteed crit also applies to the next 2 ally attacks.' },
     BRD_SYMPHONY_LEECH: { id: 'BRD_SYMPHONY_LEECH',   tier: 3, cost: 3, reqLevel: 6, classId: 'BARD',       label: 'Vampiric Symphony',  icon: '🎻', desc: 'Symphony of War grants +5% lifesteal to the entire party.' },
 
     // ── MONK (MNK) ──
-    MNK_KI_BOOST:       { id: 'MNK_KI_BOOST',         tier: 1, cost: 1, reqLevel: 1, classId: 'MONK',       label: 'Deep Ki',            icon: '🔵', desc: 'Ki Barrier lifesteal increased to 40% (from 25%).' },
-    MNK_COUNTER_ATK:    { id: 'MNK_COUNTER_ATK',       tier: 2, cost: 2, reqLevel: 3, classId: 'MONK',       label: 'Retaliating Stance', icon: '👊', desc: 'Counter Stance now also counterattacks for 30% ATK damage.' },
+    MNK_KI_BOOST:       { id: 'MNK_KI_BOOST',         tier: 1, cost: 1, reqLevel: 1, classId: 'MONK',       label: 'Ki Barrier Resurgence', icon: '🔵', desc: 'Pressure Point grants the Monk a Ki Shield equal to 10% of their max HP, absorbing incoming damage.' },
+    MNK_COUNTER_ATK:    { id: 'MNK_COUNTER_ATK',       tier: 2, cost: 2, reqLevel: 3, classId: 'MONK',       label: 'Iron Stance',        icon: '🛡', desc: 'When Flowing Strike counters on dodge, the Monk also gains +20% DEF and +15% dodge for 2 rounds.' },
     MNK_FURY_PLUS:      { id: 'MNK_FURY_PLUS',         tier: 3, cost: 3, reqLevel: 6, classId: 'MONK',       label: 'Infinite Fists',     icon: '💥', desc: 'Fists of Fury gains +1 hit, and each hit can independently crit.' },
 
     // ── NECROMANCER (NEC) ──
-    NEC_TAP_SHARE:      { id: 'NEC_TAP_SHARE',         tier: 1, cost: 1, reqLevel: 1, classId: 'NECROMANCER',label: 'Siphon Aura',        icon: '🩸', desc: 'Life Tap also heals 2 nearby allies for 15% of damage dealt.' },
-    NEC_SHIELD_TAP:     { id: 'NEC_SHIELD_TAP',        tier: 2, cost: 2, reqLevel: 3, classId: 'NECROMANCER',label: 'Vampiric Shroud',    icon: '🦇', desc: 'Shroud of Decay\'s reflected damage also triggers Life Tap healing.' },
-    NEC_SUMMON_SHIELD:  { id: 'NEC_SUMMON_SHIELD',     tier: 3, cost: 3, reqLevel: 6, classId: 'NECROMANCER',label: 'Undead Vanguard',    icon: '🪦', desc: 'Army of the Damned summons each absorb one hit before dying.' },
+    NEC_GRAVE_HUNGER:   { id: 'NEC_GRAVE_HUNGER',      tier: 1, cost: 1, reqLevel: 1, classId: 'NECROMANCER',label: 'Grave Hunger',       icon: '🩸', desc: 'Shroud of Decay grows stronger as enemies fall. Each kill grants +2% party damage, +1% party crit, and +1% party DEF (max 5 stacks). Combat starts with 1 stack already active.' },
+    NEC_NECRO_CLEAVE:   { id: 'NEC_NECRO_CLEAVE',      tier: 2, cost: 2, reqLevel: 3, classId: 'NECROMANCER',label: 'Necrotic Cleave',    icon: '🪓', desc: 'Raised minions unleash a necrotic cleave every 3 rounds, dealing MAG-scaled AoE damage to all enemies.' },
+    NEC_SUMMON_SHIELD:  { id: 'NEC_SUMMON_SHIELD',     tier: 3, cost: 3, reqLevel: 6, classId: 'NECROMANCER',label: 'Undead Vanguard',    icon: '🪦', desc: 'Army of the Damned duration is extended by 1 round (3 → 4).' },
 
     // ── PARTY-WIDE ──
     PARTY_CEL_RESONANCE: { id: 'PARTY_CEL_RESONANCE',  tier: 2, cost: 2, reqLevel: 3, classId: null, label: 'Celestial Resonance', icon: '✦', desc: 'Celestial equipment grants +10% to all stats.' },
@@ -434,10 +562,19 @@ const Game = (() => {
   function addExp(memberId, amount) {
     const member = memberId === 'player' ? state.player : state.party.find(m => m.id === memberId);
     if (!member) return { levelUps: [], skillGains: [] };
+    // PLAYER_LEVEL_CAP: once a member is at the cap, all further EXP is
+    // discarded. We zero out the progress bar so the UI doesn't show a
+    // creeping overflow and there's no "banked" EXP that would suddenly
+    // fire on a future cap raise (which would produce a surprise flood
+    // of level-up popups from a dozen post-cap quests).
+    if (member.level >= PLAYER_LEVEL_CAP) {
+      member.exp = 0;
+      return { levelUps: [], skillGains: [] };
+    }
     member.exp += amount;
     const levelUps = [];
     const skillGains = [];
-    while (member.exp >= expToNext(member.level)) {
+    while (member.level < PLAYER_LEVEL_CAP && member.exp >= expToNext(member.level)) {
       member.exp -= expToNext(member.level);
       member.level++;
       const newStats = computeStats(member.class, member.level);
@@ -448,7 +585,9 @@ const Game = (() => {
       member.stats.hp = Math.min(member.stats.maxHp, member.stats.hp + Math.max(0, hpGain));
       // Check for new class skill unlocks
       const newSkill = getUnlockedClassSkills(member.class, member.level).find(s => !member.skills.includes(s.id));
-      if (newSkill && !member.skills.includes(newSkill.id)) {
+      // Specced Heroes skip baseline L10/14/18 class skills — specs replace them (§3.1.1)
+      const skipBaseline = newSkill && member.class === 'HERO' && member.heroSpec && HERO_SPEC_REPLACED_SKILLS.includes(newSkill.id);
+      if (newSkill && !skipBaseline && !member.skills.includes(newSkill.id)) {
         member.skills.push(newSkill.id);
         logEvent(`${member.name} learned skill: ${newSkill.name}!`);
         skillGains.push({ memberName: member.name, skillName: newSkill.name, skillIcon: newSkill.icon || '⚡', type: 'skill' });
@@ -471,6 +610,9 @@ const Game = (() => {
       }
       levelUps.push({ name: member.name, level: member.level });
     }
+    // If we stopped because the member hit the cap mid-gain, zero any
+    // leftover EXP so the progress bar reads 0/MAX instead of e.g. 1843/1420.
+    if (member.level >= PLAYER_LEVEL_CAP) member.exp = 0;
     return { levelUps, skillGains };
   }
 
@@ -530,6 +672,8 @@ const Game = (() => {
     }
     stats.hp = stats.maxHp;
 
+    // Grant any class skills unlocked at level 1 (starter skill every class has)
+    const starterSkills = getUnlockedClassSkills(classId, 1).map(s => s.id);
     const member = {
       id: `m${state.nextMemberId++}`,
       name: randomName(classId, state.party),
@@ -537,7 +681,7 @@ const Game = (() => {
       level: 1, exp: 0,
       stats,
       equipment: { weapon:null, armor:null, accessory:null, offhand:null },
-      skills: [],
+      skills: starterSkills,
       questsCompleted: 0,
     };
     state.party.push(member);
@@ -586,6 +730,8 @@ const Game = (() => {
         logEvent(`${member.name} learned spec skill: ${sk.name}!`);
       }
     }
+    // Strip baseline L10/14/18 Hero skills — specs REPLACE them (§3.1.1)
+    applyHeroSpecReplacement(member);
     save();
     return { ok: true, spec: HERO_SPECS[specTrack] };
   }
@@ -598,8 +744,8 @@ const Game = (() => {
     if (newSpecTrack && !HERO_SPECS[newSpecTrack]) return { ok: false, reason: 'Invalid specialization track' };
     if (newSpecTrack === member.heroSpec) return { ok: false, reason: 'Already on that track' };
 
-    const cost = getRespecCost();
-    if (state.gold < cost) return { ok: false, reason: `Need ${cost.toLocaleString()}g (have ${state.gold.toLocaleString()}g)` };
+    // Respec is free for Heroes — encourages experimenting with specs.
+    const cost = 0;
 
     // Remove old spec skills
     const oldSpec = HERO_SPECS[member.heroSpec];
@@ -607,7 +753,6 @@ const Game = (() => {
       member.skills = member.skills.filter(id => !oldSpec.skills.includes(id));
     }
 
-    state.gold -= cost;
     member.heroSpec = newSpecTrack || null;
 
     // Grant new spec skills if switching to a new track
@@ -619,14 +764,25 @@ const Game = (() => {
           logEvent(`${member.name} learned spec skill: ${sk.name}!`);
         }
       }
+      // Strip baseline L10/14/18 Hero skills — specs REPLACE them (§3.1.1)
+      applyHeroSpecReplacement(member);
+    } else {
+      // Clearing spec — re-grant baseline L10/14/18 class skills the hero earned
+      const baseline = getUnlockedClassSkills(member.class, member.level || 1);
+      for (const sk of baseline) {
+        if (!member.skills.includes(sk.id)) {
+          member.skills.push(sk.id);
+          logEvent(`${member.name} re-learned ${sk.name}!`);
+        }
+      }
     }
     save();
     return { ok: true, cost };
   }
 
   function getRespecCost() {
-    const rank = state.guild.rank || 'F';
-    return HERO_RESPEC_COSTS[rank] || HERO_RESPEC_COSTS.F;
+    // Respec is free — Hero specs should be easy to pick and choose.
+    return 0;
   }
 
   /** Return an array of skill IDs granted by an item (handles both grantedSkill and grantedSkills). */
@@ -757,11 +913,22 @@ const Game = (() => {
     if (!member) return [];
     const skills = [];
     // Class skills (proc-based, unlock every 2 levels starting at 2)
-    const classSkills = getUnlockedClassSkills(member.class, member.level);
+    let classSkills = getUnlockedClassSkills(member.class, member.level);
+    // Hero spec replacement (§3.1.1) — strip baseline L10/L14/L18 when specced
+    if (member.class === 'HERO' && member.heroSpec) {
+      classSkills = classSkills.filter(s => !HERO_SPEC_REPLACED_SKILLS.includes(s.id));
+    }
     skills.push(...classSkills.map(s => s.id));
     // Class masteries (passive, unlock every 2 levels starting at 4)
     const classMasteries = getUnlockedClassMasteries(member.class, member.level);
     skills.push(...classMasteries.map(s => s.id));
+    // Hero spec skills (replace the stripped baseline slots)
+    if (member.class === 'HERO' && member.heroSpec) {
+      const specSkills = getUnlockedSpecSkills(member.heroSpec, member.level);
+      for (const sk of specSkills) {
+        if (!skills.includes(sk.id)) skills.push(sk.id);
+      }
+    }
     // Equipment-granted skills (item procs, separate from class skills)
     for (const slot of Object.values(member.equipment || {})) {
       if (slot) {
@@ -1411,10 +1578,12 @@ const Game = (() => {
   }
 
   // Called by the UI after the combat simulation is built
-  function setQuestEventCount(count, intervalMs) {
+  function setQuestEventCount(count, intervalMs, decisiveIndex, fastForwardMs) {
     if (state.guild.activeQuest) {
       state.guild.activeQuest.eventCount = count;
       state.guild.activeQuest.eventIntervalMs = intervalMs || EVENT_INTERVAL_MS;
+      state.guild.activeQuest.decisiveIndex = (decisiveIndex != null) ? decisiveIndex : (count - 1);
+      state.guild.activeQuest.fastForwardMs = fastForwardMs || 80;
     }
   }
 
@@ -1449,18 +1618,37 @@ const Game = (() => {
     return (aq && aq.eventIntervalMs) || EVENT_INTERVAL_MS;
   }
 
+  // Total wall-clock ms needed to play the full event log given fast-forward pacing.
+  function _totalPlaybackMs(aq) {
+    if (!aq || !aq.eventCount) return 0;
+    const interval = _getEventInterval();
+    const decisive = (aq.decisiveIndex != null) ? aq.decisiveIndex : (aq.eventCount - 1);
+    const ff = aq.fastForwardMs || 80;
+    const normalMs = (decisive + 1) * interval;
+    const trailingEvents = Math.max(0, aq.eventCount - decisive - 1);
+    return normalMs + trailingEvents * ff;
+  }
+
   function questEventsRevealed() {
     if (!state.guild.activeQuest) return 0;
     const aq = state.guild.activeQuest;
     const elapsed = Date.now() - aq.startedAt;
-    return Math.max(1, Math.floor(elapsed / _getEventInterval()) + 1);
+    const interval = _getEventInterval();
+    const decisive = (aq.decisiveIndex != null) ? aq.decisiveIndex : ((aq.eventCount || 1) - 1);
+    const ff = aq.fastForwardMs || 80;
+    const decisiveTime = (decisive + 1) * interval;
+    if (elapsed <= decisiveTime) {
+      return Math.max(1, Math.floor(elapsed / interval) + 1);
+    }
+    const extra = Math.floor((elapsed - decisiveTime) / ff);
+    return decisive + 1 + extra;
   }
 
   function questTimeRemaining() {
     if (!state.guild.activeQuest) return 0;
     const aq = state.guild.activeQuest;
     if (!aq.eventCount) return 99;
-    const totalMs = aq.eventCount * _getEventInterval();
+    const totalMs = _totalPlaybackMs(aq);
     return Math.max(0, Math.ceil((aq.startedAt + totalMs - Date.now()) / 1000));
   }
 
@@ -1897,6 +2085,7 @@ const Game = (() => {
 
     // Guild Legacy & Talents
     getLegacyBonuses, LEGACY_RP_PER_LEVEL, LEGACY_TALENTS,
+    PLAYER_LEVEL_CAP, LEGACY_LEVEL_CAP,
     getLegacyTalentPoints, canPurchaseTalent, purchaseTalent, hasTalent, resetTalents,
 
     // Save Management

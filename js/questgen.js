@@ -852,8 +852,18 @@ export function generateQuestInstance(rank, templateIndex, seed, partyStrength) 
         const skip2Pool = RANK_LOOT_POOLS[nextNext] || [];
         for (const id of skip2Pool) { if (!lootPool.includes(id)) lootPool.push(id); }
       }
-      // Inject celestial items into boss loot pools
-      for (const id of CELESTIAL_ITEM_IDS) { if (!lootPool.includes(id)) lootPool.push(id); }
+      // Inject celestial items into boss loot pools — gated at B-rank+.
+      // Below B-rank, the power delta between a fresh celestial drop and the
+      // party's actual gear is large enough that a single lucky boss roll
+      // trivializes the next 3-5 rank tiers (see Ravik + Scepter of Dawn at
+      // D-rank melting the Pirate Cove loot table). Celestials should stay
+      // aspirational until the party has legitimately chewed through the
+      // mid-game. Bosses at F/E/D/C still get the next-tier + skip-2-tier
+      // pool bumps above — they're still rewarding, just not celestial-eligible.
+      const CELESTIAL_MIN_RANK = ['B', 'A', 'S', 'S+', 'S++'];
+      if (CELESTIAL_MIN_RANK.includes(rank)) {
+        for (const id of CELESTIAL_ITEM_IDS) { if (!lootPool.includes(id)) lootPool.push(id); }
+      }
     } else {
       lootPool = [...(RANK_LOOT_POOLS[rank] || [])];
     }

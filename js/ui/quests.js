@@ -75,7 +75,7 @@ export function tickUpdateCombatVisuals() {
   // Ensure event count is set from the sim
   if (!aq.eventCount) {
     const simInfo = getSimInfo();
-    if (simInfo) Game.setQuestEventCount(simInfo.eventCount, simInfo.intervalMs);
+    if (simInfo) Game.setQuestEventCount(simInfo.eventCount, simInfo.intervalMs, simInfo.decisiveIndex, simInfo.fastForwardMs);
   }
 
   // Phase tracker (progress bar removed — fight plays to completion)
@@ -234,7 +234,7 @@ function renderActiveQuestView(s) {
   // Ensure event count is set
   if (!aq.eventCount) {
     const simInfo = getSimInfo();
-    if (simInfo) Game.setQuestEventCount(simInfo.eventCount, simInfo.intervalMs);
+    if (simInfo) Game.setQuestEventCount(simInfo.eventCount, simInfo.intervalMs, simInfo.decisiveIndex, simInfo.fastForwardMs);
   }
 
   const progress = Game.questProgress();

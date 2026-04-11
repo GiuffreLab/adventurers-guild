@@ -196,12 +196,16 @@ function renderGuildProgressCard(s) {
   } else {
     // Max rank — show legacy overflow progress
     const legacy = s.guildLegacy || { overflowRP: 0, level: 0 };
-    const legacyPct = Math.round((legacy.overflowRP / Game.LEGACY_RP_PER_LEVEL) * 100);
+    const legacyCapped = legacy.level >= Game.LEGACY_LEVEL_CAP;
+    const legacyPct = legacyCapped ? 100 : Math.round((legacy.overflowRP / Game.LEGACY_RP_PER_LEVEL) * 100);
+    const legacyRightLabel = legacyCapped
+      ? `<span class="lvl-max-tag">MAX</span>`
+      : `${legacy.overflowRP.toLocaleString()} / ${Game.LEGACY_RP_PER_LEVEL.toLocaleString()} RP`;
     progressSection = `
       <div class="rank-progress-label"><span style="color:var(--rank-S)">Maximum rank achieved!</span></div>
       <div style="margin-top:6px">
-        <div class="rank-progress-label"><span style="color:var(--gold)">Legacy Lv.${legacy.level}</span><span>${legacy.overflowRP.toLocaleString()} / ${Game.LEGACY_RP_PER_LEVEL.toLocaleString()} RP</span></div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${legacyPct}%;background:linear-gradient(90deg,var(--gold),#f0c040)"></div></div>
+        <div class="rank-progress-label"><span style="color:var(--gold)">Legacy Lv.${legacy.level}${legacyCapped ? ` / ${Game.LEGACY_LEVEL_CAP}` : ''}</span><span>${legacyRightLabel}</span></div>
+        <div class="progress-bar"><div class="progress-fill${legacyCapped ? ' lvl-max-bar' : ''}" style="width:${legacyPct}%;background:linear-gradient(90deg,var(--gold),#f0c040)"></div></div>
       </div>`;
   }
 
@@ -305,7 +309,7 @@ function renderLegacyCard(s) {
 
   return `
     <div class="card legacy-card" style="grid-column:1/-1">
-      <div class="card-title" style="color:var(--gold)">Guild Legacy <span style="font-size:0.8em;color:var(--text-dim)">(Lv.${legacy.level})</span></div>
+      <div class="card-title" style="color:var(--gold)">Guild Legacy <span style="font-size:0.8em;color:var(--text-dim)">(Lv.${legacy.level}${legacy.level >= Game.LEGACY_LEVEL_CAP ? ` / ${Game.LEGACY_LEVEL_CAP}` : ''})</span>${legacy.level >= Game.LEGACY_LEVEL_CAP ? ' <span class="lvl-max-tag">MAX</span>' : ''}</div>
       <div class="legacy-overview">
         <div class="legacy-bonuses">
           <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:6px">Passive Bonuses</div>

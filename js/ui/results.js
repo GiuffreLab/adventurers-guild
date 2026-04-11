@@ -40,14 +40,23 @@ function formatFightLog() {
   lines.push('');
 
   // Party composition with gear
+  // Prefer sim-time snapshot from combatDebug so levels/stats match the
+  // ATB block — post-fight level-ups otherwise create a confusing mismatch
+  // between the header Lv and the debug "at sim start" section.
   lines.push('── PARTY COMPOSITION ──────────────────────');
   const activeMembers = [s.player, ...s.activeSlots.map(id => s.party.find(p => p.id === id)).filter(Boolean)];
   const resultAuras = Game.getPartyAuras();
+  const snapshotById = {};
+  if (pr.combatDebug?.members) {
+    for (const snap of pr.combatDebug.members) snapshotById[snap.id] = snap;
+  }
   for (const m of activeMembers) {
     const cls = CLASSES[m.class];
-    const eff = Game.effectiveStats(m, resultAuras);
+    const snap = snapshotById[m.id];
+    const eff = snap || Game.effectiveStats(m, resultAuras);
+    const shownLevel = snap ? snap.level : m.level;
     const specLabel = m.heroSpec ? ` [${m.heroSpec.charAt(0).toUpperCase() + m.heroSpec.slice(1)}]` : '';
-    lines.push(`${cls?.sigil || '?'} ${m.name} — ${cls?.label || m.class}${specLabel} Lv.${m.level}  (Power: ${Game.memberPower(m)})`);
+    lines.push(`${cls?.sigil || '?'} ${m.name} — ${cls?.label || m.class}${specLabel} Lv.${shownLevel}  (Power: ${Game.memberPower(m)})`);
     lines.push(`  HP: ${eff.maxHp}  ATK: ${eff.atk}  DEF: ${eff.def}  MAG: ${eff.mag}  SPD: ${eff.spd}  CRT: ${eff.crit}  DDG: ${eff.dodge}`);
     // Special percentage bonuses
     const specials = [];
@@ -71,12 +80,22 @@ function formatFightLog() {
     }
     if (gearParts.length > 0) lines.push(`  Gear: ${gearParts.join(' | ')}`);
 
-    // Skills
+    // Skills — prefer the sim-start snapshot so post-victory level-ups that
+    // learn new skills don't make this line disagree with Skill Pool Assignments.
     const memberData = Game.getMember(m.id);
-    if (memberData?.skills?.length > 0) {
-      const skillNames = memberData.skills.map(sid => {
+    const skillList = (snap && snap.skills && snap.skills.length > 0)
+      ? snap.skills
+      : (memberData?.skills || []);
+    if (skillList.length > 0) {
+      const skillNames = skillList.map(sid => {
         const sk = getSkill(sid);
-        return sk ? `${sk.name} [${sk.source}${sk.procChance < 1 ? ` ${Math.round(sk.procChance*100)}%` : ' passive'}]` : sid;
+        if (!sk) return sid;
+        let tag;
+        if (sk.type === 'passive') tag = 'passive';
+        else if (sk.reactive) tag = 'reactive';
+        else if (sk.procChance != null && sk.procChance < 1) tag = `${Math.round(sk.procChance*100)}%`;
+        else tag = 'active';
+        return `${sk.name} [${sk.source} ${tag}]`;
       });
       lines.push(`  Skills: ${skillNames.join(', ')}`);
     }
@@ -121,6 +140,112 @@ function formatFightLog() {
       lines.push(`  ${cls?.sigil || '?'} ${m.name} (${cls?.label || m.class} Lv.${m.level}) — ATK:${m.atk} DEF:${m.def} MAG:${m.mag} SPD:${m.spd} CRT:${m.crit} DDG:${m.dodge} HP:${m.maxHp}${extras.length ? ' | ' + extras.join(', ') : ''}`);
     }
     lines.push('');
+  }
+
+  // ATB System Debug
+  const atbData = debugData?.atb;
+  if (atbData && atbData.totalRounds > 0) {
+    lines.push('── ATB SYSTEM DEBUG ──────────────────────');
+    lines.push(`  Total Rounds: ${atbData.totalRounds}`);
+    lines.push('');
+
+    // Per-member lane utilization
+    lines.push('  ── Lane Utilization (per member) ──');
+    lines.push('  Member              ATK Fires  Basic FB  Skill Fires  Skill Att  BUFF Fires  Buff Fail  HEAL Fires  Heal Held');
+    lines.push('  ──────────────────  ─────────  ────────  ───────────  ─────────  ──────────  ─────────  ──────────  ─────────');
+    for (const [, data] of Object.entries(atbData.laneActions)) {
+      const label = `${data.name} (${data.class})`.padEnd(20);
+      const atkF = String(data.attack.fires).padStart(9);
+      const atkB = String(data.attack.basicFallbacks).padStart(8);
+      const atkS = String(data.attack.skillFires).padStart(11);
+      const atkA = String(data.attack.skillAttempts).padStart(9);
+      const bufF = String(data.buff.fires).padStart(10);
+      const bufP = String(data.buff.procFails).padStart(9);
+      const hlF = String(data.heal.fires).padStart(10);
+      const hlH = String(data.heal.held).padStart(9);
+      lines.push(`  ${label}${atkF}${atkB}${atkS}${atkA}${bufF}${bufP}${hlF}${hlH}`);
+    }
+    lines.push('');
+
+    // Skill pool assignments
+    lines.push('  ── Skill Pool Assignments ──');
+    for (const [, data] of Object.entries(atbData.laneActions)) {
+      lines.push(`  ${data.name} (${data.class}):`);
+      if (data.skillPools.attack.length > 0) lines.push(`    Attack: ${data.skillPools.attack.join(', ')}`);
+      if (data.skillPools.buff.length > 0) lines.push(`    Buff:   ${data.skillPools.buff.join(', ')}`);
+      if (data.skillPools.heal.length > 0) lines.push(`    Heal:   ${data.skillPools.heal.join(', ')}`);
+    }
+    lines.push('');
+
+    // Proc roll log (summarized — group by skill)
+    if (atbData.procRolls.length > 0) {
+      lines.push('  ── Proc Roll Summary (by skill) ──');
+      const skillRollMap = {};
+      for (const r of atbData.procRolls) {
+        const key = `${r.member}|${r.skillName}|${r.lane}`;
+        if (!skillRollMap[key]) {
+          skillRollMap[key] = { member: r.member, skill: r.skillName, lane: r.lane, procChance: r.procChance, attempts: 0, fires: 0 };
+        }
+        skillRollMap[key].attempts++;
+        if (r.fired) skillRollMap[key].fires++;
+      }
+      lines.push('  Member              Skill                Lane    Proc%   Attempts  Fires  Actual%');
+      lines.push('  ──────────────────  ───────────────────  ──────  ──────  ────────  ─────  ───────');
+      for (const s of Object.values(skillRollMap)) {
+        const label = s.member.padEnd(20);
+        const sk = s.skill.substring(0, 19).padEnd(19);
+        const lane = s.lane.padEnd(6);
+        const pct = `${Math.round(s.procChance * 100)}%`.padStart(6);
+        const att = String(s.attempts).padStart(8);
+        const fires = String(s.fires).padStart(5);
+        const actual = s.attempts > 0 ? `${Math.round((s.fires / s.attempts) * 100)}%`.padStart(7) : '   N/A';
+        lines.push(`  ${label}${sk}  ${lane}${pct}${att}${fires}${actual}`);
+      }
+      lines.push('');
+    }
+
+    // Reactive events
+    if (atbData.reactiveEvents.length > 0) {
+      lines.push('  ── Reactive Triggers ──');
+      for (const r of atbData.reactiveEvents) {
+        lines.push(`  [Rd ${String(r.round).padStart(3)}] ${r.type} — ${r.member}${r.target ? ` → ${r.target}` : ''} (${r.trigger})`);
+      }
+      lines.push('');
+    }
+
+    // Round-by-round HP progression (sampled — every 5 rounds or first/last 3)
+    if (atbData.roundSummaries.length > 0) {
+      lines.push('  ── Round Progression ──');
+      lines.push('  Round  Party#  Enemy#  PartyHP%  EnemyHP%');
+      lines.push('  ─────  ──────  ──────  ────────  ────────');
+      const summaries = atbData.roundSummaries;
+      const showAll = summaries.length <= 20;
+      for (let idx = 0; idx < summaries.length; idx++) {
+        const s = summaries[idx];
+        const show = showAll || idx < 3 || idx >= summaries.length - 3 || s.round % 5 === 0;
+        if (show) {
+          const rd = String(s.round).padStart(5);
+          const lp = String(s.livingParty).padStart(6);
+          const le = String(s.livingEnemies).padStart(6);
+          const php = `${s.partyHpPct}%`.padStart(8);
+          const ehp = `${s.enemyHpPct}%`.padStart(8);
+          lines.push(`  ${rd}${lp}${le}${php}${ehp}`);
+        } else if (idx === 3 && !showAll) {
+          lines.push('  ...');
+        }
+      }
+      lines.push('');
+    }
+
+    // Full proc roll log (detailed, every roll)
+    if (atbData.procRolls.length > 0) {
+      lines.push('  ── Proc Roll Detail Log ──');
+      for (const r of atbData.procRolls) {
+        const result = r.fired ? 'FIRE' : 'FAIL';
+        lines.push(`  [Rd ${String(r.round).padStart(3)}] ${r.member.padEnd(16)} ${r.lane.padEnd(6)} ${r.skillName.substring(0, 18).padEnd(18)} need<${Math.round(r.procChance * 100)}% got ${Math.round(r.roll * 100)}% → ${result}`);
+      }
+      lines.push('');
+    }
   }
 
   // Combat stats
@@ -189,9 +314,18 @@ function formatFightLog() {
           else if (typeof val === 'number') effectParts.push(`${key}: ${val >= 1 ? val : (val > 0 ? '+' + Math.round(val * 100) + '%' : val)}`);
         }
       }
-      const effectStr = effectParts.length > 0 ? effectParts.join(', ') : 'passive';
       const sourceSkill = getSkill(sk.id);
       const src = sourceSkill?.source || '?';
+      let effectStr;
+      if (effectParts.length > 0) {
+        effectStr = effectParts.join(', ');
+      } else if (sourceSkill?.reactive) {
+        effectStr = 'reactive';
+      } else if (sourceSkill?.type === 'passive') {
+        effectStr = 'passive';
+      } else {
+        effectStr = 'active';
+      }
       lines.push(`  ${sk.icon || '•'} ${act.memberName}: ${sk.name} [${src}] — ${effectStr}`);
     }
     lines.push('');

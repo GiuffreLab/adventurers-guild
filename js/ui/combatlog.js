@@ -4,7 +4,7 @@
 // All deterministic via seeded random so re-renders produce identical results.
 
 import Game from '../game.js';
-import { getQuest, getClass, randInt } from '../data.js';
+import { getQuest, getClass, randInt, getItem } from '../data.js';
 import { getSkill } from '../skills.js';
 import { esc } from '../util.js';
 
@@ -36,6 +36,114 @@ function sRand(seed) {
 }
 function sPick(arr, seed) { return arr[Math.floor(sRand(seed) * arr.length)]; }
 function sInt(min, max, seed) { return Math.floor(sRand(seed) * (max - min + 1)) + min; }
+
+// ─────────────────────────────────────────────────────────────────────────
+// COMBAT_TUNING — single source of truth for core combat knobs
+// ─────────────────────────────────────────────────────────────────────────
+// This object holds the global numeric levers used by the combat engine.
+// Changing a value here applies everywhere the knob is referenced, and no
+// deeper code edits are required for a simple pass. The companion design
+// doc `combat-tuning-design.md` describes what each knob is intended to
+// control and what the target ranges are for each tuning phase.
+//
+// IMPORTANT — what is NOT in here:
+//   • Class-specific ability literals (e.g. Pressure Point 1.7× ATK,
+//     Ki Shield 10% max HP, Flowing Strike 1.5× ATK, Shadow Bolt 1.3×).
+//     These are class design decisions and live at the skill's code site
+//     with a "INLINED BY DESIGN" comment explaining why. If a class
+//     ability feels mis-tuned, change it at the skill site, not here.
+//   • Talent-gated multipliers (Chain Strike, Cel Cascade, etc.). Same
+//     reasoning — they belong to the class-rework-design.md domain.
+//   • Per-enemy / per-quest scaling. Encounter generation lives in
+//     buildSimulation's enemy generator and is tuned separately.
+//
+// If in doubt: if the number is universal to all attacks / heals /
+// defenses regardless of who's using them, it goes here. If it's a
+// specific ability's signature damage or effect, it stays inline.
+// ─────────────────────────────────────────────────────────────────────────
+const COMBAT_TUNING = {
+  // ── ATB SYSTEM ────────────────────────────────────────────────────────
+  // Gauge fill threshold that must be reached before an actor may act on
+  // their lane (attack / buff / heal). Each tick fills the gauge by a
+  // speed-derived amount; higher thresholds slow the cadence of actions.
+  ATB_THRESHOLD: 100,
+
+  // Default rounds of cooldown applied after any skill fires. Individual
+  // skills may override this at their call site if they need shorter or
+  // longer cooldowns, but the baseline is here.
+  SKILL_COOLDOWN_DEFAULT: 2,
+
+  // ── HEAL LANE THRESHOLDS ──────────────────────────────────────────────
+  // Any ally below HEAL_TRIGGER_PCT of their max HP will cause healers
+  // with a ready gauge to fire. Lower values delay heals (more drama,
+  // more risk); higher values trigger heals earlier (safer parties).
+  HEAL_TRIGGER_PCT: 0.70,
+
+  // Emergency bypass — if any ally drops below this HP%, healers fire
+  // immediately even if their ATB gauge is not full (the gauge is
+  // snapped to threshold for the current tick). This is the safety net
+  // that prevents one-shot wipes from reactive saves failing.
+  HEAL_EMERGENCY_PCT: 0.35,
+
+  // ── PARTY DAMAGE FORMULA (calcPartyDmg) ───────────────────────────────
+  // Base party damage = stat * (PARTY_DMG_MIN_MULT + rand * PARTY_DMG_SPREAD)
+  // At the defaults, a hit lands in the 1.8–2.8× stat range. Compressing
+  // the spread (lowering PARTY_DMG_SPREAD) makes outcomes more predictable
+  // and reduces skill-proc / crit variance on short fights.
+  PARTY_DMG_MIN_MULT: 1.8,
+  PARTY_DMG_SPREAD: 1.0,
+
+  // Party crit damage multiplier applied to standard attacks (excludes
+  // Crescendo / Crescendo-ally bursts, which override this at the call
+  // site with higher multipliers).
+  PARTY_BASE_CRIT_MULT: 1.5,
+
+  // ── ENEMY DAMAGE FORMULA ──────────────────────────────────────────────
+  // Enemy raw damage = atk * (ENEMY_DMG_MIN_MULT + rand * ENEMY_DMG_SPREAD)
+  // Defaults of 0.5 / 0.7 give a 0.5–1.2× swing, which produces the
+  // "boss one-shots the squishy, whiffs on the tank" extremes that
+  // currently break healing. See §4.1 of combat-tuning-design.md for
+  // the proposed compression to 0.80 / 0.40.
+  ENEMY_DMG_MIN_MULT: 0.5,
+  ENEMY_DMG_SPREAD: 0.7,
+
+  // Chance an enemy attack is flagged as a "skill" (narrative only —
+  // mechanically just adds the ENEMY_SKILL_DMG_MULT bonus).
+  ENEMY_SKILL_PROC_CHANCE: 0.35,
+
+  // Multiplier applied when an enemy attack is flagged as a skill.
+  // §4.1 of the tuning doc proposes lowering this from 1.5 to 1.3 to
+  // soften boss burst spikes.
+  ENEMY_SKILL_DMG_MULT: 1.5,
+
+  // Enemy crit damage multiplier (applied during the party-side
+  // minion-target fallback damage path — enemies do not crit the party
+  // directly in the current build, but this is reserved for symmetry).
+  ENEMY_CRIT_MULT: 1.5,
+
+  // ── DEF / CRIT / DODGE CURVES ────────────────────────────────────────
+  // All three stats use a soft-cap curve: effect = stat / (stat + softcap).
+  // Increasing the softcap makes the stat less impactful; lowering it
+  // makes it more impactful. Caps prevent total immunity at extreme
+  // stat values.
+  //
+  // At DEF_SOFTCAP 60: 10 DEF → 14% reduction, 30 DEF → 33%, 60 DEF → 50%.
+  DEF_SOFTCAP: 60,
+  // At CRIT_SOFTCAP 100: 10 CRIT → 9%, 20 → 17%, 50 → 33%.
+  CRIT_SOFTCAP: 100,
+  CRIT_CAP: 0.75,
+  // At DODGE_SOFTCAP 80: 10 DDG → 11%, 20 → 20%, 40 → 33%.
+  DODGE_SOFTCAP: 80,
+  DODGE_CAP: 0.75,
+
+  // ── HEAL FORMULA ─────────────────────────────────────────────────────
+  // Base heal = magStat * (HEAL_MAG_MIN_MULT + rand * HEAL_MAG_SPREAD).
+  // At the defaults, a 100-MAG Cleric heals for ~150–250 per cast.
+  // §4.5 of the tuning doc proposes a throughput floor tied to recent
+  // incoming damage, which would be layered on top of this base.
+  HEAL_MAG_MIN_MULT: 1.5,
+  HEAL_MAG_SPREAD: 1.0,
+};
 
 // ── Event text templates ────────────────────────────────────────────────
 const T_TRAVEL = [
@@ -93,11 +201,13 @@ const T_ATTACK_ROGUE = [
   (m, e, dmg) => `${m} slips through ${e}'s defenses with a quick stab — <span class="dmg-num dmg-phys">${dmg}</span>!`,
   (m, e, dmg) => `${m} strikes from the shadows, piercing ${e} — <span class="dmg-num dmg-phys">${dmg}</span>!`,
 ];
+// Cleric basic-attack flavor avoids skill names (Smite, Holy Light, etc.) so
+// the narrative never suggests a class skill fired when it didn't.
 const T_ATTACK_CLERIC = [
-  (m, e, dmg) => `${m} smites ${e} with divine light — <span class="dmg-num dmg-mag">${dmg}</span>!`,
-  (m, e, dmg) => `${m} calls down holy wrath upon ${e} — <span class="dmg-num dmg-mag">${dmg}</span>!`,
-  (m, e, dmg) => `${m} channels sacred energy, searing ${e} for <span class="dmg-num dmg-mag">${dmg}</span>!`,
-  (m, e, dmg) => `${m} swings their mace with divine fury — ${e} takes <span class="dmg-num dmg-mag">${dmg}</span>!`,
+  (m, e, dmg) => `${m} swings their mace into ${e}'s guard — <span class="dmg-num dmg-mag">${dmg}</span>!`,
+  (m, e, dmg) => `${m} brings their mace down on ${e} with a solemn oath — <span class="dmg-num dmg-mag">${dmg}</span>!`,
+  (m, e, dmg) => `${m} cracks their mace across ${e}'s flank — <span class="dmg-num dmg-mag">${dmg}</span>!`,
+  (m, e, dmg) => `${m} lands a steady, faithful blow on ${e} — <span class="dmg-num dmg-mag">${dmg}</span>!`,
 ];
 const T_ATTACK_RANGER = [
   (m, e, dmg) => `${m} looses an arrow that pierces ${e} — <span class="dmg-num dmg-phys">${dmg}</span>!`,
@@ -160,6 +270,18 @@ const T_CELESTIAL_SKILL = [
   (m, sk, e, dmg) => `Divine radiance erupts from ${m}'s gear — <strong>${sk}</strong> obliterates ${e} for <span class="dmg-num dmg-celestial">${dmg}</span>!`,
 ];
 
+// ── Non-damaging equipment buff procs (empower next action) ─────────
+const T_EQUIP_BUFF = [
+  (m, sk) => `${m}'s gear surges — <strong>${sk}</strong> empowers their next action!`,
+  (m, sk) => `<strong>${sk}</strong> activates! ${m} is wreathed in energy — their next blow will devastate!`,
+  (m, sk) => `${m} triggers <strong>${sk}</strong> — arcane force coils, waiting to amplify the next strike!`,
+];
+const T_CELESTIAL_BUFF = [
+  (m, sk) => `${m} channels <strong>${sk}</strong> — celestial power gathers for their next action!`,
+  (m, sk) => `The heavens answer ${m}! <strong>${sk}</strong> readies divine force for the next blow!`,
+  (m, sk) => `Celestial radiance blooms around ${m} — <strong>${sk}</strong> will overflow into their next action!`,
+];
+
 // ── Cleric heal templates (direct group heal) ────────────────────────
 const T_HEAL_CLERIC = [
   (m, hp) => `${m} invokes a prayer of restoration — party recovers <span class="dmg-num dmg-heal">+${hp}</span> HP!`,
@@ -208,10 +330,35 @@ const T_MAGE_AOE = [
   (name, skill, count, dmg) => `${name} casts ${skill}! Magical destruction rains on <span class="dmg-num">${count}</span> foes — <span class="dmg-num dmg-mag">${dmg}</span> each!`,
   (name, skill, count, dmg) => `The air shatters as ${name} channels ${skill} — <span class="dmg-num">${count}</span> enemies take <span class="dmg-num dmg-mag">${dmg}</span> each!`,
 ];
+const T_MONK_AOE = [
+  (name, skill, count, dmg) => `${name} blurs into a flurry of ${skill} — <span class="dmg-num">${count}</span> enemies are battered for <span class="dmg-num dmg-phys">${dmg}</span> each!`,
+  (name, skill, count, dmg) => `${name} unleashes ${skill}! Rapid strikes pummel <span class="dmg-num">${count}</span> foes for <span class="dmg-num dmg-phys">${dmg}</span> each!`,
+  (name, skill, count, dmg) => `A whirlwind of fists — ${name}'s ${skill} lands on <span class="dmg-num">${count}</span> enemies for <span class="dmg-num dmg-phys">${dmg}</span> each!`,
+];
+const T_CLERIC_AOE = [
+  (name, skill, count, dmg) => `${name} calls down ${skill} — pillars of holy fire scour <span class="dmg-num">${count}</span> foes for <span class="dmg-num dmg-mag">${dmg}</span> each!`,
+  (name, skill, count, dmg) => `${name} unleashes ${skill}! Sacred flame consumes <span class="dmg-num">${count}</span> enemies for <span class="dmg-num dmg-mag">${dmg}</span> each!`,
+  (name, skill, count, dmg) => `A radiant blaze erupts as ${name} invokes ${skill} — <span class="dmg-num">${count}</span> targets burn for <span class="dmg-num dmg-mag">${dmg}</span> each!`,
+];
+const T_HERO_AOE = [
+  (name, skill, count, dmg) => `${name} becomes a blur as ${skill} erupts — <span class="dmg-num">${count}</span> foes are cut down for <span class="dmg-num dmg-phys">${dmg}</span> each!`,
+  (name, skill, count, dmg) => `${name} unleashes ${skill}! Steel flashes through <span class="dmg-num">${count}</span> enemies for <span class="dmg-num dmg-phys">${dmg}</span> each!`,
+  (name, skill, count, dmg) => `A dazzling spin of blades — ${name}'s ${skill} sweeps <span class="dmg-num">${count}</span> foes for <span class="dmg-num dmg-phys">${dmg}</span> each!`,
+];
+const T_ROGUE_AOE = [
+  (name, skill, count, dmg) => `${name} spins and hurls ${skill} — <span class="dmg-num">${count}</span> foes are shredded for <span class="dmg-num dmg-phys">${dmg}</span> each!`,
+  (name, skill, count, dmg) => `${name} unleashes ${skill}! Blades whirl through <span class="dmg-num">${count}</span> enemies for <span class="dmg-num dmg-phys">${dmg}</span> each!`,
+  (name, skill, count, dmg) => `A glittering arc of steel — ${name}'s ${skill} slices <span class="dmg-num">${count}</span> targets for <span class="dmg-num dmg-phys">${dmg}</span> each!`,
+];
 const T_RANGER_AOE = [
   (name, skill, count, dmg) => `${name} fires ${skill} — a storm of arrows hits <span class="dmg-num">${count}</span> enemies for <span class="dmg-num dmg-ally">${dmg}</span> each!`,
   (name, skill, count, dmg) => `${name} unleashes ${skill}! <span class="dmg-num">${count}</span> foes are struck for <span class="dmg-num dmg-ally">${dmg}</span> each!`,
   (name, skill, count, dmg) => `Arrows fly as ${name} activates ${skill} — <span class="dmg-num">${count}</span> targets take <span class="dmg-num dmg-ally">${dmg}</span> each!`,
+];
+const T_KNIGHT_AOE = [
+  (name, skill, count, dmg) => `${name} executes ${skill} — a wide arc cleaves <span class="dmg-num">${count}</span> enemies for <span class="dmg-num dmg-phys">${dmg}</span> each!`,
+  (name, skill, count, dmg) => `${name} swings ${skill}! <span class="dmg-num">${count}</span> foes are battered for <span class="dmg-num dmg-phys">${dmg}</span> each!`,
+  (name, skill, count, dmg) => `Steel whirls as ${name}'s ${skill} sweeps the line — <span class="dmg-num">${count}</span> targets take <span class="dmg-num dmg-phys">${dmg}</span> each!`,
 ];
 
 // ── AoE skill registry ──
@@ -226,9 +373,27 @@ const AOE_SKILLS = {
   CEL_STARFIRE_VOLLEY:  { dmgScale: 0.80, templates: T_RANGER_AOE, icon: '🎆', type: 'celestial', triggerCamo: true },
   // Mage AoE
   ARCANE_CATACLYSM:     { dmgScale: 0.55, templates: T_MAGE_AOE, icon: '💥', type: 'skill',     triggerCamo: false },
+  // BLIZZARD — new L6 MAG-scaled AoE (§3.3 Mage rework), replaces the Frostbite
+  // role while the old Frostbite lives on as legacy. Scales slightly lower
+  // since it unlocks 8 levels earlier than the old Frostbite.
+  BLIZZARD:             { dmgScale: 0.50, templates: T_MAGE_AOE, icon: '🌨', type: 'skill',     triggerCamo: false },
+  FROSTBITE:            { dmgScale: 0.50, templates: T_MAGE_AOE, icon: '❄',  type: 'skill',     triggerCamo: false },
   METEOR_STORM:         { dmgScale: 0.70, templates: T_MAGE_AOE, icon: '☄',  type: 'skill',     triggerCamo: false },
   ARCANE_CATACLYSM_EQ:  { dmgScale: 0.60, templates: T_MAGE_AOE, icon: '💥', type: 'equip',     triggerCamo: false },
   CEL_ARCANUM_CATACLYSM:{ dmgScale: 0.75, templates: T_MAGE_AOE, icon: '💥', type: 'celestial', triggerCamo: false },
+  // Monk AoE (class rework — Hundred Fists L6 class-defining workhorse)
+  HUNDRED_FISTS:        { dmgScale: 0.55, templates: T_MONK_AOE, icon: '👊', type: 'skill',     triggerCamo: false },
+  // Knight AoE (class rework — Sweeping Blow L10 capstone damage)
+  SWEEPING_BLOW:        { dmgScale: 0.55, templates: T_KNIGHT_AOE, icon: '⚔', type: 'skill',   triggerCamo: false },
+  // Rogue AoE (class rework — Fan of Knives L6 class-defining AoE)
+  FAN_OF_KNIVES:        { dmgScale: 0.50, templates: T_ROGUE_AOE, icon: '🗡', type: 'skill',    triggerCamo: false },
+  // Cleric AoE (class rework — Consecration L10 AoE + party buff, Righteous Burn L18 EPIC)
+  CONSECRATION:         { dmgScale: 0.50, templates: T_CLERIC_AOE, icon: '🌅', type: 'skill',   triggerCamo: false },
+  RIGHTEOUS_BURN:       { dmgScale: 0.60, templates: T_CLERIC_AOE, icon: '🔥', type: 'skill',   triggerCamo: false },
+  // Hero AoE (class rework — Sword Dance L6, class-defining AoE)
+  SWORD_DANCE:          { dmgScale: 0.50, templates: T_HERO_AOE, icon: '⚔', type: 'skill',    triggerCamo: false },
+  // Hero AoE legacy (retired — kept for save compatibility / talent hook)
+  WHIRLWIND_DANCE:      { dmgScale: 0.55, templates: T_HERO_AOE, icon: '🌀', type: 'skill',    triggerCamo: false },
 };
 // ── Necromancer templates ───────────────────────────────────────────
 const T_RAISE_DEAD = [
@@ -236,19 +401,28 @@ const T_RAISE_DEAD = [
   (name, minion) => `${name} commands the corpse of ${minion} to rise — <span class="dmg-num" style="color:#9b59b6">the dead obey!</span>`,
 ];
 const T_MINION_ATTACK = [
-  (minion, target, dmg) => `The risen ${minion} claws at ${target} — <span class="dmg-num dmg-mag">${dmg}</span> damage!`,
+  (minion, target, dmg) => `${minion} claws at ${target} — <span class="dmg-num dmg-mag">${dmg}</span> damage!`,
   (minion, target, dmg) => `${minion} shambles toward ${target} and strikes — <span class="dmg-num dmg-mag">${dmg}</span>!`,
 ];
 const T_MINION_DEATH = [
-  (minion) => `The risen ${minion} crumbles to dust — its stolen life spent.`,
+  (minion) => `${minion} crumbles to dust — its stolen life spent.`,
 ];
 const T_BLIGHT_DOT = [
   (dmg, count) => `Necrotic Blight corrodes <span class="dmg-num">${count}</span> enemies for <span class="dmg-num dmg-mag">${dmg}</span> each!`,
   (dmg, count) => `Blight eats away at <span class="dmg-num">${count}</span> foes — <span class="dmg-num dmg-mag">${dmg}</span> necrotic damage each!`,
 ];
-const T_LIFE_TAP = [
-  (name, target, dmg, heal) => `${name} drains the life force from ${target} — <span class="dmg-num dmg-mag">${dmg}</span> damage, <span class="dmg-num dmg-heal">+${heal}</span> HP!`,
-  (name, target, dmg, heal) => `Dark energy flows from ${target} to ${name} — <span class="dmg-num dmg-mag">${dmg}</span> dealt, <span class="dmg-num dmg-heal">+${heal}</span> restored!`,
+const T_DARK_PACT = [
+  (name) => `${name} weaves a <span class="dmg-num" style="color:#9b59b6">Dark Pact</span> — dark energy binds the party to their foes!`,
+  (name) => `A <span class="dmg-num" style="color:#9b59b6">Dark Pact</span> takes hold — ${name} channels life-draining magic across the party!`,
+];
+const T_SHADOW_BOLT = [
+  (name, target, dmg) => `${name} hurls a <span class="dmg-num" style="color:#9b59b6">Shadow Bolt</span> at ${target} — <span class="dmg-num dmg-mag">${dmg}</span> dark damage!`,
+  (name, target, dmg) => `A bolt of siphoning shadow — ${name}'s magic strikes ${target} for <span class="dmg-num dmg-mag">${dmg}</span>!`,
+  (name, target, dmg) => `${name} calls forth a <span class="dmg-num" style="color:#9b59b6">Shadow Bolt</span>; ${target} is wreathed in dark energy — <span class="dmg-num dmg-mag">${dmg}</span>!`,
+];
+const T_SHADOW_BOLT_LEECH = [
+  (count, totalHeal) => `The dark energy floods back into the party — <span class="dmg-num">${count}</span> allies drink a combined <span class="dmg-num dmg-heal">${totalHeal}</span> HP from the shadow!`,
+  (count, totalHeal) => `Siphoned life returns to the living — <span class="dmg-num">${count}</span> allies recover for <span class="dmg-num dmg-heal">${totalHeal}</span> total HP!`,
 ];
 const T_FORGO_DEATH = [
   (minion, name) => `${minion} hurls itself before the killing blow — it crumbles to dust, but <span class="dmg-num" style="color:#9b59b6">${name} endures!</span>`,
@@ -267,6 +441,28 @@ const T_NECROTIC_REFLECT = [
 const T_KI_BARRIER = [
   (monk, hp) => `${monk}'s Ki Barrier pulses — <span class="dmg-num dmg-heal">+${hp}</span> HP drained from the enemy!`,
   (monk, hp) => `${monk} absorbs life energy through their Ki Barrier — <span class="dmg-num dmg-heal">+${hp}</span> HP!`,
+];
+// ── Monk class rework templates ─────────────────────────────────────
+const T_FLOWING_STRIKE = [
+  (monk, target, dmg) => `${monk} flows around the attack and lashes back with a <span class="dmg-num" style="color:#6cf">Flowing Strike</span> — ${target} takes <span class="dmg-num dmg-phys">${dmg}</span>!`,
+  (monk, target, dmg) => `${monk} pivots and retaliates — <span class="dmg-num" style="color:#6cf">Flowing Strike</span> hits ${target} for <span class="dmg-num dmg-phys">${dmg}</span>!`,
+  (monk, target, dmg) => `Water-like ${monk} answers the miss with a <span class="dmg-num" style="color:#6cf">Flowing Strike</span> — ${target} reels for <span class="dmg-num dmg-phys">${dmg}</span>!`,
+];
+const T_PRESSURE_POINT = [
+  (monk, target, dmg) => `${monk} strikes a <span class="dmg-num" style="color:#f90">Pressure Point</span> on ${target} — <span class="dmg-num dmg-phys">${dmg}</span> damage! The foe is destabilized!`,
+  (monk, target, dmg) => `${monk}'s fingers find a vital nerve — <span class="dmg-num" style="color:#f90">Pressure Point</span> on ${target} for <span class="dmg-num dmg-phys">${dmg}</span>!`,
+  (monk, target, dmg) => `A precise jab — ${monk}'s <span class="dmg-num" style="color:#f90">Pressure Point</span> disables ${target} for <span class="dmg-num dmg-phys">${dmg}</span>!`,
+];
+const T_IRON_STANCE = [
+  (monk) => `${monk} settles into <span class="dmg-num" style="color:#ccc">Iron Stance</span> — defense and evasion surge!`,
+  (monk) => `${monk} roots like stone — <span class="dmg-num" style="color:#ccc">Iron Stance</span> activated!`,
+];
+const T_KI_SHIELD = [
+  (monk, hp) => `${monk} weaves a shimmering <span class="dmg-num" style="color:#6cf">Ki Shield</span> — <span class="dmg-num dmg-heal">${hp}</span> absorption!`,
+  (monk, hp) => `A barrier of pure ki envelops ${monk} — <span class="dmg-num dmg-heal">${hp}</span> HP shield!`,
+];
+const T_KI_SHIELD_ABSORB = [
+  (monk, dmg) => `${monk}'s <span class="dmg-num" style="color:#6cf">Ki Shield</span> absorbs <span class="dmg-num dmg-heal">${dmg}</span> damage!`,
 ];
 
 // ── Mage Spell Echo templates ──────────────────────────────────────
@@ -402,6 +598,11 @@ const T_LAST_STAND = [
   (hero, count) => `${hero} plants the banner — <span class="dmg-num" style="color:#ffd700">LAST STAND</span>! ${count} fallen allies rise again at 25% HP!`,
   (hero, count) => `"We're not done yet!" ${hero}'s <span class="dmg-num" style="color:#ffd700">LAST STAND</span> revives ${count} fallen allies!`,
 ];
+const T_LAST_STAND_KNIGHT = [
+  (knight) => `${knight} digs in for their <span class="dmg-num" style="color:#d4af37">Last Stand</span> — +35% DEF, +20% ATK for 3 rounds!`,
+  (knight) => `Bloodied but unbroken, ${knight} locks into a <span class="dmg-num" style="color:#d4af37">Last Stand</span>!`,
+  (knight) => `${knight}'s will hardens into iron — <span class="dmg-num" style="color:#d4af37">Last Stand</span> activates!`,
+];
 
 // ── Battle simulation state ────────────────────────────────────────────
 // Built once per quest (deterministic from seed), then sliced by progress.
@@ -468,10 +669,24 @@ function buildSimulation(aq, quest) {
     dmgBonus, dmgReduction, atkSpeedBonus,
     partyAuras: simAuras,
     members: partyHp.map(p => ({
-      name: p.name, class: p.class, level: p.level,
+      id: p.id, name: p.name, class: p.class, level: p.level,
       atk: p.atk, def: p.def, mag: p.mag, spd: p.spd, crit: p.crit, dodge: p.dodge,
       maxHp: p.maxHp, dodgeChance: p.dodgeChance || 0, critChance: p.critChance || 0, healBonus: p.healBonus || 0,
+      // Skill list captured at sim start so the party-composition printer can
+      // show the skills that were actually in play rather than the post-levelup
+      // list (fight victories often trigger level-ups that learn new skills).
+      skills: Game.getActiveMemberSkills ? Game.getActiveMemberSkills(p.id) : [],
     })),
+    // ATB tracking — populated during battle loop
+    atb: {
+      totalRounds: 0,
+      laneActions: {},   // { memberId: { attack: { fires: 0, basicFallbacks: 0 }, buff: { fires: 0, procFails: 0 }, heal: { fires: 0, held: 0 } } }
+      procRolls: [],     // [{ round, member, lane, skillId, skillName, procChance, roll, fired }]
+      gaugeSnapshots: [], // [{ round, gauges: { memberId: { attack, buff, heal } } }]
+      equipProcs: [],    // [{ round, member, skillId, skillName, lane, cooldownSet }]
+      reactiveEvents: [], // [{ round, type, member, target, trigger }]
+      roundSummaries: [], // [{ round, livingParty, livingEnemies, partyHpPct, enemyHpPct }]
+    },
   };
 
   // ── SPD-weighted random pick helper ──
@@ -492,40 +707,60 @@ function buildSimulation(aq, quest) {
     return arr[arr.length - 1];
   }
 
+  // ── Pending equipment buff state ──
+  // Non-weapon equipment skills (armor/accessory/offhand procs) don't deal
+  // damage directly — they drop a pending buff that amplifies this member's
+  // NEXT damage/heal action. Consumed inside calcPartyDmg (for damage) or
+  // explicitly at heal sites.
+  const pendingEquipBuffs = {};
+
+  function consumePendingEquipBuff(memberId) {
+    const buf = pendingEquipBuffs[memberId];
+    if (!buf) return null;
+    delete pendingEquipBuffs[memberId];
+    return buf;
+  }
+
   // ── Stat-based damage helper ──
   // Physical classes scale off ATK, magic classes scale off MAG
   function calcPartyDmg(attacker, seed, bonus) {
     const isMagic = isMagicClass(attacker.class);
     const stat = isMagic ? (attacker.mag || 1) : (attacker.atk || 10);
-    // Base damage: stat * (1.8 to 2.8 random multiplier), scaled by synergy bonus
-    const multiplier = 1.8 + sRand(seed) * 1.0;
-    return Math.max(2, Math.floor(stat * multiplier * bonus));
+    // Base party damage multiplier — see COMBAT_TUNING.PARTY_DMG_* for the curve.
+    const multiplier = COMBAT_TUNING.PARTY_DMG_MIN_MULT + sRand(seed) * COMBAT_TUNING.PARTY_DMG_SPREAD;
+    let dmg = Math.max(2, Math.floor(stat * multiplier * bonus));
+    // Consume any pending equipment buff from this member's last non-weapon proc.
+    const buf = consumePendingEquipBuff(attacker.id);
+    if (buf && buf.effects) {
+      const e = buf.effects;
+      const empowerMult = 1.0 + (e.atkBonus || 0) + (e.magBonus || 0) + (e.powerMultiplier ? (e.powerMultiplier - 1) : 0);
+      dmg = Math.max(2, Math.floor(dmg * empowerMult));
+    }
+    return dmg;
   }
 
   // ── DEF-based damage reduction ──
-  // Reduces incoming damage: reduction = def / (def + 60)  →  ~14% at 10 DEF, ~33% at 30 DEF
+  // reduction = def / (def + DEF_SOFTCAP). Curve tuned via COMBAT_TUNING.DEF_SOFTCAP.
   function applyDef(rawDmg, defender) {
     const def = defender.def || 0;
-    const reduction = def / (def + 60);
+    const reduction = def / (def + COMBAT_TUNING.DEF_SOFTCAP);
     return Math.max(1, Math.floor(rawDmg * (1 - reduction)));
   }
 
   // ── CRIT chance from stat ──
-  // crit / (crit + 100)  →  ~9% at 10, ~17% at 20, ~33% at 50
-  // Plus flat critChance bonus from passive skills
+  // crit / (crit + CRIT_SOFTCAP), capped at CRIT_CAP, plus flat bonus from skills.
   function critChance(attacker) {
     const c = attacker.crit || 0;
     const flatBonus = attacker.critChance || 0;
-    return Math.min(0.75, c / (c + 100) + flatBonus);
+    return Math.min(COMBAT_TUNING.CRIT_CAP, c / (c + COMBAT_TUNING.CRIT_SOFTCAP) + flatBonus);
   }
 
   // ── DODGE chance from stat ──
-  // dodge / (dodge + 80)  →  ~11% at 10, ~20% at 20, ~33% at 40
-  // Plus flat dodgeChance bonus from items (e.g. +0.15 from Rogue daggers)
+  // dodge / (dodge + DODGE_SOFTCAP), capped at DODGE_CAP, plus flat bonus from items.
   function dodgeChance(defender) {
     const d = defender.dodge || 0;
     const flatBonus = defender.dodgeChance || 0;
-    return Math.min(0.75, d / (d + 80) + flatBonus);
+    return Math.min(COMBAT_TUNING.DODGE_CAP, d / (d + COMBAT_TUNING.DODGE_SOFTCAP) + flatBonus);
   }
 
   // ── Apply Legacy Talent stat modifiers ──
@@ -557,22 +792,22 @@ function buildSimulation(aq, quest) {
   // Hero
   const talentChainStrike = _ht('HRO_CHAIN_STRIKE');
   const talentRallyingHeal = _ht('HRO_RALLYING_HEAL');
-  const talentHeroicRevival = _ht('HRO_HEROIC_REVIVAL');
+  const talentWhirlwindHeal = _ht('HRO_WHIRLWIND_HEAL');
   // Knight
   const talentDefShred = _ht('KNT_DEF_SHRED');
   const talentKntCounter = _ht('KNT_COUNTER');
   const talentTauntAura = _ht('KNT_TAUNT_AURA');
   // Mage
-  const talentEchoShield = _ht('MAG_ECHO_SHIELD');
-  const talentBurnDot = _ht('MAG_BURN_DOT');
-  const talentMageReflect = _ht('MAG_REFLECT');
+  const talentBlizzardFrost = _ht('MAG_BLIZZARD_FROST');
+  const talentMeteorBurn = _ht('MAG_METEOR_BURN');
+  const talentArcaneReflect = _ht('MAG_ARCANE_REFLECT');
   // Rogue
   const talentPoison = _ht('ROG_POISON');
   const talentSmokeHeal = _ht('ROG_SMOKE_HEAL');
   const talentExecute = _ht('ROG_EXECUTE');
   // Cleric
   const talentSacredWarmth = _ht('CLR_SHIELD_HOT');
-  const talentHolySplash = _ht('CLR_HOLY_SPLASH');
+  const talentSmiteBurn = _ht('CLR_SMITE_BURN');
   const talentWrath = _ht('CLR_WRATH');
   // Ranger
   const talentVolleySlow = _ht('RNG_VOLLEY_SLOW');
@@ -587,9 +822,20 @@ function buildSimulation(aq, quest) {
   const talentRetaliating = _ht('MNK_COUNTER_ATK');
   const talentInfiniteFists = _ht('MNK_FURY_PLUS');
   // Necromancer
-  const talentSiphonAura = _ht('NEC_TAP_SHARE');
-  const talentVampiricShroud = _ht('NEC_SHIELD_TAP');
+  // Grave Hunger requires an actual Necromancer in the party — it enhances
+  // Shroud of Decay, so without a Necro there's no aura to enhance.
+  const partyHasNecromancer = members.some(m => m.class === 'NECROMANCER');
+  const talentGraveHunger = _ht('NEC_GRAVE_HUNGER') && partyHasNecromancer;
+  const talentNecroticCleave = _ht('NEC_NECRO_CLEAVE');
   const talentUndeadVanguard = _ht('NEC_SUMMON_SHIELD');
+  let necroticCleaveTimer = 0; // counts rounds for minion AoE cleave
+  // Grave Hunger (reworked, §7.7 final): enhances Shroud of Decay per enemy kill.
+  // Per-stack: +2% party damage (covers ATK+MAG via calcPartyDmg's bonus),
+  // +1% party crit, +1% party DEF. Starts at 1 stack when talent active, max 5. No decay.
+  let graveHungerStacks = talentGraveHunger ? 1 : 0;
+  let graveHungerCritBonus = talentGraveHunger ? 0.01 : 0;
+  let graveHungerDefBonus = talentGraveHunger ? 0.01 : 0;
+  if (talentGraveHunger) dmgBonus += 0.02; // starter stack damage bonus
   // Party-wide
   const talentCelCascade = _ht('PARTY_CEL_CASCADE');
   const talentUndying = _ht('PARTY_UNDYING');
@@ -598,10 +844,10 @@ function buildSimulation(aq, quest) {
   // Talent status trackers
   const defShredTargets = {}; // { enemyId: roundsRemaining } — KNT_DEF_SHRED
   const tauntedEnemies = {}; // { enemyId: roundsRemaining } — KNT_TAUNT_AURA
+  const exposedTargets = {}; // { enemyId: roundsRemaining } — ROG Fan of Knives Exposed (+10% dmg taken, 2r)
   const poisonTargets = {}; // { enemyId: { rounds, dmgPerTick } } — ROG_POISON
-  const burnTargets = {}; // { enemyId: { rounds, dmgPerTick } } — MAG_BURN_DOT
+  const burnTargets = {}; // { enemyId: { rounds, dmgPerTick, source } } — MAG_METEOR_BURN / CLR_SMITE_BURN. source: 'MAG' | 'CLR'
   const sacredWarmthRounds = {}; // { memberId: roundsRemaining } — CLR_SHIELD_HOT HoT
-  const echoShieldHP = {}; // { memberId: shieldHpRemaining } — MAG_ECHO_SHIELD
   const wrathBuff = {}; // { memberId: roundsRemaining } — CLR_WRATH +30% dmg
   const stormMarkRounds = {}; // { enemyId: roundsRemaining } — RNG_STORM_MARK
   const crescendoAllyCharges = { count: 0 }; // BRD_CRESCENDO_ALLY — next N ally attacks auto-crit
@@ -704,13 +950,26 @@ function buildSimulation(aq, quest) {
 
   // Ranger Volley — track which rangers have the skill
   const rangersWithVolley = new Set();
+  const rangersWithCamouflage = new Set();
+  const rangersWithPrecisionShot = new Set();
+  // Ranger Hunter's Mark — reactive auto-crit on kill
+  const rangersWithHuntersMark = new Set();
+  const huntersMarkCharges = {}; // { rangerId: chargesRemaining }
+  const huntersMarkCooldowns = {}; // { rangerId: roundsRemaining }
+  // Knight Last Stand — reactive self-buff when HP < 30%
+  const knightsWithLastStand = new Set();
+  const lastStandBuffRounds = {}; // { knightId: roundsRemaining }
+  const lastStandCooldowns = {};  // { knightId: roundsRemaining }
 
   // Monk Ki Barrier — track monks with lifesteal
   const monksWithKiBarrier = new Set();
 
-  // Mage Spell Echo — damage amp after skill cast
+  // Mage Arcane Aftershock (formerly Spell Echo) — damage amp REACTIVE primed
+  // when any ally lands a killing blow. Set name kept for minimal-diff reasons;
+  // it tracks mages with the L14 class skill SPELL_ECHO / "Arcane Aftershock".
   const magesWithSpellEcho = new Set();
   const spellEchoRounds = {}; // { memberId: roundsRemaining }
+  const aftershockCooldowns = {}; // { memberId: roundsRemaining } — 3-round ICD
 
   // Ranger Camouflage — dodge/damage reduction after Volley
   const camoRounds = {}; // { memberId: roundsRemaining }
@@ -721,15 +980,29 @@ function buildSimulation(aq, quest) {
   let discordRounds = 0; // party-wide: how many rounds the debuff lasts
   let discordSource = null; // name of bard who cast it
 
+  // Mage Frostbite — AoE ice debuff: enemy ATK -15%, 20% fumble, 3 rounds
+  let frostbiteRounds = 0;
+
   // Bard Crescendo — devastating crit buff for next attacker
   const bardsWithCrescendo = new Set();
   const crescendoCooldowns = {}; // { memberId: roundsRemaining }
   let crescendoActive = false; // is the next-attack buff waiting to be consumed?
   let crescendoSourceId = null; // bard who cast it (for stat tracking)
 
+  // Bard Cadence — 3-round party damage + crit buff
+  const cadenceCooldowns = {}; // { memberId: roundsRemaining }
+  let cadenceRounds = 0; // rounds remaining for active Cadence buff
+  let cadenceSource = null; // name of bard who cast it
+
   // Cleric Divine Shield — party damage reduction after heal
   const clericsWithDivineShield = new Set();
+  const clericsWithGuardianGrasp = new Set();
+  const guardianGraspCooldowns = {};
+  const roguesWithRiposte = new Set();
+  const riposteCooldowns = {};
   let divineShieldRounds = 0; // party-wide counter
+  let consecrationRounds = 0; // CLR CONSECRATION — party-wide DEF +10% + HoT 5% maxHP/r
+  let consecrationSource = null;
   let divineShieldSource = null; // name of cleric who cast it
 
   // Cleric Divine Intervention — intercepts killing blow, saves ally at 1 HP
@@ -749,7 +1022,8 @@ function buildSimulation(aq, quest) {
   const unbreakableDR = {}; // { memberId: roundsRemaining } — active DR after proc
   // Champion
   const heroesWithExecutioner = new Set();
-  const executionerCooldowns = {}; // { memberId: roundsRemaining }
+  const executionerCooldowns = {}; // { memberId: roundsRemaining } — 3-round CD between mark fires
+  const executeMarkRounds = {};    // { enemyId: roundsRemaining } — marked enemies take +10% party dmg for 2 rounds
   const heroesWithBloodlust = new Set();
   const bloodlustActive = {}; // { memberId: true } — next attack deals 1.5× damage
   const heroesWithWrath = new Set();
@@ -759,11 +1033,25 @@ function buildSimulation(aq, quest) {
   const guardianCooldowns = {}; // { memberId: roundsRemaining }
   const heroesWithLastStand = new Set();
   const lastStandUsed = {}; // { memberId: true } — once per fight
+  // Hero L14 baseline reactive (§3.1)
+  const heroesWithSecondWind = new Set();
+  const secondWindCooldowns = {}; // { memberId: roundsRemaining } — 4-round ICD
+  const secondWindRounds = {};    // { memberId: roundsRemaining } — active +20% ATK buff
+
+  // Monk class rework (Phase 1c) — Flowing Strike, Pressure Point, Ki Shield, Iron Stance
+  const monksWithFlowingStrike = new Set();
+  const flowingStrikeCooldowns = {}; // { memberId: roundsRemaining } — 3-round cooldown
+  const monksWithPressurePoint = new Set();
+  const pressurePointDebuffs = {}; // { enemyId: roundsRemaining } — target takes +10% dmg, -20% ATB
+  const ironStanceBuffs = {}; // { monkId: roundsRemaining } — +20% DEF and +15% dodge for 2 rounds
+  const kiShieldHP = {}; // { monkId: absorbHpRemaining }
 
   // Necromancer — minions, DoTs, reactive death save, damage reflect
   const necrosWithRaiseDead = new Set();
   const raiseDeadCooldowns = {}; // { memberId: roundsRemaining }
-  const necrosWithLifeTap = new Set();
+  const necrosWithDarkPact = new Set();
+  let darkPactRounds = 0;
+  let darkPactSource = null; // necro who cast it (for MAG scaling)
   const necrosWithBlight = new Set();
   const necrosWithForgoDeath = new Set();
   const necrosWithArmy = new Set();
@@ -778,11 +1066,15 @@ function buildSimulation(aq, quest) {
   let minionDmgBonusTotal = 0; // accumulated from Lord of the Dead + Soul Anchor
 
   for (const m of members) {
-    const memberData = Game.getMember(m.id);
-    const memberSkills = memberData && memberData.skills ? memberData.skills : [];
+    const memberSkills = Game.getActiveMemberSkills ? Game.getActiveMemberSkills(m.id) : [];
     if (m.class === 'KNIGHT' && memberSkills.includes('BULWARK')) {
       knightsWithCover.add(m.id);
       coverCooldowns[m.id] = 0;
+    }
+    if (m.class === 'KNIGHT' && memberSkills.includes('LAST_STAND')) {
+      knightsWithLastStand.add(m.id);
+      lastStandBuffRounds[m.id] = 0;
+      lastStandCooldowns[m.id] = 0;
     }
     if (m.class === 'HERO' && memberSkills.includes('RALLY_CRY')) {
       heroesWithRally.add(m.id);
@@ -791,15 +1083,31 @@ function buildSimulation(aq, quest) {
     if (m.class === 'ROGUE' && memberSkills.includes('MARK_FOR_DEATH')) {
       roguesWithMark.add(m.id);
     }
-    if (m.class === 'RANGER' && memberSkills.includes('VOLLEY')) {
-      rangersWithVolley.add(m.id);
+    if (m.class === 'RANGER') {
+      if (memberSkills.includes('VOLLEY')) rangersWithVolley.add(m.id);
+      if (memberSkills.includes('CAMOUFLAGE')) rangersWithCamouflage.add(m.id);
+      if (memberSkills.includes('PRECISION_SHOT')) rangersWithPrecisionShot.add(m.id);
+      if (memberSkills.includes('HUNTERS_MARK')) {
+        rangersWithHuntersMark.add(m.id);
+        huntersMarkCharges[m.id] = 0;
+        huntersMarkCooldowns[m.id] = 0;
+      }
     }
     if (m.class === 'MONK' && memberSkills.includes('KI_BARRIER')) {
       monksWithKiBarrier.add(m.id);
     }
-    if (m.class === 'MAGE' && (memberSkills.includes('SPELL_ECHO') || memberSkills.includes('MANA_SURGE'))) {
+    if (m.class === 'MONK' && memberSkills.includes('FLOWING_STRIKE')) {
+      monksWithFlowingStrike.add(m.id);
+      flowingStrikeCooldowns[m.id] = 0;
+    }
+    if (m.class === 'MONK' && memberSkills.includes('PRESSURE_POINT')) {
+      monksWithPressurePoint.add(m.id);
+    }
+    if (m.class === 'MAGE' && memberSkills.includes('SPELL_ECHO')) {
+      // SPELL_ECHO is the Mage L14 "Arcane Aftershock" reactive (class rework §3.3).
       magesWithSpellEcho.add(m.id);
       spellEchoRounds[m.id] = 0;
+      aftershockCooldowns[m.id] = 0;
     }
     if (m.class === 'BARD' && memberSkills.includes('DISCORD')) {
       bardsWithDiscord.add(m.id);
@@ -809,12 +1117,23 @@ function buildSimulation(aq, quest) {
       bardsWithCrescendo.add(m.id);
       crescendoCooldowns[m.id] = 0;
     }
+    if (m.class === 'BARD' && memberSkills.includes('CADENCE')) {
+      cadenceCooldowns[m.id] = 0;
+    }
     // Vampiric Symphony (BRD_SYMPHONY_LEECH) — Symphony of War grants party lifesteal
     if (m.class === 'BARD' && memberSkills.includes('SYMPHONY_OF_WAR') && talentSymphonyLeech) {
       symphonyLeechActive = true;
     }
     if (m.class === 'CLERIC' && memberSkills.includes('DIVINE_SHIELD')) {
       clericsWithDivineShield.add(m.id);
+    }
+    if (m.class === 'CLERIC' && memberSkills.includes('GUARDIAN_GRASP')) {
+      clericsWithGuardianGrasp.add(m.id);
+      guardianGraspCooldowns[m.id] = 0;
+    }
+    if (m.class === 'ROGUE' && memberSkills.includes('RIPOSTE')) {
+      roguesWithRiposte.add(m.id);
+      riposteCooldowns[m.id] = 0;
     }
     if (m.class === 'CLERIC' && memberSkills.includes('DIVINE_INTERVENTION')) {
       clericsWithIntervention.add(m.id);
@@ -853,6 +1172,11 @@ function buildSimulation(aq, quest) {
         heroesWithLastStand.add(m.id);
         lastStandUsed[m.id] = false;
       }
+      if (memberSkills.includes('SECOND_WIND')) {
+        heroesWithSecondWind.add(m.id);
+        secondWindCooldowns[m.id] = 0;
+        secondWindRounds[m.id] = 0;
+      }
     }
     // Necromancer skill detection
     if (m.class === 'NECROMANCER') {
@@ -860,8 +1184,8 @@ function buildSimulation(aq, quest) {
         necrosWithRaiseDead.add(m.id);
         raiseDeadCooldowns[m.id] = 0;
       }
-      if (memberSkills.includes('LIFE_TAP')) {
-        necrosWithLifeTap.add(m.id);
+      if (memberSkills.includes('DARK_PACT')) {
+        necrosWithDarkPact.add(m.id);
       }
       if (memberSkills.includes('BLIGHT')) {
         necrosWithBlight.add(m.id);
@@ -887,25 +1211,148 @@ function buildSimulation(aq, quest) {
     }
   }
 
-  // ── Per-member active skill pools & cooldowns (round-robin) ──
-  // Filter out passives so only real combat actions get picked.
-  // After a skill fires, it goes on a short cooldown to force variety.
-  const SKILL_COOLDOWN = 2; // rounds before a skill can be used again
-  const memberActiveSkills = {}; // { memberId: [skillId, ...] }  — only active (non-passive) skills
-  const skillCooldowns = {};     // { memberId: { skillId: roundsRemaining } }
+  // SKILL_COOLDOWN is centralized in COMBAT_TUNING.SKILL_COOLDOWN_DEFAULT (top of file).
+  const SKILL_COOLDOWN = COMBAT_TUNING.SKILL_COOLDOWN_DEFAULT;
+
+  // Explicit lane mapping for class skills
+  // Note: KI_BARRIER, INNER_FOCUS, DARK_PACT retired by the Monk/Necro class
+  // rework — removed from this set so reconcile'd members never schedule them.
+  // The SKILLS[id] definitions still exist (source:'legacy') so any lingering
+  // code references resolve harmlessly.
+  const BUFF_LANE_SKILLS = new Set([
+    'SHIELD_WALL', 'TAUNT',
+    // SPELL_ECHO moved to REACTIVE_SKILLS — now the L14 Arcane Aftershock reactive.
+    'MARK_FOR_DEATH', 'SMOKE_BOMB', 'DIVINE_SHIELD',
+    'CAMOUFLAGE', 'REGEN_SONG', 'DISCORD', 'CADENCE',
+    'MAGNUM_OPUS',
+    'BLIGHT', 'ARMY_OF_THE_DAMNED',
+  ]);
+  const HEAL_LANE_SKILLS = new Set(['HOLY_LIGHT']);
+
+  // Reactive-only skills — excluded from all ATB lanes, triggered by conditions only
+  const REACTIVE_SKILLS = new Set([
+    'RAISE_DEAD',        // triggers on enemy death
+    'BULWARK',           // triggers on ally hit
+    'DIVINE_INTERVENTION', // triggers on ally lethal
+    'LAST_STAND',        // Knight — triggers on self HP < 30%
+    'RESURRECTION',      // triggers on ally KO during heal
+    'FORGO_DEATH',       // triggers on necro lethal
+    'UNBREAKABLE',       // triggers on hero lethal
+    'VANGUARDS_OATH',    // Hero Vanguard — triggers on ally hit
+    'UNBREAKABLE_WILL',  // Hero Vanguard — triggers on self lethal
+    'EXECUTIONERS_MARK', // Hero Champion — triggers on enemy low HP
+    'SECOND_DAWN',       // Hero Paragon — triggers on ally KO
+    'RALLY_CRY',         // triggers on ally <30% HP
+    'GUARDIAN_SPIRIT',   // triggers on ally <25% HP
+    'HUNTERS_MARK',      // triggers on Ranger killing blow
+    'CRESCENDO',         // Bard — triggers on ally crit
+    'SPELL_ECHO',        // Mage — Arcane Aftershock, triggers on ally killing blow
+    'SECOND_WIND',       // Hero L14 baseline — triggers on self HP < 35%
+    'RIPOSTE',           // Rogue L14 — counter-strike on being hit (2r cd)
+    'GUARDIAN_GRASP',    // Cleric L14 — negates any ally incoming damage (3r cd)
+  ]);
+
+  // Categorize CLASS/SPEC skills by lane (equipment skills skip this — they all
+  // live in a single equipment proc pool and are dispatched by slot at proc time).
+  function categorizeClassSkill(skill) {
+    if (!skill || !skill.effects) return 'attack';
+    const e = skill.effects;
+    if ((e.healBonus || e.partyHealPct) && !e.powerMultiplier && !e.defPierce) return 'heal';
+    if (e.powerMultiplier || e.defPierce) return 'attack';
+    if (e.defBonus || e.maxHpBonus || e.dodgeBonus || e.spdBonus || e.partyDefBonus ||
+        e.partyAtkBonus || e.partySpdBonus) return 'buff';
+    return 'attack';
+  }
+
+  // Build skill pools by member and lane. Equipment skills all funnel into a
+  // single memberEquipProcSkills pool regardless of what they do — the
+  // end-of-round proc block reads the bound item's slot (weapon vs other) to
+  // decide whether the proc fires damage or drops a pending empowering buff.
+  const memberAttackSkills = {};
+  const memberBuffSkills = {};
+  const memberHealSkills = {};
+  const memberEquipProcSkills = {};
+  const equipProcCooldowns = {};
+
   for (const m of members) {
-    const memberData = Game.getMember(m.id);
-    const allSkills = memberData && memberData.skills ? memberData.skills : [];
-    // Only include skills that are actual active abilities (have procChance < 1 or are not passive)
-    const actives = allSkills.filter(sid => {
+    // Dynamic skill lookup — recomputes from class + level + equipment every sim
+    // so newly added class skills auto-apply to existing characters on game load.
+    const allSkills = Game.getActiveMemberSkills ? Game.getActiveMemberSkills(m.id) : [];
+
+    memberAttackSkills[m.id] = [];
+    memberBuffSkills[m.id] = [];
+    memberHealSkills[m.id] = [];
+    memberEquipProcSkills[m.id] = [];
+    equipProcCooldowns[m.id] = 0;
+
+    for (const sid of allSkills) {
       const sk = getSkill(sid);
-      if (!sk) return false;
-      // Passive skills (procChance 1.0 and no damage-like effects) are always-on buffs
-      if (sk.type === 'passive' || sk.procChance >= 1.0) return false;
-      return true;
-    });
-    memberActiveSkills[m.id] = actives.length > 0 ? actives : allSkills.slice(0, 3); // fallback to first few if no actives
+      if (!sk || sk.type === 'passive') continue;
+      if (REACTIVE_SKILLS.has(sid)) continue; // reactive skills have no ATB lane
+
+      if (sk.source === 'equipment') {
+        // All equipment active skills go into the proc pool — slot lookup at proc time.
+        memberEquipProcSkills[m.id].push(sid);
+        continue;
+      }
+
+      let category = 'attack';
+      if (BUFF_LANE_SKILLS.has(sid)) category = 'buff';
+      else if (HEAL_LANE_SKILLS.has(sid)) category = 'heal';
+      else if (!sk.effects || !sk.effects.powerMultiplier) category = categorizeClassSkill(sk);
+
+      if (category === 'attack') memberAttackSkills[m.id].push(sid);
+      else if (category === 'buff') memberBuffSkills[m.id].push(sid);
+      else if (category === 'heal') memberHealSkills[m.id].push(sid);
+    }
+  }
+  
+  // ATB gauges and tracking
+  const atbGauges = {};
+  const atbLastAction = {};
+  for (const m of partyHp) {
+    atbGauges[m.id] = { attack: 0, buff: 0, heal: 100 };
+    atbLastAction[m.id] = null;
+    // Init ATB debug lane tracking per member
+    _combatDebug.atb.laneActions[m.id] = {
+      name: m.name, class: m.class || 'HERO',
+      attack: { fires: 0, basicFallbacks: 0, skillFires: 0, skillAttempts: 0 },
+      buff: { fires: 0, procFails: 0, attempts: 0 },
+      heal: { fires: 0, held: 0 },
+      skillPools: {
+        attack: memberAttackSkills[m.id]?.map(sid => { const sk = getSkill(sid); return sk ? sk.name : sid; }) || [],
+        buff: memberBuffSkills[m.id]?.map(sid => { const sk = getSkill(sid); return sk ? sk.name : sid; }) || [],
+        heal: memberHealSkills[m.id]?.map(sid => { const sk = getSkill(sid); return sk ? sk.name : sid; }) || [],
+      },
+    };
+  }
+  for (const e of enemies) {
+    atbGauges[e.id] = { attack: 0 };
+  }
+  
+  const skillCooldowns = {};
+  for (const m of partyHp) {
     skillCooldowns[m.id] = {};
+  }
+  
+  let roundCount = 0;
+  const hasActedThisRound = new Set();
+  
+  function getEquipRarity(skillId) {
+    if (skillId && skillId.startsWith('CEL_')) return 'celestial';
+    if (skillId && skillId.startsWith('LEG_')) return 'legendary';
+    return 'epic';
+  }
+  
+  function getEquipProcCooldown(skillId) {
+    const rarity = getEquipRarity(skillId);
+    if (rarity === 'celestial') return 5;
+    if (rarity === 'legendary') return 4;
+    return 3;
+  }
+
+  function _logReactive(type, member, target, trigger) {
+    _combatDebug.atb.reactiveEvents.push({ round: roundCount, type, member, target: target || '', trigger });
   }
 
   // Live buff state — passed to snapshots so UI can render indicators
@@ -913,709 +1360,328 @@ function buildSimulation(aq, quest) {
     regenPerTick: 0, coverCooldowns, knightsWithCover,
     rallyCooldowns, heroesWithRally, markedEnemies,
     roguesWithMark, monksWithKiBarrier,
-    magesWithSpellEcho, spellEchoRounds,
+    magesWithSpellEcho, spellEchoRounds, aftershockCooldowns,
     camoRounds, rangersWithVolley,
     divineShieldRounds: 0, clericsWithDivineShield, divineShieldSource: null,
     clericsWithIntervention, interventionCooldowns,
     clericsWithResurrection, resurrectionCooldowns,
     bardsWithDiscord, discordCooldowns, discordRounds: 0, discordSource: null,
     bardsWithCrescendo, crescendoCooldowns, crescendoActive: false,
+    cadenceCooldowns, cadenceRounds: 0,
+    frostbiteRounds: 0,
+    // Hero Champion spec — Executioner's Mark
+    heroesWithExecutioner, executionerCooldowns, executeMarkRounds,
     // Necromancer state
     necroMinions, necrosWithRaiseDead, raiseDeadCooldowns,
     necrosWithForgoDeath, blightRounds: 0, armyRounds: 0,
-    necroticReflectMag,
+    necroticReflectMag, darkPactRounds: 0, darkPactSource: null,
+    // DoT trackers — passed by reference so snapshot sees live state
+    poisonTargets, burnTargets,
   };
 
+  // ── Reactive: Raise Dead ─────────────────────────────────────────────────
+  // Fires as a reaction to an enemy death, regardless of which death path
+  // flipped alive=false (basic kill, skill kill, AoE, counter, reflect, DoT,
+  // minion tick, etc.). Call immediately after `corpse.alive = false` so the
+  // raise event slots in right next to the kill narratively.
+  //
+  // Corpse pool persistence: if the immediate attempt can't fire (necro on
+  // CD, thrall already up, 70% roll failed, no eligible necro), the corpse
+  // is enqueued into pendingRaiseCorpses. Every end-of-round sweep retries
+  // each pending corpse — so the fight never "wastes" a death, and the
+  // signature skill remains available after a thrall dies or is consumed
+  // as a damage sink for another necro skill. A corpse stays in the pool
+  // until a raise succeeds or the battle ends.
+  const pendingRaiseCorpses = [];
+
+  // Internal: perform a single raise attempt against `corpse` using `seed`.
+  // Returns true if a thrall was raised and all narrative events pushed.
+  function attemptRaise(corpse, seed) {
+    if (!corpse || necroMinions.length !== 0) return false;
+    const availableNecro = partyHp.find(p =>
+      p.hp > 0 && necrosWithRaiseDead.has(p.id) && (raiseDeadCooldowns[p.id] || 0) === 0
+    );
+    if (!availableNecro) return false;
+    if (sRand(seed) >= 0.70) return false;
+    const minionHp = Math.max(10, Math.floor((corpse.maxHp || 20) * 0.60));
+    const minionDmg = Math.max(2, Math.floor(availableNecro.mag * 1.1));
+    const minionDef = Math.max(1, Math.floor(availableNecro.mag * 0.25));
+    necroMinions.push({
+      id: `minion_${corpse.id}`, name: `${corpse.name} Thrall`,
+      hp: minionHp, maxHp: minionHp,
+      def: minionDef, dmgPerTick: minionDmg, ownerId: availableNecro.id,
+    });
+    raiseDeadCooldowns[availableNecro.id] = 2;
+    const raiseText = sPick(T_RAISE_DEAD, seed + 1)(availableNecro.name, corpse.name);
+    events.push({ text: raiseText, type: 'magic', icon: '💀', phase: 'battle' });
+    snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+    _logReactive('Raise Dead', availableNecro.name, corpse.name, `minion HP:${minionHp}`);
+    return true;
+  }
+
+  // Reactive entry point called at every enemy-death site. Tries the raise
+  // immediately; if it can't fire, enqueues the corpse for the end-of-round
+  // sweep. Duplicates are guarded so the same corpse can only enter the
+  // pool once regardless of how many code paths flip alive=false.
+  function tryRaiseDead(corpse, seed) {
+    if (!corpse) return false;
+    if (attemptRaise(corpse, seed)) return true;
+    if (!pendingRaiseCorpses.some(pc => pc.corpse === corpse)) {
+      pendingRaiseCorpses.push({ corpse, seedBase: seed });
+    }
+    return false;
+  }
+
+  // End-of-round sweep: re-roll every pending corpse once. Stops as soon as
+  // a raise succeeds (the minion gate will block the rest anyway) so the
+  // oldest eligible corpse wins the retry queue ordering. The per-sweep
+  // seed is varied with roundCount so the same corpse doesn't lock into a
+  // permanent failing roll across rounds.
+  function sweepPendingRaises() {
+    if (pendingRaiseCorpses.length === 0) return;
+    for (let i = 0; i < pendingRaiseCorpses.length; i++) {
+      const entry = pendingRaiseCorpses[i];
+      if (attemptRaise(entry.corpse, entry.seedBase + roundCount * 17)) {
+        pendingRaiseCorpses.splice(i, 1);
+        return; // minion gate now blocks further attempts
+      }
+    }
+  }
+
   for (let i = 0; i < MAX_BATTLE_EVENTS; i++) {
-    _bufState.regenPerTick = regenPerTick;  // keep in sync
+    _bufState.regenPerTick = regenPerTick;
     _bufState.divineShieldRounds = divineShieldRounds;
-    _bufState.divineShieldSource = divineShieldRounds > 0 ? divineShieldSource : null;
     _bufState.discordRounds = discordRounds;
-    _bufState.discordSource = discordRounds > 0 ? discordSource : null;
     _bufState.crescendoActive = crescendoActive;
+    _bufState.cadenceRounds = cadenceRounds;
+    _bufState.frostbiteRounds = frostbiteRounds;
     _bufState.blightRounds = blightRounds;
+    _bufState.darkPactRounds = darkPactRounds;
     _bufState.armyRounds = armyRounds;
+    _bufState.graveHungerStacks = graveHungerStacks;
+  
     const livingEnemies = enemies.filter(e => e.alive);
     const livingParty = partyHp.filter(p => p.hp > 0);
 
-    // Check end conditions
     if (livingEnemies.length === 0) { battleOutcome = 'victory'; break; }
     if (livingParty.length === 0) { battleOutcome = 'defeat'; break; }
-
-    // Apply bard regen tick (if active)
-    if (regenPerTick > 0 && livingParty.length > 0) {
-      let anyHealed = false;
-      livingParty.forEach(p => {
-        const before = p.hp;
-        p.hp = Math.min(p.maxHp, p.hp + regenPerTick);
-        const actual = p.hp - before;
-        if (actual > 0) {
-          anyHealed = true;
-          if (regenSourceId && combatStats[regenSourceId]) combatStats[regenSourceId].healingDone += actual;
-          if (combatStats[p.id]) combatStats[p.id].healingReceived += actual;
-        }
-      });
-      // Minions also receive regen
-      necroMinions.forEach(m => {
-        if (m.hp > 0 && m.hp < m.maxHp) {
-          m.hp = Math.min(m.maxHp, m.hp + regenPerTick);
-        }
-      });
-      if (anyHealed) {
-        const regenText = sPick(T_REGEN_TICK, seed + i * 1111)(regenPerTick);
-        events.push({ text: regenText, type: 'heal', icon: '🎵', phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-      }
-      // Re-check after regen in case everyone died (shouldn't happen, but safety)
-      if (partyHp.filter(p => p.hp > 0).length === 0) { battleOutcome = 'defeat'; break; }
+  
+    // Advance ATB gauges — fill rates scaled so actions happen every ~2-4 ticks.
+    // All three of these dials are centralized in COMBAT_TUNING at the top of
+    // the file. They are re-aliased locally here only so the hot loop below
+    // reads cleanly; to actually change a value, edit COMBAT_TUNING.
+    const ATB_THRESHOLD = COMBAT_TUNING.ATB_THRESHOLD;
+    const HEAL_TRIGGER_PCT = COMBAT_TUNING.HEAL_TRIGGER_PCT;
+    const HEAL_EMERGENCY_PCT = COMBAT_TUNING.HEAL_EMERGENCY_PCT;
+    for (const m of livingParty) {
+      const spd = m.spd || 10;
+      const spdFill = 20 + spd * 3; // base 20 + 3×SPD → SPD 5=35, SPD 18=74
+      atbGauges[m.id].attack += spdFill;
+      if (memberBuffSkills[m.id].length > 0) atbGauges[m.id].buff += spdFill;
+      atbGauges[m.id].heal += spdFill + (m.mag || 1) * 2;
     }
-
-    // Discord DoT — sonic damage to all living enemies each round while active
-    if (discordRounds > 0) {
-      const discordBardObj = partyHp.find(p => p.name === discordSource);
-      const discordMag = discordBardObj ? (discordBardObj.mag || 5) : 5;
-      const dotDmg = Math.max(1, Math.floor(discordMag * (0.3 + sRand(seed + i * 2222) * 0.2)));
-      const dotTargets = enemies.filter(e => e.alive);
-      if (dotTargets.length > 0) {
-        let anyKilled = false;
-        dotTargets.forEach(e => {
-          e.hp = Math.max(0, e.hp - dotDmg);
-          if (discordBardObj && combatStats[discordBardObj.id]) combatStats[discordBardObj.id].dmgDealt += dotDmg;
-          if (e.hp <= 0) { e.alive = false; anyKilled = true; }
-        });
-        const dotText = sPick(T_DISCORD_DOT, seed + i * 3333)(dotDmg, dotTargets.length);
-        events.push({ text: dotText, type: 'debuff', icon: '🎸', phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-        if (anyKilled) {
-          const killed = dotTargets.filter(e => !e.alive);
-          if (killed.length > 0) {
-            const killText = killed.map(e => `${e.name} succumbs to the Discord!`).join(' ');
-            events.push({ text: killText, type: 'defeat', icon: '💥', phase: 'battle' });
-            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-          }
-        }
-        // Check if all enemies dead
-        if (enemies.filter(e => e.alive).length === 0) { battleOutcome = 'victory'; break; }
+    for (const e of livingEnemies) {
+      atbGauges[e.id].attack += 25 + e.atk * 1.5; // base 25 + 1.5×ATK → enemies act every 2-3 ticks
+    }
+  
+    // Collect actors this tick
+    const actorsThisTick = [];
+    for (const m of livingParty) {
+      if (atbGauges[m.id].attack >= ATB_THRESHOLD) {
+        actorsThisTick.push({ memberId: m.id, lane: 'attack', spd: m.spd, isParty: true });
       }
     }
-
-    // Necromancer Minion tick — each living minion deals damage to a random enemy
-    if (necroMinions.length > 0) {
-      const livingMinionTargets = enemies.filter(e => e.alive);
-      if (livingMinionTargets.length > 0) {
-        for (let mi = necroMinions.length - 1; mi >= 0; mi--) {
-          const minion = necroMinions[mi];
-          if (minion.hp <= 0) { necroMinions.splice(mi, 1); continue; }
-          const mTarget = sPick(livingMinionTargets, seed + i * 5555 + mi);
-          const mDmg = Math.max(1, Math.floor(minion.dmgPerTick * (1 + minionDmgBonusTotal)));
-          mTarget.hp = Math.max(0, mTarget.hp - mDmg);
-          if (combatStats[minion.ownerId]) combatStats[minion.ownerId].dmgDealt += mDmg;
-          const mText = sPick(T_MINION_ATTACK, seed + i * 5556 + mi)(minion.name, mTarget.name, mDmg);
-          events.push({ text: mText, type: 'magic', icon: '🧟', phase: 'battle' });
-          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-          if (mTarget.hp <= 0) {
-            mTarget.alive = false;
-            fallenEnemies.push(mTarget.name);
-          }
-        }
-        if (enemies.filter(e => e.alive).length === 0) { battleOutcome = 'victory'; break; }
+    for (const m of livingParty) {
+      if (memberBuffSkills[m.id].length > 0 && atbGauges[m.id].buff >= ATB_THRESHOLD) {
+        actorsThisTick.push({ memberId: m.id, lane: 'buff', spd: m.spd, isParty: true });
       }
     }
-
-    // Blight DoT — necrotic damage to all living enemies while active
-    if (blightRounds > 0) {
-      const blightMag = blightSource ? (blightSource.mag || 5) : 5;
-      const blightDmg = Math.max(1, Math.floor(blightMag * (0.35 + sRand(seed + i * 6666) * 0.2)));
-      const blightTargets = enemies.filter(e => e.alive);
-      if (blightTargets.length > 0) {
-        let anyKilled = false;
-        blightTargets.forEach(e => {
-          e.hp = Math.max(0, e.hp - blightDmg);
-          if (blightSource && combatStats[blightSource.id]) combatStats[blightSource.id].dmgDealt += blightDmg;
-          if (e.hp <= 0) { e.alive = false; anyKilled = true; }
-        });
-        const bText = sPick(T_BLIGHT_DOT, seed + i * 6667)(blightDmg, blightTargets.length);
-        events.push({ text: bText, type: 'debuff', icon: '☠', phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-        if (anyKilled) {
-          const killed = blightTargets.filter(e => !e.alive);
-          killed.forEach(e => fallenEnemies.push(e.name));
-          const killText = killed.map(e => `${e.name} succumbs to the Blight!`).join(' ');
-          events.push({ text: killText, type: 'defeat', icon: '💥', phase: 'battle' });
-          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-        }
-        if (enemies.filter(e => e.alive).length === 0) { battleOutcome = 'victory'; break; }
-      }
-    }
-
-    // Army of the Damned tick — risen army damages all enemies while active
-    if (armyRounds > 0) {
-      const armyTargets = enemies.filter(e => e.alive);
-      if (armyTargets.length > 0) {
-        const perTargetDmg = Math.max(1, Math.floor(armyDmgPerTick / Math.max(1, armyTargets.length)));
-        let anyKilled = false;
-        armyTargets.forEach(e => {
-          e.hp = Math.max(0, e.hp - perTargetDmg);
-          if (armySource && combatStats[armySource.id]) combatStats[armySource.id].dmgDealt += perTargetDmg;
-          if (e.hp <= 0) { e.alive = false; anyKilled = true; }
-        });
-        const aText = sPick(T_ARMY_TICK, seed + i * 7777)(perTargetDmg, armyTargets.length);
-        events.push({ text: aText, type: 'magic', icon: '👻', phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-        if (anyKilled) {
-          const killed = armyTargets.filter(e => !e.alive);
-          killed.forEach(e => fallenEnemies.push(e.name));
-          const killText = killed.map(e => `${e.name} is dragged down by the risen dead!`).join(' ');
-          events.push({ text: killText, type: 'defeat', icon: '💥', phase: 'battle' });
-          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-        }
-        if (enemies.filter(e => e.alive).length === 0) { battleOutcome = 'victory'; break; }
-      }
-    }
-
-    // Tick down Bulwark cooldowns
-    for (const id of Object.keys(coverCooldowns)) {
-      if (coverCooldowns[id] > 0) coverCooldowns[id]--;
-    }
-    // Tick down Rally Cry cooldowns
-    for (const id of Object.keys(rallyCooldowns)) {
-      if (rallyCooldowns[id] > 0) rallyCooldowns[id]--;
-    }
-    // Tick down Mark for Death durations
-    for (const id of Object.keys(markedEnemies)) {
-      if (markedEnemies[id] > 0) markedEnemies[id]--;
-      if (markedEnemies[id] <= 0) delete markedEnemies[id];
-    }
-    // Tick down talent debuffs
-    for (const id of Object.keys(defShredTargets)) {
-      if (defShredTargets[id] > 0) defShredTargets[id]--;
-      if (defShredTargets[id] <= 0) delete defShredTargets[id];
-    }
-    for (const id of Object.keys(tauntedEnemies)) {
-      if (tauntedEnemies[id] > 0) tauntedEnemies[id]--;
-      if (tauntedEnemies[id] <= 0) delete tauntedEnemies[id];
-    }
-    for (const id of Object.keys(stormMarkRounds)) {
-      if (stormMarkRounds[id] > 0) stormMarkRounds[id]--;
-      if (stormMarkRounds[id] <= 0) delete stormMarkRounds[id];
-    }
-    for (const id of Object.keys(wrathBuff)) {
-      if (wrathBuff[id] > 0) wrathBuff[id]--;
-      if (wrathBuff[id] <= 0) delete wrathBuff[id];
-    }
-    // Talent poison DoT ticks
-    for (const eid of Object.keys(poisonTargets)) {
-      const pt = poisonTargets[eid];
-      const enemy = enemies.find(e => e.id === eid && e.alive);
-      if (enemy && pt.rounds > 0) {
-        enemy.hp = Math.max(0, enemy.hp - pt.dmgPerTick);
-        pt.rounds--;
-        if (enemy.hp <= 0) { enemy.alive = false; fallenEnemies.push(enemy.name); }
-        if (pt.rounds <= 0) delete poisonTargets[eid];
-      } else { delete poisonTargets[eid]; }
-    }
-    // Talent burn DoT ticks
-    for (const eid of Object.keys(burnTargets)) {
-      const bt = burnTargets[eid];
-      const enemy = enemies.find(e => e.id === eid && e.alive);
-      if (enemy && bt.rounds > 0) {
-        enemy.hp = Math.max(0, enemy.hp - bt.dmgPerTick);
-        bt.rounds--;
-        if (enemy.hp <= 0) { enemy.alive = false; fallenEnemies.push(enemy.name); }
-        if (bt.rounds <= 0) delete burnTargets[eid];
-      } else { delete burnTargets[eid]; }
-    }
-    // Sacred Warmth HoT ticks
-    for (const mid of Object.keys(sacredWarmthRounds)) {
-      const p = partyHp.find(m => m.id === mid && m.hp > 0);
-      if (p && sacredWarmthRounds[mid] > 0) {
-        const hotAmt = Math.max(1, Math.floor(p.maxHp * 0.03));
-        const before = p.hp;
-        p.hp = Math.min(p.maxHp, p.hp + hotAmt);
-        const actual = p.hp - before;
-        if (actual > 0 && combatStats[p.id]) combatStats[p.id].healingReceived += actual;
-        sacredWarmthRounds[mid]--;
-        if (sacredWarmthRounds[mid] <= 0) delete sacredWarmthRounds[mid];
-      } else { delete sacredWarmthRounds[mid]; }
-    }
-    // Tick down skill cooldowns (round-robin)
-    for (const mid of Object.keys(skillCooldowns)) {
-      const cds = skillCooldowns[mid];
-      for (const sid of Object.keys(cds)) {
-        if (cds[sid] > 0) cds[sid]--;
-        if (cds[sid] <= 0) delete cds[sid];
-      }
-    }
-    // Tick down Spell Echo durations
-    for (const id of Object.keys(spellEchoRounds)) {
-      if (spellEchoRounds[id] > 0) spellEchoRounds[id]--;
-    }
-    // Tick down Camouflage durations
-    for (const id of Object.keys(camoRounds)) {
-      if (camoRounds[id] > 0) camoRounds[id]--;
-      if (camoRounds[id] <= 0) delete camoRounds[id];
-    }
-    // Tick down Divine Intervention cooldowns
-    for (const id of Object.keys(interventionCooldowns)) {
-      if (interventionCooldowns[id] > 0) interventionCooldowns[id]--;
-    }
-    // Tick down Resurrection cooldowns
-    for (const id of Object.keys(resurrectionCooldowns)) {
-      if (resurrectionCooldowns[id] > 0) resurrectionCooldowns[id]--;
-    }
-    // Tick down Bard Discord cooldowns & duration
-    for (const id of Object.keys(discordCooldowns)) {
-      if (discordCooldowns[id] > 0) discordCooldowns[id]--;
-    }
-    if (discordRounds > 0) {
-      discordRounds--;
-      _bufState.discordRounds = discordRounds;
-      _bufState.discordSource = discordRounds > 0 ? discordSource : null;
-    }
-    // Tick down Bard Crescendo cooldowns
-    for (const id of Object.keys(crescendoCooldowns)) {
-      if (crescendoCooldowns[id] > 0) crescendoCooldowns[id]--;
-    }
-    // Tick down Divine Shield
-    if (divineShieldRounds > 0) {
-      divineShieldRounds--;
-      _bufState.divineShieldRounds = divineShieldRounds;
-      _bufState.divineShieldSource = divineShieldRounds > 0 ? divineShieldSource : null;
-    }
-    // Tick down Hero spec cooldowns
-    for (const id of Object.keys(vanguardCooldowns)) {
-      if (vanguardCooldowns[id] > 0) vanguardCooldowns[id]--;
-    }
-    for (const id of Object.keys(unbreakableCooldowns)) {
-      if (unbreakableCooldowns[id] > 0) unbreakableCooldowns[id]--;
-    }
-    for (const id of Object.keys(unbreakableDR)) {
-      if (unbreakableDR[id] > 0) unbreakableDR[id]--;
-      if (unbreakableDR[id] <= 0) delete unbreakableDR[id];
-    }
-    for (const id of Object.keys(executionerCooldowns)) {
-      if (executionerCooldowns[id] > 0) executionerCooldowns[id]--;
-    }
-    for (const id of Object.keys(wrathCooldowns)) {
-      if (wrathCooldowns[id] > 0) wrathCooldowns[id]--;
-    }
-    for (const id of Object.keys(guardianCooldowns)) {
-      if (guardianCooldowns[id] > 0) guardianCooldowns[id]--;
-    }
-    // Tick down Necromancer cooldowns & durations
-    for (const id of Object.keys(raiseDeadCooldowns)) {
-      if (raiseDeadCooldowns[id] > 0) raiseDeadCooldowns[id]--;
-    }
-    if (blightRounds > 0) {
-      blightRounds--;
-      _bufState.blightRounds = blightRounds;
-    }
-    if (armyRounds > 0) {
-      armyRounds--;
-      _bufState.armyRounds = armyRounds;
-    }
-
-    const es = seed + (i + 10) * 7919;
-    const roll = sRand(es + 3);
-    let text = '';
-    let type = 'attack';
-    let icon = '⚔';
-
-    if (roll < 0.30) {
-      // ── Party member attacks enemy ──
-      const attacker = sPickWeighted(livingParty, es + 10);
-      const target = sPick(livingEnemies, es + 11);
-      let baseDmg = calcPartyDmg(attacker, es + 12, dmgBonus);
-      // Wrath buff (CLR_WRATH) — +30% damage for buffed allies
-      if (wrathBuff[attacker.id] > 0) baseDmg = Math.floor(baseDmg * 1.30);
-      // Bloodlust (Champion) — 1.5× on next attack after a kill
-      if (bloodlustActive[attacker.id]) {
-        baseDmg = Math.floor(baseDmg * 1.5);
-        delete bloodlustActive[attacker.id];
-      }
-      // Mage Spell Echo amplification
-      if (spellEchoRounds[attacker.id] > 0) baseDmg = Math.floor(baseDmg * 1.50);
-      // Mark for Death amplification
-      if (markedEnemies[target.id]) baseDmg = Math.floor(baseDmg * 1.20);
-      // Storm Mark (RNG_STORM_MARK) — +15% damage from all sources
-      if (stormMarkRounds[target.id] > 0) baseDmg = Math.floor(baseDmg * 1.15);
-      // Taunted enemies (KNT_TAUNT_AURA) take +10% damage
-      if (tauntedEnemies[target.id] > 0) baseDmg = Math.floor(baseDmg * 1.10);
-      // Def Shred (KNT_DEF_SHRED) — target takes more damage (simulate -15% DEF)
-      if (defShredTargets[target.id] > 0) baseDmg = Math.floor(baseDmg * 1.12);
-      // Executioner (ROG_EXECUTE) — always crit enemies below 25% HP
-      const isExecute = talentExecute && attacker.class === 'ROGUE' && target.hp < target.maxHp * 0.25;
-
-      // Bard Crescendo — guaranteed devastating crit (2.5×), consumes the buff
-      const isCrescendo = crescendoActive;
-      // Crescendo Ally — next 2 ally attacks also auto-crit
-      const isCrescendoAlly = !isCrescendo && crescendoAllyCharges.count > 0;
-      const isCrit = isCrescendo || isCrescendoAlly || isExecute || sRand(es + 13) < critChance(attacker);
-      const critMult = isCrescendo ? 2.5 : (isCrescendoAlly ? 2.0 : 1.5);
-      const dmg = isCrit ? Math.floor(baseDmg * critMult) : baseDmg;
-      if (isCrescendoAlly) crescendoAllyCharges.count--;
-      if (isCrescendo) {
-        crescendoActive = false;
-        _bufState.crescendoActive = false;
-        // Track healing-done equivalent on the bard for stat purposes
-        if (crescendoSourceId && combatStats[crescendoSourceId]) {
-          combatStats[crescendoSourceId].dmgDealt += Math.floor(baseDmg * (critMult - 1));
-        }
-      }
-      target.hp = Math.max(0, target.hp - dmg);
-      if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += dmg;
-
-      // Symphony Leech (BRD_SYMPHONY_LEECH) — 5% lifesteal for entire party
-      if (symphonyLeechActive && attacker.hp > 0) {
-        const leechAmt = Math.max(1, Math.floor(dmg * 0.05));
-        const beforeLL = attacker.hp;
-        attacker.hp = Math.min(attacker.maxHp, attacker.hp + leechAmt);
-        const actualLL = attacker.hp - beforeLL;
-        if (actualLL > 0 && combatStats[attacker.id]) {
-          combatStats[attacker.id].healingDone += actualLL;
-          combatStats[attacker.id].healingReceived += actualLL;
-        }
-      }
-      // Chain Strike (HRO_CHAIN_STRIKE) — Heroic Strike chains to a 2nd target at 50% dmg
-      if (talentChainStrike && attacker.class === 'HERO' && livingEnemies.length > 1) {
-        const chainTarget = livingEnemies.find(e => e.id !== target.id) || livingEnemies[0];
-        if (chainTarget && chainTarget.id !== target.id) {
-          const chainDmg = Math.max(1, Math.floor(dmg * 0.50));
-          chainTarget.hp = Math.max(0, chainTarget.hp - chainDmg);
-          if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += chainDmg;
-          if (chainTarget.hp <= 0) { chainTarget.alive = false; fallenEnemies.push(chainTarget.name); }
-        }
-      }
-      // Venomous Blades (ROG_POISON) — 30% chance to poison on Shadow Strike
-      if (talentPoison && attacker.class === 'ROGUE' && sRand(es + 200) < 0.30 && target.hp > 0) {
-        poisonTargets[target.id] = { rounds: 3, dmgPerTick: Math.max(1, Math.floor(target.maxHp * 0.05)) };
-      }
-      // Celestial Cascade (PARTY_CEL_CASCADE) — celestial skill procs deal 50% AoE
-      if (talentCelCascade && isCrit && sRand(es + 201) < 0.25) {
-        const splashDmg = Math.max(1, Math.floor(dmg * 0.50));
-        for (const e of livingEnemies) {
-          if (e.id !== target.id && e.hp > 0) {
-            e.hp = Math.max(0, e.hp - splashDmg);
-            if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += splashDmg;
-            if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); }
-          }
-        }
-      }
-
-      const classId = attacker.class || 'HERO';
-      if (isCrescendo) {
-        // Devastating Crescendo strike — special template
-        text = sPick(T_CRESCENDO_STRIKE, es + 14)(attacker.name, target.name, dmg);
-        icon = '🎶'; type = 'crit';
-      } else if (isCrit) {
-        const dmgStr = `${dmg} CRIT`;
-        // Override template to use crit class for the damage number
-        const baseText = getAttackTemplate(classId, es)(attacker.name, target.name, dmgStr);
-        text = baseText.replace(/dmg-(phys|mag)/, 'dmg-crit');
-        icon = '💥'; type = 'crit';
-      } else {
-        text = getAttackTemplate(classId, es)(attacker.name, target.name, `${dmg}`);
-        if (isMagicClass(classId)) { icon = '✨'; type = 'magic'; }
-        else { icon = '⚔'; type = 'attack'; }
-      }
-
-      // Monk Ki Barrier — lifesteal on hit
-      if (monksWithKiBarrier.has(attacker.id) && attacker.hp > 0) {
-        const kiRate = talentDeepKi ? 0.40 : 0.25; // Deep Ki (MNK_KI_BOOST) — increased lifesteal
-        const lifeSteal = Math.max(1, Math.floor(dmg * kiRate));
-        const before = attacker.hp;
-        attacker.hp = Math.min(attacker.maxHp, attacker.hp + lifeSteal);
-        const actual = attacker.hp - before;
-        if (actual > 0) {
-          if (combatStats[attacker.id]) combatStats[attacker.id].healingDone += actual;
-          if (combatStats[attacker.id]) combatStats[attacker.id].healingReceived += actual;
-          events.push({ text, type, icon, phase: 'battle' });
-          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-          text = sPick(T_KI_BARRIER, es + 90)(attacker.name, actual);
-          icon = '🔮'; type = 'heal';
-        }
-      }
-
-      // Rogue Mark for Death — on crit, mark the target
-      if (isCrit && roguesWithMark.has(attacker.id) && target.alive) {
-        events.push({ text, type, icon, phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-        markedEnemies[target.id] = 2;
-        text = sPick(T_MARK_FOR_DEATH, es + 91)(attacker.name, target.name);
-        icon = '🎯'; type = 'debuff';
-      }
-
-      // Champion Executioner's Mark — bonus strike on low-HP enemy
-      if (target.hp > 0 && target.hp < target.maxHp * 0.30) {
-        const executioner = partyHp.find(p =>
-          p.hp > 0 && heroesWithExecutioner.has(p.id) && executionerCooldowns[p.id] === 0
-        );
-        if (executioner) {
-          const execDmg = Math.floor((executioner.atk || 10) * 2.0 * dmgBonus);
-          target.hp = Math.max(0, target.hp - execDmg);
-          if (combatStats[executioner.id]) combatStats[executioner.id].dmgDealt += execDmg;
-          executionerCooldowns[executioner.id] = 3;
-          events.push({ text, type, icon, phase: 'battle' });
-          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-          text = sPick(T_EXECUTIONER, es + 95)(executioner.name, target.name, execDmg);
-          icon = '🎯'; type = 'crit';
-          if (target.hp <= 0) target.alive = false;
-        }
-      }
-
-      if (target.hp <= 0) {
-        target.alive = false;
-        // Champion Bloodlust — on kill, next attack is 1.5×
-        const bloodlustHero = partyHp.find(p => p.hp > 0 && heroesWithBloodlust.has(p.id));
-        if (bloodlustHero) {
-          bloodlustActive[bloodlustHero.id] = true;
-          events.push({ text, type, icon, phase: 'battle' });
-          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-          text = sPick(T_BLOODLUST_KILL, es + 96)(bloodlustHero.name);
-          icon = '🩸'; type = 'buff';
-          events.push({ text, type, icon, phase: 'battle' });
-          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-        }
-        text = sPick(T_ENEMY_DEFEAT, es + 50)(target.name, attacker.name);
-        icon = '💥'; type = 'defeat';
-        fallenEnemies.push(target.name);
-
-        // Necromancer Raise Dead — try to raise the fallen enemy as a minion
-        if (necroMinions.length === 0) {
-          const availableNecro = partyHp.find(p =>
-            p.hp > 0 && necrosWithRaiseDead.has(p.id) && raiseDeadCooldowns[p.id] === 0
-          );
-          if (availableNecro && sRand(es + 888) < 0.70) {
-            const minionHp = Math.max(10, Math.floor(target.maxHp * 0.60));
-            const minionDmg = Math.max(2, Math.floor(availableNecro.mag * 0.8));
-            const minionDef = Math.max(1, Math.floor(availableNecro.mag * 0.25));
-            necroMinions.push({
-              id: `minion_${i}`, name: target.name, hp: minionHp, maxHp: minionHp,
-              def: minionDef, dmgPerTick: minionDmg, ownerId: availableNecro.id,
-            });
-            raiseDeadCooldowns[availableNecro.id] = 2;
-            events.push({ text, type, icon, phase: 'battle' });
-            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-            text = sPick(T_RAISE_DEAD, es + 889)(availableNecro.name, target.name);
-            icon = '💀'; type = 'magic';
-          }
-        }
-      }
-
-    } else if (roll < 0.44) {
-      // ── Party skill usage (round-robin with cooldowns) ──
-      const attacker = sPickWeighted(livingParty, es + 20);
-      const target = sPick(livingEnemies, es + 21);
-      // Get active skills not on cooldown for this member
-      const allActives = memberActiveSkills[attacker.id] || [];
-      const cds = skillCooldowns[attacker.id] || {};
-      const readySkills = allActives.filter(sid => !cds[sid]);
-      // If all on cooldown, allow any active (reset effective cooldowns)
-      const skillPool = readySkills.length > 0 ? readySkills : allActives;
-      if (skillPool.length > 0) {
-        // AoE preference: when 3+ enemies alive, weight AoE skills 3× higher in selection
-        // This simulates tactical awareness — use AoE against groups, single-target vs lone foes
-        let skillId;
-        const enemyCount = livingEnemies.length;
-        if (enemyCount >= 3) {
-          const aoeSkills = skillPool.filter(sid => AOE_SKILLS[sid]);
-          const stSkills = skillPool.filter(sid => !AOE_SKILLS[sid]);
-          // Build weighted pool: each AoE skill gets 3 entries, single-target gets 1
-          const weightedPool = [];
-          for (const sid of aoeSkills) { weightedPool.push(sid, sid, sid); }
-          for (const sid of stSkills) { weightedPool.push(sid); }
-          skillId = sPick(weightedPool.length > 0 ? weightedPool : skillPool, es + 22);
+    const partyNeedsHeal = livingParty.some(p => p.hp < p.maxHp * HEAL_TRIGGER_PCT);
+    const partyEmergency = livingParty.some(p => p.hp < p.maxHp * HEAL_EMERGENCY_PCT);
+    for (const m of livingParty) {
+      if (memberHealSkills[m.id].length === 0) continue;
+      const gaugeReady = atbGauges[m.id].heal >= ATB_THRESHOLD;
+      if (partyEmergency) {
+        // Emergency bypass — force-fire this healer this tick regardless of gauge.
+        // Snap the gauge to threshold so the downstream reset to 0 still works.
+        if (!gaugeReady) atbGauges[m.id].heal = ATB_THRESHOLD;
+        actorsThisTick.push({ memberId: m.id, lane: 'heal', spd: m.spd, isParty: true });
+      } else if (gaugeReady) {
+        if (partyNeedsHeal) {
+          actorsThisTick.push({ memberId: m.id, lane: 'heal', spd: m.spd, isParty: true });
         } else {
-          skillId = sPick(skillPool, es + 22);
+          // Gauge is full but held — party healthy
+          if (_combatDebug.atb.laneActions[m.id]) _combatDebug.atb.laneActions[m.id].heal.held++;
         }
-        const skill = getSkill(skillId);
-        // Put the used skill on cooldown
-        if (!skillCooldowns[attacker.id]) skillCooldowns[attacker.id] = {};
-        skillCooldowns[attacker.id][skillId] = SKILL_COOLDOWN;
-        if (skill) {
-          // ── AoE skills: hit ALL living enemies ──
-          const aoeInfo = AOE_SKILLS[skillId];
-          if (aoeInfo) {
-            const perTargetDmg = Math.max(2, Math.floor(calcPartyDmg(attacker, es + 23, dmgBonus) * aoeInfo.dmgScale));
-            // Mage Spell Echo amplification on AoE
-            const echoDmg = spellEchoRounds[attacker.id] > 0 ? Math.floor(perTargetDmg * 1.50) : perTargetDmg;
-            const currentLiving = enemies.filter(e => e.alive);
-            let aoeTotalDmg = 0;
-            currentLiving.forEach(e => {
-              const ampDmg = markedEnemies[e.id] ? Math.floor(echoDmg * 1.20) : echoDmg;
-              e.hp = Math.max(0, e.hp - ampDmg);
-              aoeTotalDmg += ampDmg;
-              if (e.hp <= 0) e.alive = false;
-            });
-            if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += aoeTotalDmg;
+      }
+    }
+    for (const e of livingEnemies) {
+      if (atbGauges[e.id].attack >= ATB_THRESHOLD) {
+        actorsThisTick.push({ enemyId: e.id, lane: 'attack', spd: e.atk * 0.5, isParty: false });
+      }
+    }
+  
+    actorsThisTick.sort((a, b) => {
+      if (b.spd !== a.spd) return b.spd - a.spd;
+      return a.isParty ? -1 : 1;
+    });
+  
+    for (let actorIdx = 0; actorIdx < actorsThisTick.length; actorIdx++) {
+      const actor = actorsThisTick[actorIdx];
+      // Per-actor seed offset so actors in the same tick get different rolls
+      const es = seed + (i + 10) * 7919 + actorIdx * 997;
+      if (actor.isParty) {
+        const m = partyHp.find(p => p.id === actor.memberId);
+        if (!m || m.hp <= 0) continue;
+      } else {
+        const e = enemies.find(en => en.id === actor.enemyId);
+        if (!e || !e.alive) continue;
+      }
 
-            // Use skill-specific templates (Volley uses 3-arg, others use 4-arg with skill name)
-            if (aoeInfo.templates === T_VOLLEY) {
-              text = sPick(T_VOLLEY, es)(attacker.name, currentLiving.length, echoDmg);
-            } else {
-              text = sPick(aoeInfo.templates, es)(attacker.name, skill.name, currentLiving.length, echoDmg);
-            }
-            icon = aoeInfo.icon; type = aoeInfo.type;
+      let text = '';
+      let type = 'attack';
+      let icon = '⚔';
+      let actionPerformed = false;
 
-            // Ranger Camouflage — activate after any Ranger AoE
-            if (aoeInfo.triggerCamo && rangersWithVolley.has(attacker.id)) {
-              camoRounds[attacker.id] = 2;
-              events.push({ text, type, icon, phase: 'battle' });
-              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-              text = sPick(T_CAMOUFLAGE, es + 96)(attacker.name);
-              icon = '🍃'; type = 'buff';
-              // Shared Camouflage (RNG_SHARED_CAMO) — extends to lowest-HP ally
-              if (talentSharedCamo) {
-                const lowestAlly = partyHp.filter(p => p.hp > 0 && p.id !== attacker.id).sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp))[0];
-                if (lowestAlly) camoRounds[lowestAlly.id] = 2;
-              }
-            }
-            // Suppressing Fire (RNG_VOLLEY_SLOW) — Volley hits reduce enemy ATK
-            if (talentVolleySlow && attacker.class === 'RANGER') {
-              for (const e of currentLiving) {
-                if (e.alive) e.atk = Math.max(1, Math.floor(e.atk * 0.80));
-              }
-            }
-            // Storm Mark (RNG_STORM_MARK) — Arrow Storm marks all surviving enemies +15% dmg for 2 rounds
-            if (talentStormMark && (skillId === 'ARROW_STORM' || skillId === 'STORM_VOLLEY')) {
-              for (const e of currentLiving) {
-                if (e.alive) stormMarkRounds[e.id] = 2;
-              }
-            }
-            // Lingering Flames (MAG_BURN_DOT) — Arcane Cataclysm leaves burn DoT
-            if (talentBurnDot && (skillId === 'ARCANE_CATACLYSM' || skillId === 'ARCANE_CATACLYSM_EQ')) {
-              const burnDmg = Math.max(1, Math.floor((attacker.mag || 10) * 0.10));
-              for (const e of currentLiving) {
-                if (e.alive) burnTargets[e.id] = { rounds: 2, dmgPerTick: burnDmg };
-              }
-            }
+      // Snapshot living enemy count before the actor acts — used by the
+      // Arcane Aftershock kill-hook at the end of the loop body to detect
+      // whether this actor's action produced a fresh killing blow.
+      const _enemiesAlivePre = enemies.filter(e => e.alive).length;
 
-            // Mage Spell Echo — activate after AoE skill cast
-            if (magesWithSpellEcho.has(attacker.id) && spellEchoRounds[attacker.id] === 0) {
-              spellEchoRounds[attacker.id] = 2;
-              events.push({ text, type, icon, phase: 'battle' });
-              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-              text = sPick(T_SPELL_ECHO, es + 95)(attacker.name);
-              icon = '🌀'; type = 'buff';
-              // Echo Shield (MAG_ECHO_SHIELD) — Spell Echo also grants a shield
-              if (talentEchoShield) {
-                echoShieldHP[attacker.id] = Math.max(1, Math.floor(attacker.maxHp * 0.15));
-              }
+      if (actor.lane === 'attack') {
+        // ─────────────────────────────────────────────────────────────────────
+        // ATTACK LANE: Party attacks enemy
+        // ─────────────────────────────────────────────────────────────────────
+  
+        if (actor.isParty) {
+          const attacker = partyHp.find(p => p.id === actor.memberId);
+          if (!attacker || livingEnemies.length === 0) continue;
+  
+          const targetCount = livingEnemies.length;
+          let skillPool = memberAttackSkills[attacker.id].filter(sid => !skillCooldowns[attacker.id][sid]);
+  
+          if (skillPool.length === 0) {
+            // Basic attack — no skills off cooldown
+            if (_combatDebug.atb.laneActions[attacker.id]) {
+              _combatDebug.atb.laneActions[attacker.id].attack.fires++;
+              _combatDebug.atb.laneActions[attacker.id].attack.basicFallbacks++;
             }
-            // Arcane Reflection (MAG_REFLECT) — Mana Shield reflects 20% of absorbed dmg (tracked via echoShieldHP)
-            // (Reflection happens in the enemy attack section when echoShieldHP absorbs damage)
-
-            // Check for kills
-            const killed = currentLiving.filter(e => !e.alive);
-            if (killed.length > 0) {
-              events.push({ text, type, icon, phase: 'battle' });
-              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-              text = killed.map(e => `${e.name} falls!`).join(' ');
-              icon = '💥'; type = 'defeat';
-            }
-          } else if (skillId === 'HEROS_WRATH') {
-            // Champion Hero's Wrath — guaranteed 3.0× crit
-            let baseDmg = Math.max(3, Math.floor(calcPartyDmg(attacker, es + 23, dmgBonus) * 3.0));
+            const target = sPick(livingEnemies, es + 100);
+            let baseDmg = calcPartyDmg(attacker, es + 101, dmgBonus);
+  
+            if (wrathBuff[attacker.id] > 0) baseDmg = Math.floor(baseDmg * 1.30);
             if (bloodlustActive[attacker.id]) {
               baseDmg = Math.floor(baseDmg * 1.5);
               delete bloodlustActive[attacker.id];
             }
+            // Knight Last Stand — +20% ATK while buff is active
+            if (attacker.class === 'KNIGHT' && lastStandBuffRounds[attacker.id] > 0) {
+              baseDmg = Math.floor(baseDmg * 1.20);
+            }
+            // Hero Second Wind — +20% ATK while buff is active
+            if (attacker.class === 'HERO' && secondWindRounds[attacker.id] > 0) {
+              baseDmg = Math.floor(baseDmg * 1.20);
+            }
+            // Bard Cadence — +15% party dmg while buff is active
+            if (cadenceRounds > 0) baseDmg = Math.floor(baseDmg * 1.15);
             if (spellEchoRounds[attacker.id] > 0) baseDmg = Math.floor(baseDmg * 1.50);
             if (markedEnemies[target.id]) baseDmg = Math.floor(baseDmg * 1.20);
-            target.hp = Math.max(0, target.hp - baseDmg);
-            if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += baseDmg;
-            text = sPick(T_HEROS_WRATH, es)(attacker.name, target.name, baseDmg);
-            icon = '⚡'; type = 'crit';
+            if (executeMarkRounds[target.id] > 0) baseDmg = Math.floor(baseDmg * 1.10);
+            if (stormMarkRounds[target.id] > 0) baseDmg = Math.floor(baseDmg * 1.15);
+            if (tauntedEnemies[target.id] > 0) baseDmg = Math.floor(baseDmg * 1.10);
+            if (defShredTargets[target.id] > 0) baseDmg = Math.floor(baseDmg * 1.12);
+            if (exposedTargets[target.id] > 0) baseDmg = Math.floor(baseDmg * 1.10);
+  
+            const isExecute = talentExecute && attacker.class === 'ROGUE' && target.hp < target.maxHp * 0.25;
+            const isCrescendo = crescendoActive;
+            const isCrescendoAlly = !isCrescendo && crescendoAllyCharges.count > 0;
+            // Hunter's Mark — Ranger's primed arrow auto-crits for 1.5×
+            const isHuntersMark = attacker.class === 'RANGER' && (huntersMarkCharges[attacker.id] || 0) > 0;
+            const cadenceCritBonus = cadenceRounds > 0 ? 0.10 : 0;
+            const isCrit = isCrescendo || isCrescendoAlly || isExecute || isHuntersMark || sRand(es + 102) < (critChance(attacker) + graveHungerCritBonus + cadenceCritBonus);
+            // Crescendo / Crescendo-ally burst multipliers (2.5× / 2.0×) are Bard-signature
+            // numbers and INLINED BY DESIGN — they live with the Crescendo mechanic, not in
+            // COMBAT_TUNING. The standard crit path uses COMBAT_TUNING.PARTY_BASE_CRIT_MULT.
+            // Hunter's Mark uses a signature 1.5× per §3.6 — also INLINED BY DESIGN.
+            const critMult = isCrescendo ? 2.5 : (isCrescendoAlly ? 2.0 : (isHuntersMark ? 1.5 : COMBAT_TUNING.PARTY_BASE_CRIT_MULT));
+            const dmg = isCrit ? Math.floor(baseDmg * critMult) : baseDmg;
 
-            if (target.hp <= 0) {
-              target.alive = false;
-              if (heroesWithBloodlust.has(attacker.id)) bloodlustActive[attacker.id] = true;
+            if (isHuntersMark) huntersMarkCharges[attacker.id] = 0;
+            if (isCrescendoAlly) crescendoAllyCharges.count--;
+            if (isCrescendo) {
+              crescendoActive = false;
+              _bufState.crescendoActive = false;
+              if (crescendoSourceId && combatStats[crescendoSourceId]) {
+                combatStats[crescendoSourceId].dmgDealt += Math.floor(baseDmg * (critMult - 1));
+              }
             }
-          } else if (skillId === 'LIFE_TAP') {
-            // Necromancer Life Tap — deals damage and heals self
-            let baseDmg = Math.max(3, Math.floor(calcPartyDmg(attacker, es + 23, dmgBonus) * 1.35));
-            if (markedEnemies[target.id]) baseDmg = Math.floor(baseDmg * 1.20);
-            target.hp = Math.max(0, target.hp - baseDmg);
-            if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += baseDmg;
-            const healAmt = Math.max(1, Math.floor(baseDmg * 0.40));
-            const before = attacker.hp;
-            attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmt);
-            const actualHeal = attacker.hp - before;
-            if (combatStats[attacker.id]) combatStats[attacker.id].healingDone += actualHeal;
-            // Siphon Aura (NEC_TAP_SHARE) — Life Tap also heals 2 nearby allies for 15% of damage
-            if (talentSiphonAura) {
-              const allies = partyHp.filter(p => p.hp > 0 && p.id !== attacker.id).sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp)).slice(0, 2);
-              for (const ally of allies) {
-                const siphonHeal = Math.max(1, Math.floor(baseDmg * 0.15));
-                const bef = ally.hp;
-                ally.hp = Math.min(ally.maxHp, ally.hp + siphonHeal);
-                const act = ally.hp - bef;
-                if (act > 0) {
-                  if (combatStats[attacker.id]) combatStats[attacker.id].healingDone += act;
-                  if (combatStats[ally.id]) combatStats[ally.id].healingReceived += act;
+  
+            target.hp = Math.max(0, target.hp - dmg);
+            if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += dmg;
+  
+            // HRO_CHAIN_STRIKE tightened — now fires on HEROIC_STRIKE skill proc
+            // only (see §7.7 audit). Hook moved to the skill attack path below.
+  
+            // Celestial Cascade
+            if (talentCelCascade && isCrit && sRand(es + 103) < 0.25) {
+              const splashDmg = Math.max(1, Math.floor(dmg * 0.50));
+              for (const e of livingEnemies) {
+                if (e.id !== target.id && e.hp > 0) {
+                  e.hp = Math.max(0, e.hp - splashDmg);
+                  if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += splashDmg;
+                  if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); tryRaiseDead(e, es + 1581); }
                 }
               }
             }
-            text = sPick(T_LIFE_TAP, es)(attacker.name, target.name, baseDmg, actualHeal);
-            icon = '🩸'; type = 'magic';
-            if (target.hp <= 0) {
-              target.alive = false;
-              fallenEnemies.push(target.name);
-            }
-          } else if (skillId === 'BLIGHT') {
-            // Necromancer Blight — start AoE DoT for 3 rounds
-            blightRounds = 3;
-            blightSource = attacker;
-            _bufState.blightRounds = blightRounds;
-            text = `${attacker.name} unleashes a wave of Blight — <span class="dmg-num" style="color:#9b59b6">necrotic decay spreads through the enemy ranks!</span>`;
-            icon = '☠'; type = 'debuff';
-          } else if (skillId === 'ARMY_OF_THE_DAMNED') {
-            // Necromancer Army of the Damned — 3 rounds of risen army + auto-Blight
-            const armyCount = Math.max(1, fallenEnemies.length);
-            const armyBaseDmg = Math.max(2, Math.floor(attacker.mag * 0.8));
-            // Undead Vanguard (NEC_SUMMON_SHIELD) — army lasts +1 round (absorbs one more hit wave)
-            armyDmgPerTick = armyCount * Math.floor(armyBaseDmg * (1 + minionDmgBonusTotal) * 2.5);
-            armyRounds = talentUndeadVanguard ? 4 : 3;
-            armySource = attacker;
-            _bufState.armyRounds = armyRounds;
-            // Auto-apply Blight alongside the army
-            blightRounds = 3;
-            blightSource = attacker;
-            _bufState.blightRounds = blightRounds;
-            text = sPick(T_ARMY_OF_DAMNED, es)(attacker.name, armyCount);
-            icon = '👻'; type = 'magic';
-          } else {
-            // Standard skill attack — 25% stronger than basic attack
-            let baseDmg = Math.max(3, Math.floor(calcPartyDmg(attacker, es + 23, dmgBonus) * 1.25));
-            // Bloodlust bonus on standard skill attacks too
-            if (bloodlustActive[attacker.id]) {
-              baseDmg = Math.floor(baseDmg * 1.5);
-              delete bloodlustActive[attacker.id];
-            }
-            // Mage Spell Echo amplification on skill damage
-            if (spellEchoRounds[attacker.id] > 0) baseDmg = Math.floor(baseDmg * 1.50);
-            if (markedEnemies[target.id]) baseDmg = Math.floor(baseDmg * 1.20);
-            target.hp = Math.max(0, target.hp - baseDmg);
-            if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += baseDmg;
 
-            // 3-tier skill styling: celestial > equipment > class
-            const isCelestial = skillId.startsWith('CEL_');
-            const isEquipProc = !isCelestial && skill.source === 'equipment';
-            if (isCelestial) {
-              text = sPick(T_CELESTIAL_SKILL, es)(attacker.name, skill.name, target.name, baseDmg);
-              icon = skill.icon || '✦'; type = 'celestial';
-            } else if (isEquipProc) {
-              text = sPick(T_EQUIP_SKILL, es)(attacker.name, skill.name, target.name, baseDmg);
-              icon = skill.icon || '•'; type = 'equip';
-            } else {
-              text = sPick(T_SKILL, es)(attacker.name, skill.name, target.name, baseDmg);
-              icon = skill.icon || '•'; type = 'skill';
+            // Prime the base attack text up-front so modifier stacks below
+            // push the correct line (not a fresh re-computed template).
+            {
+              const _classId = attacker.class || 'HERO';
+              if (isCrit) {
+                text = getAttackTemplate(_classId, es)(attacker.name, target.name, `${dmg} CRIT`);
+                text = text.replace(/dmg-(phys|mag)/, 'dmg-crit');
+                icon = '💥'; type = 'crit';
+              } else {
+                text = getAttackTemplate(_classId, es)(attacker.name, target.name, dmg);
+                icon = isMagicClass(_classId) ? '✨' : '⚔';
+                type = 'attack';
+              }
             }
 
-            // Monk Ki Barrier lifesteal on skill use
+            // Bard Crescendo (reactive) — ally crit primes next attack for 2.5× devastating crit.
+            // Guard: skip if this very crit was already a Crescendo-consumed hit (no chaining).
+            if (isCrit && !isCrescendo && !crescendoActive && bardsWithCrescendo.size > 0) {
+              for (const bardId of bardsWithCrescendo) {
+                if ((crescendoCooldowns[bardId] || 0) !== 0) continue;
+                const bard = partyHp.find(p => p.id === bardId && p.hp > 0);
+                if (!bard) continue;
+                crescendoActive = true;
+                crescendoSourceId = bardId;
+                crescendoCooldowns[bardId] = 3;
+                if (talentCrescendoAlly) crescendoAllyCharges.count = 2;
+                events.push({ text, type, icon, phase: 'battle' });
+                snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                text = sPick(T_CRESCENDO, es + 108)(bard.name);
+                icon = '🎶'; type = 'buff';
+                _logReactive('Crescendo', bard.name, attacker.name, 'next-attack 2.5× crit buff');
+                break;
+              }
+            }
+
+            // Rogue Mark for Death
+            if (isCrit && roguesWithMark.has(attacker.id) && target.alive && target.hp > 0) {
+              events.push({ text, type, icon, phase: 'battle' });
+              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+              markedEnemies[target.id] = 2;
+              text = sPick(T_MARK_FOR_DEATH, es + 104)(attacker.name, target.name);
+              icon = '🎯'; type = 'debuff';
+            }
+  
+            // Ki Barrier lifesteal
             if (monksWithKiBarrier.has(attacker.id) && attacker.hp > 0) {
-              const kiRate2 = talentDeepKi ? 0.40 : 0.25;
-              const lifeSteal = Math.max(1, Math.floor(baseDmg * kiRate2));
+              const kiRate = talentDeepKi ? 0.40 : 0.25;
+              const lifeSteal = Math.max(1, Math.floor(dmg * kiRate));
               const before = attacker.hp;
               attacker.hp = Math.min(attacker.maxHp, attacker.hp + lifeSteal);
               const actual = attacker.hp - before;
@@ -1624,500 +1690,1384 @@ function buildSimulation(aq, quest) {
                 if (combatStats[attacker.id]) combatStats[attacker.id].healingReceived += actual;
                 events.push({ text, type, icon, phase: 'battle' });
                 snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-                text = sPick(T_KI_BARRIER, es + 90)(attacker.name, actual);
+                text = sPick(T_KI_BARRIER, es + 105)(attacker.name, actual);
                 icon = '🔮'; type = 'heal';
               }
             }
-
-            // Mage Spell Echo — activate damage amp after casting a skill
-            if (magesWithSpellEcho.has(attacker.id) && spellEchoRounds[attacker.id] === 0) {
-              spellEchoRounds[attacker.id] = 2;
-              events.push({ text, type, icon, phase: 'battle' });
-              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-              text = sPick(T_SPELL_ECHO, es + 95)(attacker.name);
-              icon = '🌀'; type = 'buff';
-              // Echo Shield (MAG_ECHO_SHIELD) — also on standard skill cast
-              if (talentEchoShield && attacker.class === 'MAGE') {
-                echoShieldHP[attacker.id] = Math.max(1, Math.floor(attacker.maxHp * 0.15));
-              }
-            }
-            // Healing Smoke (ROG_SMOKE_HEAL) — Smoke Bomb heals entire party 5% max HP
-            if (talentSmokeHeal && skillId === 'SMOKE_BOMB') {
-              const livingMembers = partyHp.filter(p => p.hp > 0);
-              for (const p of livingMembers) {
-                const smokHeal = Math.max(1, Math.floor(p.maxHp * 0.05));
-                const bef = p.hp;
-                p.hp = Math.min(p.maxHp, p.hp + smokHeal);
-                const act = p.hp - bef;
-                if (act > 0 && combatStats[p.id]) combatStats[p.id].healingReceived += act;
-              }
-            }
-            // Retaliating Stance (MNK_COUNTER_ATK) — Counter Stance also counterattacks
-            // (handled reactively when enemies attack monks — see enemy attack section)
-            // Vampiric Shroud (NEC_SHIELD_TAP) — Shroud of Decay reflect triggers Life Tap
-            // (handled in necrotic reflect section below)
-
+  
+            // Bloodlust on kill
             if (target.hp <= 0) {
               target.alive = false;
-              events.push({ text, type, icon, phase: 'battle' });
-              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-              text = sPick(T_ENEMY_DEFEAT, es + 51)(target.name, attacker.name);
-              icon = '💥'; type = 'defeat';
+              const bloodlustHero = partyHp.find(p => p.hp > 0 && heroesWithBloodlust.has(p.id));
+              if (bloodlustHero) {
+                bloodlustActive[bloodlustHero.id] = true;
+                events.push({ text, type, icon, phase: 'battle' });
+                snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                text = sPick(T_BLOODLUST_KILL, es + 106)(bloodlustHero.name);
+                icon = '🩸'; type = 'buff';
+              } else {
+                text = sPick(T_ENEMY_DEFEAT, es + 107)(target.name, attacker.name);
+                icon = '💥'; type = 'defeat';
+              }
+  
+              if (talentGraveHunger && graveHungerStacks < 5) {
+                graveHungerStacks++;
+                dmgBonus += 0.02; // +2% party damage per stack (§7.7)
+                graveHungerCritBonus += 0.01; // +1% party crit per stack
+                graveHungerDefBonus += 0.01;  // +1% party DEF per stack
+              }
+
+              // Hunter's Mark — Ranger killing blow primes next Ranger arrow for auto-crit
+              if (attacker.class === 'RANGER' && rangersWithHuntersMark.has(attacker.id)
+                  && (huntersMarkCooldowns[attacker.id] || 0) === 0) {
+                huntersMarkCharges[attacker.id] = 1;
+                huntersMarkCooldowns[attacker.id] = 3;
+              }
+  
+              // Raise Dead — reacts to this kill via the shared helper so
+              // every death path (basic, skill, AoE, counter, DoT, reflect,
+              // minion tick) runs the same reactive logic.
+              tryRaiseDead(target, es + 108);
             }
-          }
-        } else {
-          const baseDmg = calcPartyDmg(attacker, es + 24, dmgBonus);
-          target.hp = Math.max(0, target.hp - baseDmg);
-          if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += baseDmg;
-          text = sPick(T_ATTACK, es)(attacker.name, target.name, baseDmg);
-          icon = '⚔'; type = 'attack';
-        }
-      } else {
-        const baseDmg = calcPartyDmg(attacker, es + 25, dmgBonus);
-        target.hp = Math.max(0, target.hp - baseDmg);
-        if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += baseDmg;
-        text = sPick(T_ATTACK, es)(attacker.name, target.name, baseDmg);
-        icon = '⚔'; type = 'attack';
-      }
+            // (Base attack text was primed above; target-alive path keeps modifier text.)
 
-    } else if (roll < 0.74) {
-      // ── Enemy attacks party member (or minion) ──
-      const attacker = sPick(livingEnemies, es + 30);
-      // Minions can be targeted with 33% weight vs party members
-      const livingMinions = necroMinions.filter(m => m.hp > 0);
-      let target;
-      let targetIsMinion = false;
-      if (livingMinions.length > 0 && sRand(es + 99) < 0.25) {
-        target = sPick(livingMinions, es + 31);
-        targetIsMinion = true;
-      } else {
-        target = sPick(livingParty, es + 31);
-      }
-      // Minion targeted — simplified damage, no dodge/cover/lethal chain
-      if (targetIsMinion) {
-        const discordAtkMult = discordRounds > 0 ? 0.80 : 1.0;
-        const rawDmg = Math.max(1, Math.floor(attacker.atk * discordAtkMult * (0.5 + sRand(es + 32) * 0.7)));
-        const minionAfterDef = Math.max(1, Math.floor(rawDmg * (1 - target.def / (target.def + 60))));
-        target.hp = Math.max(0, target.hp - minionAfterDef);
-        text = sPick(T_ENEMY_ATK, es)(attacker.name, `risen ${target.name}`, minionAfterDef);
-        icon = '💀'; type = 'enemy';
-        // Necrotic reflect — attribute to minion owner
-        if (necroticReflectMag > 0) {
-          const reflectDmg = Math.max(1, Math.floor(necroticReflectMag * 0.35));
-          attacker.hp = Math.max(0, attacker.hp - reflectDmg);
-          if (target.ownerId && combatStats[target.ownerId]) { combatStats[target.ownerId].dmgDealt += reflectDmg; combatStats[target.ownerId].dmgReflected += reflectDmg; }
-          events.push({ text, type, icon, phase: 'battle' });
-          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-          text = sPick(T_NECROTIC_REFLECT, es + 98)(reflectDmg, attacker.name);
-          icon = '💜'; type = 'debuff';
-          if (attacker.hp <= 0) attacker.alive = false;
-        }
-        if (target.hp <= 0) {
-          events.push({ text, type, icon, phase: 'battle' });
-          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-          text = sPick(T_MINION_DEATH, es + 100)(target.name);
-          icon = '🧟'; type = 'defeat';
-          necroMinions.splice(necroMinions.indexOf(target), 1);
-        }
-        events.push({ text, type, icon, phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-        continue;
-      }
-
-      // Discord FUMBLE check — 25% chance enemies miss entirely while debuffed
-      if (discordRounds > 0 && sRand(es + 96) < 0.25) {
-        text = `${attacker.name} staggers from the Discord — the attack goes wide!`;
-        icon = '🎸'; type = 'dodge';
-        events.push({ text, type, icon, phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-        continue;
-      }
-      // DODGE check — stat-based chance to avoid the attack entirely
-      const totalDodge = dodgeChance(target) + (camoRounds[target.id] > 0 ? 0.40 : 0);
-      if (sRand(es + 97) < totalDodge) {
-        const dodgeReason = camoRounds[target.id] > 0 ? 'is camouflaged' : 'deftly sidesteps';
-        text = `${target.name} ${dodgeReason} — the attack misses!`;
-        icon = camoRounds[target.id] > 0 ? '🍃' : '💨'; type = 'dodge';
-        // Estimate dodged damage for tracking (avg of 0.5–1.2 raw multiplier = 0.85)
-        const estRaw = Math.max(1, Math.floor(attacker.atk * (discordRounds > 0 ? 0.80 : 1.0) * 0.85));
-        const estDodged = applyDef(estRaw, target);
-        if (combatStats[target.id]) combatStats[target.id].dmgDodged += estDodged;
-        events.push({ text, type, icon, phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-        continue;
-      }
-      const discordAtkMult = discordRounds > 0 ? 0.80 : 1.0; // Discord: -20% ATK
-      const rawDmg = Math.max(1, Math.floor(attacker.atk * discordAtkMult * (0.5 + sRand(es + 32) * 0.7)));
-      // Apply DEF reduction, synergy reduction, and Divine Shield
-      const shieldReduction = divineShieldRounds > 0 ? 0.15 : 0;
-      const afterDef = applyDef(rawDmg, target);
-      const baseDmg = Math.max(1, Math.floor(afterDef * (1 - dmgReduction) * (1 - shieldReduction)));
-      const isSkill = sRand(es + 33) < 0.35;
-
-      // Unbreakable Will DR — reduce incoming damage while active
-      let actualDmg = isSkill ? Math.floor(baseDmg * 1.5) : baseDmg;
-      if (unbreakableDR[target.id] > 0) {
-        actualDmg = Math.max(1, Math.floor(actualDmg * 0.20)); // 80% DR
-      }
-      // Echo Shield (MAG_ECHO_SHIELD) — absorb damage with shield first
-      if (echoShieldHP[target.id] > 0) {
-        const absorbed = Math.min(actualDmg, echoShieldHP[target.id]);
-        echoShieldHP[target.id] -= absorbed;
-        actualDmg -= absorbed;
-        actualDmg = Math.max(0, actualDmg);
-        if (combatStats[target.id]) combatStats[target.id].dmgAbsorbed += absorbed;
-        // Arcane Reflection (MAG_REFLECT) — reflect 20% of absorbed damage back
-        if (talentMageReflect && absorbed > 0) {
-          const reflDmg = Math.max(1, Math.floor(absorbed * 0.20));
-          attacker.hp = Math.max(0, attacker.hp - reflDmg);
-          if (attacker.hp <= 0) { attacker.alive = false; fallenEnemies.push(attacker.name); }
-        }
-        if (echoShieldHP[target.id] <= 0) delete echoShieldHP[target.id];
-      }
-
-      // Track DEF/shield/DR mitigation (rawDmg - actualDmg)
-      if (combatStats[target.id]) combatStats[target.id].dmgMitigated += Math.max(0, rawDmg - actualDmg);
-
-      if (isSkill) {
-        const skillName = sPick(MONSTER_SKILLS, es + 34);
-        target.hp = Math.max(0, target.hp - actualDmg);
-        if (combatStats[target.id]) combatStats[target.id].dmgTaken += actualDmg;
-        text = sPick(T_ENEMY_SKILL, es)(attacker.name, skillName, target.name, actualDmg);
-        icon = '🔥'; type = 'enemy';
-      } else {
-        target.hp = Math.max(0, target.hp - actualDmg);
-        if (combatStats[target.id]) combatStats[target.id].dmgTaken += actualDmg;
-        text = sPick(T_ENEMY_ATK, es)(attacker.name, target.name, actualDmg);
-        icon = '💀'; type = 'enemy';
-      }
-
-      // Necrotic reflect — Shroud of Decay damages attacker when party member is hit
-      if (necroticReflectMag > 0) {
-        const reflectDmg = Math.max(1, Math.floor(necroticReflectMag * 0.35));
-        attacker.hp = Math.max(0, attacker.hp - reflectDmg);
-        if (combatStats[target.id]) { combatStats[target.id].dmgDealt += reflectDmg; combatStats[target.id].dmgReflected += reflectDmg; }
-        // Vampiric Shroud (NEC_SHIELD_TAP) — necrotic reflect also triggers Life Tap healing
-        if (talentVampiricShroud) {
-          const tapHeal = Math.max(1, Math.floor(reflectDmg * 0.40));
-          const necro = partyHp.find(p => p.hp > 0 && p.class === 'NECROMANCER');
-          if (necro) {
-            const bef = necro.hp;
-            necro.hp = Math.min(necro.maxHp, necro.hp + tapHeal);
-            const act = necro.hp - bef;
-            if (act > 0 && combatStats[necro.id]) { combatStats[necro.id].healingDone += act; combatStats[necro.id].healingReceived += act; }
-          }
-        }
-        events.push({ text, type, icon, phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-        text = sPick(T_NECROTIC_REFLECT, es + 98)(reflectDmg, attacker.name);
-        icon = '💜'; type = 'debuff';
-        if (attacker.hp <= 0) {
-          attacker.alive = false;
-          fallenEnemies.push(attacker.name);
-        }
-      }
-      // Retaliating Stance (MNK_COUNTER_ATK) — Monks with Counter Stance counterattack
-      if (talentRetaliating && target.class === 'MONK' && target.hp > 0 && attacker.alive) {
-        const counterDmg = Math.max(1, Math.floor((target.atk || 10) * 0.30));
-        attacker.hp = Math.max(0, attacker.hp - counterDmg);
-        if (combatStats[target.id]) combatStats[target.id].dmgDealt += counterDmg;
-        if (attacker.hp <= 0) { attacker.alive = false; fallenEnemies.push(attacker.name); }
-      }
-      // Oppressive Presence (KNT_TAUNT_AURA) — Taunted enemies take +10% dmg for 2 rounds
-      // Applied when Bulwark intercepts (see below), tracked in tauntedEnemies
-
-      // Knight Bulwark — intercept ANY hit on an ally every 3 rounds
-      const dmgTaken = actualDmg;
-      const availableBulwark = partyHp.filter(p =>
-        p.hp > 0 && p.id !== target.id && knightsWithCover.has(p.id) && coverCooldowns[p.id] === 0
-      );
-      // Vanguard's Oath — same intercept but with 40% DR, checked when no Bulwark
-      const availableVanguard = partyHp.filter(p =>
-        p.hp > 0 && p.id !== target.id && heroesWithVanguard.has(p.id) && vanguardCooldowns[p.id] === 0
-      );
-
-      if (availableBulwark.length > 0) {
-        const knight = sPick(availableBulwark, es + 80);
-        if (combatStats[target.id]) combatStats[target.id].dmgTaken -= dmgTaken;
-        target.hp = Math.min(target.hp + dmgTaken, target.maxHp);
-        knight.hp = Math.max(0, knight.hp - dmgTaken);
-        if (combatStats[knight.id]) { combatStats[knight.id].dmgTaken += dmgTaken; combatStats[knight.id].dmgAbsorbed += dmgTaken; }
-        coverCooldowns[knight.id] = 3;
-        // Stalwart Counter (KNT_COUNTER) — counterattack for 50% of reflected damage
-        if (talentKntCounter) {
-          const counterDmg = Math.max(1, Math.floor(dmgTaken * 0.50));
-          // Find the enemy who attacked (use attacker variable from outer scope — but in enemy attack block 'attacker' IS the enemy)
-          // Since we're inside the enemy attack handler, we'll pick a random living enemy
-          const counterTarget = sPick(livingEnemies, es + 300);
-          if (counterTarget) {
-            counterTarget.hp = Math.max(0, counterTarget.hp - counterDmg);
-            if (combatStats[knight.id]) combatStats[knight.id].dmgDealt += counterDmg;
-            if (counterTarget.hp <= 0) { counterTarget.alive = false; fallenEnemies.push(counterTarget.name); }
-          }
-        }
-        // Def Shred (KNT_DEF_SHRED) — Shield Wall hits apply -15% DEF shred for 2 rounds
-        if (talentDefShred) {
-          // Shred the attacking enemy
-          const shredTarget = sPick(livingEnemies, es + 301);
-          if (shredTarget) defShredTargets[shredTarget.id] = 2;
-        }
-        // Oppressive Presence (KNT_TAUNT_AURA) — taunt the attacker for 2 rounds
-        if (talentTauntAura && attacker.alive) {
-          tauntedEnemies[attacker.id] = 2;
-        }
-        events.push({ text, type, icon, phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-        text = sPick(T_BULWARK, es + 81)(knight.name, target.name, dmgTaken);
-        icon = '🛡'; type = 'cover';
-
-        if (knight.hp <= 0) {
-          const diSaveKnight = partyHp.find(p =>
-            p.hp > 0 && p.id !== knight.id && clericsWithIntervention.has(p.id) && interventionCooldowns[p.id] === 0
-          );
-          if (diSaveKnight) {
-            knight.hp = 1;
-            interventionCooldowns[diSaveKnight.id] = 4;
-            if (combatStats[diSaveKnight.id]) combatStats[diSaveKnight.id].healingDone += 1;
-            events.push({ text, type, icon, phase: 'battle' });
-            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-            text = sPick(T_DIVINE_INTERVENTION, es + 83)(diSaveKnight.name, knight.name);
-            icon = '🕊'; type = 'divine';
+            atbGauges[attacker.id].attack = 0;
+            actionPerformed = true;
           } else {
-            events.push({ text, type, icon, phase: 'battle' });
-            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-            text = sPick(T_PARTY_KO, es + 82)(knight.name, attacker.name);
-            icon = '💀'; type = 'ko';
-          }
-        }
-      } else if (availableVanguard.length > 0) {
-        // Vanguard's Oath — intercept with 40% DR
-        const hero = sPick(availableVanguard, es + 80);
-        const reducedDmg = Math.max(1, Math.floor(dmgTaken * 0.60)); // 40% DR = take 60%
-        if (combatStats[target.id]) combatStats[target.id].dmgTaken -= dmgTaken;
-        target.hp = Math.min(target.hp + dmgTaken, target.maxHp);
-        hero.hp = Math.max(0, hero.hp - reducedDmg);
-        if (combatStats[hero.id]) { combatStats[hero.id].dmgTaken += reducedDmg; combatStats[hero.id].dmgAbsorbed += reducedDmg; combatStats[hero.id].dmgMitigated += (dmgTaken - reducedDmg); }
-        vanguardCooldowns[hero.id] = 3;
-        events.push({ text, type, icon, phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-        text = sPick(T_VANGUARD_OATH, es + 81)(hero.name, target.name, reducedDmg);
-        icon = '🛡'; type = 'cover';
+            // Skill attack
+            const skillId = sPick(skillPool, es + 200);
+            const skill = getSkill(skillId);
+            const atkProcRoll = sRand(es + 201);
+            const atkProcThreshold = skill ? (skill.procChance || 0.70) : 0.70;
+            if (_combatDebug.atb.laneActions[attacker.id]) {
+              _combatDebug.atb.laneActions[attacker.id].attack.skillAttempts++;
+            }
+            _combatDebug.atb.procRolls.push({
+              round: roundCount, member: attacker.name, lane: 'attack',
+              skillId, skillName: skill?.name || skillId,
+              procChance: atkProcThreshold, roll: Math.round(atkProcRoll * 1000) / 1000,
+              fired: skill && atkProcRoll < atkProcThreshold,
+            });
+            if (skill && atkProcRoll < atkProcThreshold) {
+              if (_combatDebug.atb.laneActions[attacker.id]) {
+                _combatDebug.atb.laneActions[attacker.id].attack.fires++;
+                _combatDebug.atb.laneActions[attacker.id].attack.skillFires++;
+              }
+              const aoeInfo = AOE_SKILLS[skillId];
+              if (aoeInfo) {
+                // AoE SKILL
+                // Early bail — no living targets (all died earlier this tick).
+                // Without this guard the template renders "0 foes" lines and
+                // DoT/debuff hooks run over an empty set.
+                const preLiving = enemies.filter(e => e.alive);
+                if (preLiving.length === 0) {
+                  atbGauges[attacker.id].attack = 0;
+                  actionPerformed = true;
+                  continue;
+                }
+                const perTargetDmg = Math.max(2, Math.floor(calcPartyDmg(attacker, es + 202, dmgBonus) * aoeInfo.dmgScale));
+                const echoDmg = spellEchoRounds[attacker.id] > 0 ? Math.floor(perTargetDmg * 1.50) : perTargetDmg;
+                const currentLiving = preLiving;
+                let aoeTotalDmg = 0;
+  
+                let aoeKilled = false;
+                for (const e of currentLiving) {
+                  let mAmp = 1.0;
+                  if (markedEnemies[e.id]) mAmp *= 1.20;
+                  if (executeMarkRounds[e.id] > 0) mAmp *= 1.10;
+                  const ampDmg = mAmp > 1.0 ? Math.floor(echoDmg * mAmp) : echoDmg;
+                  e.hp = Math.max(0, e.hp - ampDmg);
+                  aoeTotalDmg += ampDmg;
+                  if (e.hp <= 0) { e.alive = false; aoeKilled = true; tryRaiseDead(e, es + 1730); }
+                }
+                if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += aoeTotalDmg;
 
-        if (hero.hp <= 0) {
-          // Try Unbreakable Will on self first
-          if (heroesWithUnbreakable.has(hero.id) && unbreakableCooldowns[hero.id] === 0) {
-            hero.hp = 1;
-            unbreakableCooldowns[hero.id] = 5;
-            unbreakableDR[hero.id] = 2;
-            events.push({ text, type, icon, phase: 'battle' });
-            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-            text = sPick(T_UNBREAKABLE, es + 84)(hero.name);
-            icon = '💎'; type = 'divine';
-          } else {
-            const diSave = partyHp.find(p =>
-              p.hp > 0 && p.id !== hero.id && clericsWithIntervention.has(p.id) && interventionCooldowns[p.id] === 0
-            );
-            if (diSave) {
-              hero.hp = 1;
-              interventionCooldowns[diSave.id] = 4;
-              if (combatStats[diSave.id]) combatStats[diSave.id].healingDone += 1;
-              events.push({ text, type, icon, phase: 'battle' });
-              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-              text = sPick(T_DIVINE_INTERVENTION, es + 83)(diSave.name, hero.name);
-              icon = '🕊'; type = 'divine';
+                // Hunter's Mark — Ranger killing blow via AoE primes next arrow
+                if (aoeKilled && attacker.class === 'RANGER' && rangersWithHuntersMark.has(attacker.id)
+                    && (huntersMarkCooldowns[attacker.id] || 0) === 0) {
+                  huntersMarkCharges[attacker.id] = 1;
+                  huntersMarkCooldowns[attacker.id] = 3;
+                }
+  
+                if (aoeInfo.templates === T_VOLLEY) {
+                  text = sPick(T_VOLLEY, es + 203)(attacker.name, currentLiving.length, echoDmg);
+                } else {
+                  text = sPick(aoeInfo.templates, es + 203)(attacker.name, skill.name, currentLiving.length, echoDmg);
+                }
+                icon = aoeInfo.icon; type = aoeInfo.type;
+  
+                // Camouflage trigger
+                if (aoeInfo.triggerCamo && rangersWithCamouflage.has(attacker.id)) {
+                  camoRounds[attacker.id] = 2;
+                  events.push({ text, type, icon, phase: 'battle' });
+                  snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                  text = sPick(T_CAMOUFLAGE, es + 204)(attacker.name);
+                  icon = '🍃'; type = 'buff';
+                  if (talentSharedCamo) {
+                    const lowestAlly = livingParty.filter(p => p.id !== attacker.id).sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp))[0];
+                    if (lowestAlly) camoRounds[lowestAlly.id] = 2;
+                  }
+                }
+  
+                // Suppressing Fire — tightened to fire only on VOLLEY (§7.7 audit)
+                if (talentVolleySlow && skillId === 'VOLLEY') {
+                  for (const e of currentLiving) {
+                    if (e.alive) e.atk = Math.max(1, Math.floor(e.atk * 0.80));
+                  }
+                }
+  
+                // Storm Mark
+                if (talentStormMark && (skillId === 'ARROW_STORM' || skillId === 'STORM_VOLLEY')) {
+                  for (const e of currentLiving) {
+                    if (e.alive) stormMarkRounds[e.id] = 2;
+                  }
+                }
+  
+                // MAG_METEOR_BURN "Lingering Flames" — Meteor Storm leaves a burn DoT
+                // Bumped 10% → 15% MAG/tick, 2 → 3 rounds so the tail actually
+                // contributes meaningful damage on the Mage's flagship AoE.
+                if (talentMeteorBurn && (skillId === 'METEOR_STORM')) {
+                  const burnDmg = Math.max(2, Math.floor((attacker.mag || 10) * 0.15));
+                  for (const e of currentLiving) {
+                    if (e.alive) burnTargets[e.id] = { rounds: 3, dmgPerTick: burnDmg, source: 'MAG' };
+                  }
+                }
+
+                // Frostbite (legacy skill) — apply 3-round chill on cast
+                if (skillId === 'FROSTBITE') {
+                  frostbiteRounds = 3;
+                }
+
+                // MAG_BLIZZARD_FROST "Frostbite" — Blizzard has a 60% chance to chill
+                // all enemies, applying the party-wide frostbite debuff (ATK slow +
+                // fumble). Reuses existing frostbiteRounds infrastructure.
+                if (talentBlizzardFrost && attacker.class === 'MAGE' && skillId === 'BLIZZARD') {
+                  if (sRand(es + 216) < 0.60) {
+                    frostbiteRounds = Math.max(frostbiteRounds, 2);
+                    events.push({ text, type, icon, phase: 'battle' });
+                    snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                    text = `The Blizzard's chill lingers — <span class="dmg-num" style="color:#5dade2">Frostbite</span> grips every foe for 2 rounds!`;
+                    icon = '❄'; type = 'debuff';
+                    _logReactive('Frostbite', attacker.name, '', 'all enemies chilled 2r');
+                  }
+                }
+
+                // Consecration — consecrated ground party buff (DEF +10% + HoT) for 2r.
+                if (skillId === 'CONSECRATION') {
+                  consecrationRounds = Math.max(consecrationRounds, 2);
+                  consecrationSource = attacker.name;
+                }
+
+                // Fan of Knives — always poisons struck enemies (7% max HP/round, 3r)
+                // AND applies Exposed (+10% damage taken, 2r) per §3.4.
+                // Poison bumped 5% → 7% so Rogue's signature AoE DoT keeps up.
+                if (skillId === 'FAN_OF_KNIVES') {
+                  for (const e of currentLiving) {
+                    if (!e.alive) continue;
+                    const pDmg = Math.max(2, Math.floor(e.maxHp * 0.07));
+                    poisonTargets[e.id] = { rounds: 3, dmgPerTick: pDmg };
+                    exposedTargets[e.id] = 2;
+                  }
+                }
+
+                // Righteous Burn — always applies burn DoT to struck enemies (12% MAG/r, 3r)
+                // Bumped from 8% so the sacred-flame tail contributes real dmg.
+                if (skillId === 'RIGHTEOUS_BURN') {
+                  const burnDmg = Math.max(2, Math.floor((attacker.mag || 10) * 0.12));
+                  for (const e of currentLiving) {
+                    if (!e.alive) continue;
+                    burnTargets[e.id] = { rounds: 3, dmgPerTick: burnDmg, source: 'CLR' };
+                  }
+                }
+
+                // HRO_WHIRLWIND_HEAL "Whirlwind Heal" — Whirlwind Dance heals the
+                // party for 4% max HP per enemy struck.
+                if (talentWhirlwindHeal && skillId === 'WHIRLWIND_DANCE') {
+                  const struck = currentLiving.filter(e => e.alive).length;
+                  if (struck > 0) {
+                    let totalHealed = 0;
+                    for (const p of livingParty) {
+                      if (p.hp <= 0) continue;
+                      const healAmt = Math.max(1, Math.floor(p.maxHp * 0.04 * struck));
+                      const before = p.hp;
+                      p.hp = Math.min(p.maxHp, p.hp + healAmt);
+                      const actual = p.hp - before;
+                      if (actual > 0) {
+                        totalHealed += actual;
+                        if (combatStats[attacker.id]) combatStats[attacker.id].healingDone += actual;
+                        if (combatStats[p.id]) combatStats[p.id].healingReceived += actual;
+                      }
+                    }
+                    if (totalHealed > 0) {
+                      events.push({ text, type, icon, phase: 'battle' });
+                      snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                      text = `${attacker.name}'s Whirlwind Dance revitalizes the party — <span class="dmg-num dmg-heal">${totalHealed}</span> HP restored!`;
+                      icon = '🌀'; type = 'heal';
+                    }
+                  }
+                }
+  
+                // Arcane Aftershock (formerly Spell Echo) — NO LONGER auto-primes
+                // on cast. It is now a reactive, primed when an ally lands a
+                // killing blow. See the post-actor kill-hook below (§3.3 rework).
+
+                skillCooldowns[attacker.id][skillId] = SKILL_COOLDOWN;
+                actionPerformed = true;
+              } else if (skillId === 'HEROS_WRATH') {
+                // Champion Hero's Wrath
+                let baseDmg = Math.max(3, Math.floor(calcPartyDmg(attacker, es + 206, dmgBonus) * 3.0));
+                if (bloodlustActive[attacker.id]) {
+                  baseDmg = Math.floor(baseDmg * 1.5);
+                  delete bloodlustActive[attacker.id];
+                }
+                if (attacker.class === 'HERO' && secondWindRounds[attacker.id] > 0) {
+                  baseDmg = Math.floor(baseDmg * 1.20);
+                }
+                if (spellEchoRounds[attacker.id] > 0) baseDmg = Math.floor(baseDmg * 1.50);
+                {
+                  const _mtEnt = sPick(livingEnemies, es + 207);
+                  if (markedEnemies[_mtEnt.id]) baseDmg = Math.floor(baseDmg * 1.20);
+                  if (executeMarkRounds[_mtEnt.id] > 0) baseDmg = Math.floor(baseDmg * 1.10);
+                }
+  
+                const target = sPick(livingEnemies, es + 208);
+                target.hp = Math.max(0, target.hp - baseDmg);
+                if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += baseDmg;
+                text = sPick(T_HEROS_WRATH, es + 209)(attacker.name, target.name, baseDmg);
+                icon = '⚡'; type = 'crit';
+  
+                if (target.hp <= 0) {
+                  target.alive = false;
+                  if (heroesWithBloodlust.has(attacker.id)) bloodlustActive[attacker.id] = true;
+                  tryRaiseDead(target, es + 1884);
+                }
+
+                skillCooldowns[attacker.id][skillId] = SKILL_COOLDOWN;
+                actionPerformed = true;
+              } else if (skillId === 'SHADOW_BOLT') {
+                // Necromancer Shadow Bolt (class rework L6) — 1.3× MAG-scaled damage
+                // with a party-wide leech on proc: each living ally heals 6% of their
+                // own max HP. Scales automatically with gear/level.
+                // INLINED BY DESIGN — the 1.3× multiplier and 0.06 leech ratio are
+                // Shadow Bolt's class-signature numbers and are intentionally NOT in
+                // COMBAT_TUNING. Change them here if rebalancing the Necromancer.
+                let baseDmg = Math.max(3, Math.floor(calcPartyDmg(attacker, es + 210, dmgBonus) * 1.3));
+                if (bloodlustActive[attacker.id]) {
+                  baseDmg = Math.floor(baseDmg * 1.5);
+                  delete bloodlustActive[attacker.id];
+                }
+                if (attacker.class === 'HERO' && secondWindRounds[attacker.id] > 0) {
+                  baseDmg = Math.floor(baseDmg * 1.20);
+                }
+                if (spellEchoRounds[attacker.id] > 0) baseDmg = Math.floor(baseDmg * 1.50);
+
+                const target = sPick(livingEnemies, es + 211);
+                if (markedEnemies[target.id]) baseDmg = Math.floor(baseDmg * 1.20);
+                if (executeMarkRounds[target.id] > 0) baseDmg = Math.floor(baseDmg * 1.10);
+                target.hp = Math.max(0, target.hp - baseDmg);
+                if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += baseDmg;
+
+                text = sPick(T_SHADOW_BOLT, es + 212)(attacker.name, target.name, baseDmg);
+                icon = '🌑'; type = 'magic';
+
+                // Party leech — each living ally heals 6% of their own max HP
+                {
+                  const leechPct = 0.06;
+                  let leechCount = 0;
+                  let leechTotal = 0;
+                  for (const ally of livingParty) {
+                    if (ally.hp <= 0) continue;
+                    const healAmt = Math.max(1, Math.floor(ally.maxHp * leechPct));
+                    const before = ally.hp;
+                    ally.hp = Math.min(ally.maxHp, ally.hp + healAmt);
+                    const actual = ally.hp - before;
+                    if (actual > 0) {
+                      leechCount++;
+                      leechTotal += actual;
+                      if (combatStats[ally.id]) combatStats[ally.id].healingReceived += actual;
+                      if (combatStats[attacker.id]) combatStats[attacker.id].healingDone += actual;
+                    }
+                  }
+                  if (leechCount > 0) {
+                    events.push({ text, type, icon, phase: 'battle' });
+                    snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                    text = sPick(T_SHADOW_BOLT_LEECH, es + 213)(leechCount, leechTotal);
+                    icon = '🩸'; type = 'heal';
+                  }
+                }
+
+                if (target.hp <= 0) {
+                  target.alive = false;
+                  events.push({ text, type, icon, phase: 'battle' });
+                  snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                  text = sPick(T_ENEMY_DEFEAT, es + 214)(target.name, attacker.name);
+                  icon = '💥'; type = 'defeat';
+                  tryRaiseDead(target, es + 1943);
+                }
+
+                skillCooldowns[attacker.id][skillId] = SKILL_COOLDOWN;
+                actionPerformed = true;
+              } else if (skillId === 'PRESSURE_POINT') {
+                // Monk Pressure Point (class rework L14) — 1.7× ATK w/ +10% crit chance,
+                // applies debuff: target deals -20% dmg and takes +10% dmg for 2 rounds.
+                // INLINED BY DESIGN — the 1.7× damage, +0.10 crit bonus, -0.20 enemy
+                // damage debuff, and 2-round duration are Pressure Point's class-signature
+                // numbers and are intentionally NOT in COMBAT_TUNING.
+                let baseDmg = Math.max(3, Math.floor(calcPartyDmg(attacker, es + 215, dmgBonus) * 1.7));
+                if (bloodlustActive[attacker.id]) {
+                  baseDmg = Math.floor(baseDmg * 1.5);
+                  delete bloodlustActive[attacker.id];
+                }
+                if (attacker.class === 'HERO' && secondWindRounds[attacker.id] > 0) {
+                  baseDmg = Math.floor(baseDmg * 1.20);
+                }
+                // Extra +10% crit (on top of base crit chance) for Pressure Point
+                const ppCritRoll = sRand(es + 216);
+                const ppIsCrit = ppCritRoll < 0.10;
+                if (ppIsCrit) baseDmg = Math.floor(baseDmg * 1.5);
+
+                const target = sPick(livingEnemies, es + 217);
+                if (markedEnemies[target.id]) baseDmg = Math.floor(baseDmg * 1.20);
+                if (executeMarkRounds[target.id] > 0) baseDmg = Math.floor(baseDmg * 1.10);
+                target.hp = Math.max(0, target.hp - baseDmg);
+                if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += baseDmg;
+
+                // Apply pressure point debuff — 2 rounds
+                pressurePointDebuffs[target.id] = 2;
+
+                text = sPick(T_PRESSURE_POINT, es + 218)(attacker.name, target.name, baseDmg);
+                icon = '🫳'; type = ppIsCrit ? 'crit' : 'skill';
+
+                // MNK_KI_BOOST → "Ki Barrier Resurgence": Pressure Point grants
+                // a 10% max HP Ki Shield for 2 rounds on the caster.
+                // INLINED BY DESIGN — 0.10 max HP shield is the Ki Barrier Resurgence
+                // class-signature number, not a global tuning knob.
+                if (talentDeepKi) {
+                  const shieldHp = Math.max(1, Math.floor(attacker.maxHp * 0.10));
+                  kiShieldHP[attacker.id] = Math.max(kiShieldHP[attacker.id] || 0, shieldHp);
+                  events.push({ text, type, icon, phase: 'battle' });
+                  snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                  text = sPick(T_KI_SHIELD, es + 220)(attacker.name, shieldHp);
+                  icon = '🔵'; type = 'buff';
+                }
+
+                if (target.hp <= 0) {
+                  target.alive = false;
+                  events.push({ text, type, icon, phase: 'battle' });
+                  snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                  text = sPick(T_ENEMY_DEFEAT, es + 219)(target.name, attacker.name);
+                  icon = '💥'; type = 'defeat';
+                  delete pressurePointDebuffs[target.id];
+                  tryRaiseDead(target, es + 1997);
+                }
+
+                skillCooldowns[attacker.id][skillId] = SKILL_COOLDOWN;
+                actionPerformed = true;
+              } else {
+                // Standard skill attack — honors the skill's own powerMultiplier
+                // (+ atkBonus/magBonus) from effects when present. Falls back to
+                // the historical 1.25× when a class skill declares no multiplier.
+                // Equipment skills no longer reach this branch; they fire via the
+                // end-of-round equipment proc lane and honor powerMultiplier there.
+                const _skEff = skill && skill.effects ? skill.effects : {};
+                const _skPower = _skEff.powerMultiplier || 1.25;
+                const _skBonus = 1.0 + (_skEff.atkBonus || 0) + (_skEff.magBonus || 0);
+                let baseDmg = Math.max(3, Math.floor(calcPartyDmg(attacker, es + 210, dmgBonus) * _skPower * _skBonus));
+                if (bloodlustActive[attacker.id]) {
+                  baseDmg = Math.floor(baseDmg * 1.5);
+                  delete bloodlustActive[attacker.id];
+                }
+                if (attacker.class === 'HERO' && secondWindRounds[attacker.id] > 0) {
+                  baseDmg = Math.floor(baseDmg * 1.20);
+                }
+                if (spellEchoRounds[attacker.id] > 0) baseDmg = Math.floor(baseDmg * 1.50);
+                if (cadenceRounds > 0) baseDmg = Math.floor(baseDmg * 1.15);
+  
+                const target = sPick(livingEnemies, es + 211);
+                if (markedEnemies[target.id]) baseDmg = Math.floor(baseDmg * 1.20);
+                if (executeMarkRounds[target.id] > 0) baseDmg = Math.floor(baseDmg * 1.10);
+                target.hp = Math.max(0, target.hp - baseDmg);
+                if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += baseDmg;
+
+                // Rogue Venomous Blades — Shadow Strike has a 30% chance to poison
+                if (talentPoison && skillId === 'SHADOW_STRIKE' && target.alive !== false && target.hp > 0 && sRand(es + 215) < 0.30) {
+                  const pDmg = Math.max(2, Math.floor(target.maxHp * 0.07));
+                  poisonTargets[target.id] = { rounds: 3, dmgPerTick: pDmg };
+                }
+
+                // CLR_SMITE_BURN "Righteous Burn" — Smite applies a burn DoT (12% MAG/r)
+                if (talentSmiteBurn && skillId === 'SMITE' && target.hp > 0) {
+                  const burnDmg = Math.max(2, Math.floor((attacker.mag || 10) * 0.12));
+                  burnTargets[target.id] = { rounds: 3, dmgPerTick: burnDmg, source: 'CLR' };
+                }
+
+                // MNK_FURY_PLUS "Infinite Fists" — Fists of Fury lands a bonus
+                // strike that can independently crit. Hooked per §7.7 audit.
+                if (talentInfiniteFists && skillId === 'FISTS_OF_FURY' && target.hp > 0) {
+                  const bonusCrit = sRand(es + 217) < critChance(attacker);
+                  const bonusDmg = Math.max(1, Math.floor(baseDmg * (bonusCrit ? COMBAT_TUNING.PARTY_BASE_CRIT_MULT * 0.5 : 0.5)));
+                  target.hp = Math.max(0, target.hp - bonusDmg);
+                  if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += bonusDmg;
+                  const fatal = target.hp <= 0;
+                  if (fatal) { target.alive = false; fallenEnemies.push(target.name); tryRaiseDead(target, es + 2057); }
+                  events.push({ text, type, icon, phase: 'battle' });
+                  snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                  text = `${attacker.name}'s fists blur — <span class="dmg-num" style="color:#e67e22">Infinite Fists</span> lands a bonus ${bonusCrit ? 'CRIT ' : ''}strike on ${target.name} for <span class="dmg-num dmg-phys">${bonusDmg}</span>!`;
+                  icon = '👊'; type = bonusCrit ? 'crit' : 'attack';
+                  _logReactive('Infinite Fists', attacker.name, target.name, `bonus ${bonusCrit ? 'crit ' : ''}${bonusDmg}`);
+                }
+
+                // KNT_DEF_SHRED "Armor Rend" — Shield Charge shreds target DEF
+                // for 2 rounds. Retargeted from Bulwark intercept per §7.7. The
+                // shred is mechanically a +15% damage-taken debuff via defShredTargets.
+                if (talentDefShred && skillId === 'SHIELD_CHARGE' && target.hp > 0) {
+                  defShredTargets[target.id] = 2;
+                }
+
+                // HRO_CHAIN_STRIKE — Heroic Strike chains to a 2nd target at 50%
+                // damage (tightened hook, §7.7 audit).
+                if (talentChainStrike && skillId === 'HEROIC_STRIKE' && livingEnemies.length > 1) {
+                  const chainTarget = livingEnemies.find(e => e.id !== target.id && e.alive !== false) || null;
+                  if (chainTarget) {
+                    const chainDmg = Math.max(1, Math.floor(baseDmg * 0.50));
+                    chainTarget.hp = Math.max(0, chainTarget.hp - chainDmg);
+                    if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += chainDmg;
+                    if (chainTarget.hp <= 0) { chainTarget.alive = false; fallenEnemies.push(chainTarget.name); tryRaiseDead(chainTarget, es + 2080); }
+                  }
+                }
+
+                const isCelestial = skillId.startsWith('CEL_');
+                const isEquipProc = !isCelestial && skill.source === 'equipment';
+                if (isCelestial) {
+                  text = sPick(T_CELESTIAL_SKILL, es + 212)(attacker.name, skill.name, target.name, baseDmg);
+                  icon = skill.icon || '✦'; type = 'celestial';
+                } else if (isEquipProc) {
+                  text = sPick(T_EQUIP_SKILL, es + 212)(attacker.name, skill.name, target.name, baseDmg);
+                  icon = skill.icon || '•'; type = 'equip';
+                } else {
+                  text = sPick(T_SKILL, es + 212)(attacker.name, skill.name, target.name, baseDmg);
+                  icon = skill.icon || '•'; type = 'skill';
+                }
+  
+                // Monk Ki Barrier lifesteal on skill
+                if (monksWithKiBarrier.has(attacker.id) && attacker.hp > 0) {
+                  const kiRate2 = talentDeepKi ? 0.40 : 0.25;
+                  const lifeSteal = Math.max(1, Math.floor(baseDmg * kiRate2));
+                  const before = attacker.hp;
+                  attacker.hp = Math.min(attacker.maxHp, attacker.hp + lifeSteal);
+                  const actual = attacker.hp - before;
+                  if (actual > 0) {
+                    if (combatStats[attacker.id]) combatStats[attacker.id].healingDone += actual;
+                    if (combatStats[attacker.id]) combatStats[attacker.id].healingReceived += actual;
+                    events.push({ text, type, icon, phase: 'battle' });
+                    snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                    text = sPick(T_KI_BARRIER, es + 213)(attacker.name, actual);
+                    icon = '🔮'; type = 'heal';
+                  }
+                }
+  
+                // Arcane Aftershock — reactive, not cast-primed. See post-actor
+                // kill-hook below (§3.3 Mage rework).
+  
+                // Smoke Bomb heal — skip KO'd members; smoke cannot revive.
+                if (talentSmokeHeal && skillId === 'SMOKE_BOMB') {
+                  for (const p of livingParty) {
+                    if (p.hp <= 0) continue;
+                    const smokHeal = Math.max(1, Math.floor(p.maxHp * 0.05));
+                    const bef = p.hp;
+                    p.hp = Math.min(p.maxHp, p.hp + smokHeal);
+                    const act = p.hp - bef;
+                    if (act > 0 && combatStats[p.id]) combatStats[p.id].healingReceived += act;
+                  }
+                }
+  
+                if (target.hp <= 0) {
+                  target.alive = false;
+                  tryRaiseDead(target, es + 2129);
+                  events.push({ text, type, icon, phase: 'battle' });
+                  snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                  text = sPick(T_ENEMY_DEFEAT, es + 215)(target.name, attacker.name);
+                  icon = '💥'; type = 'defeat';
+                  // Hunter's Mark — Ranger killing blow via skill primes next arrow
+                  if (attacker.class === 'RANGER' && rangersWithHuntersMark.has(attacker.id)
+                      && (huntersMarkCooldowns[attacker.id] || 0) === 0) {
+                    huntersMarkCharges[attacker.id] = 1;
+                    huntersMarkCooldowns[attacker.id] = 3;
+                  }
+                }
+
+                skillCooldowns[attacker.id][skillId] = SKILL_COOLDOWN;
+                actionPerformed = true;
+              }
             } else {
-              events.push({ text, type, icon, phase: 'battle' });
-              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-              text = sPick(T_PARTY_KO, es + 82)(hero.name, attacker.name);
-              icon = '💀'; type = 'ko';
+              // Proc failed — fallback to basic attack
+              if (_combatDebug.atb.laneActions[attacker.id]) {
+                _combatDebug.atb.laneActions[attacker.id].attack.fires++;
+                _combatDebug.atb.laneActions[attacker.id].attack.basicFallbacks++;
+              }
+              const target = sPick(livingEnemies, es + 250);
+              let baseDmg = calcPartyDmg(attacker, es + 251, dmgBonus);
+              if (wrathBuff[attacker.id] > 0) baseDmg = Math.floor(baseDmg * 1.30);
+              if (spellEchoRounds[attacker.id] > 0) baseDmg = Math.floor(baseDmg * 1.50);
+              if (markedEnemies[target.id]) baseDmg = Math.floor(baseDmg * 1.20);
+              if (executeMarkRounds[target.id] > 0) baseDmg = Math.floor(baseDmg * 1.10);
+              const cadenceCritBonus2 = cadenceRounds > 0 ? 0.10 : 0;
+              const isCrit = sRand(es + 252) < (critChance(attacker) + graveHungerCritBonus + cadenceCritBonus2);
+              if (cadenceRounds > 0) baseDmg = Math.floor(baseDmg * 1.15);
+              const dmg = isCrit ? Math.floor(baseDmg * COMBAT_TUNING.PARTY_BASE_CRIT_MULT) : baseDmg;
+              target.hp = Math.max(0, target.hp - dmg);
+              if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += dmg;
+              if (target.hp <= 0) {
+                target.alive = false;
+                tryRaiseDead(target, es + 2164);
+                text = sPick(T_ENEMY_DEFEAT, es + 253)(target.name, attacker.name);
+                icon = '💥'; type = 'defeat';
+              } else {
+                const classId = attacker.class || 'HERO';
+                text = getAttackTemplate(classId, es + 254)(attacker.name, target.name, isCrit ? `${dmg} CRIT` : dmg);
+                icon = isCrit ? '💥' : (isMagicClass(classId) ? '✨' : '⚔');
+                type = isCrit ? 'crit' : 'attack';
+              }
+
+              // Bard Crescendo reactive — also fires from the proc-fail fallback
+              // basic-attack path. Previously this was only wired to the no-skill
+              // basic attack at line 1438, so in S++ parties where everyone has
+              // skills but occasionally fails the proc roll, ally crits here were
+              // invisible to Crescendo. (§3.10 reactive stack / playtest fix.)
+              if (isCrit && !crescendoActive && bardsWithCrescendo.size > 0) {
+                for (const bardId of bardsWithCrescendo) {
+                  if ((crescendoCooldowns[bardId] || 0) !== 0) continue;
+                  const bard = partyHp.find(p => p.id === bardId && p.hp > 0);
+                  if (!bard) continue;
+                  crescendoActive = true;
+                  crescendoSourceId = bardId;
+                  crescendoCooldowns[bardId] = 3;
+                  if (talentCrescendoAlly) crescendoAllyCharges.count = 2;
+                  events.push({ text, type, icon, phase: 'battle' });
+                  snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                  text = sPick(T_CRESCENDO, es + 258)(bard.name);
+                  icon = '🎶'; type = 'buff';
+                  _logReactive('Crescendo', bard.name, attacker.name, 'next-attack 2.5× crit buff');
+                  break;
+                }
+              }
+
+              actionPerformed = true;
             }
           }
-        }
-      }
 
-      // Undying Oath (PARTY_UNDYING) — once per quest, revive at 15% HP instead of KO
-      if (target.hp <= 0 && talentUndying && !undyingUsed) {
-        undyingUsed = true;
-        target.hp = Math.max(1, Math.floor(target.maxHp * 0.15));
-        events.push({ text, type, icon, phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-        text = `${target.name} is saved by the party's Undying Oath!`;
-        icon = '🔄'; type = 'heal';
-      } else if (target.hp <= 0) {
-        // Target KO'd — try Forgo Death (Necromancer), Unbreakable Will, Divine Intervention, then KO
-        // Forgo Death — sacrifice a minion to survive at 20% HP
-        if (necrosWithForgoDeath.has(target.id) && necroMinions.length > 0) {
-          const sacrificed = necroMinions.pop();
-          target.hp = Math.max(1, Math.floor(target.maxHp * 0.20));
-          events.push({ text, type, icon, phase: 'battle' });
-          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-          text = sPick(T_FORGO_DEATH, es + 85)(sacrificed.name, target.name);
-          icon = '💀'; type = 'divine';
-        } else if (heroesWithUnbreakable.has(target.id) && unbreakableCooldowns[target.id] === 0) {
-          target.hp = 1;
-          unbreakableCooldowns[target.id] = 5;
-          unbreakableDR[target.id] = 2;
-          events.push({ text, type, icon, phase: 'battle' });
-          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-          text = sPick(T_UNBREAKABLE, es + 84)(target.name);
-          icon = '💎'; type = 'divine';
+          atbGauges[attacker.id].attack = 0;
         } else {
-          const diSave = partyHp.find(p =>
-            p.hp > 0 && p.id !== target.id && clericsWithIntervention.has(p.id) && interventionCooldowns[p.id] === 0
-          );
-          if (diSave) {
-            target.hp = 1;
-            interventionCooldowns[diSave.id] = 4;
-            if (combatStats[diSave.id]) combatStats[diSave.id].healingDone += 1;
-            events.push({ text, type, icon, phase: 'battle' });
-            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-            text = sPick(T_DIVINE_INTERVENTION, es + 71)(diSave.name, target.name);
-            icon = '🕊'; type = 'divine';
-            // Righteous Wrath (CLR_WRATH) — saved ally gets +30% dmg for 2 rounds
-            if (talentWrath) wrathBuff[target.id] = 2;
+          // Enemy attack
+          const attacker = enemies.find(e => e.id === actor.enemyId);
+          if (!attacker || livingParty.length === 0) continue;
+  
+          const livingMinions = necroMinions.filter(m => m.hp > 0);
+          let target;
+          let targetIsMinion = false;
+          if (livingMinions.length > 0 && sRand(es + 300) < 0.25) {
+            target = sPick(livingMinions, es + 301);
+            targetIsMinion = true;
           } else {
-            events.push({ text, type, icon, phase: 'battle' });
-            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-            text = sPick(T_PARTY_KO, es + 70)(target.name, attacker.name);
-            icon = '💀'; type = 'ko';
+            target = sPick(livingParty, es + 302);
           }
-        }
-      }
+  
+          if (targetIsMinion) {
+            const discordAtkMult = (discordRounds > 0 ? 0.80 : 1.0) * (frostbiteRounds > 0 ? 0.85 : 1.0);
+            const rawDmg = Math.max(1, Math.floor(attacker.atk * discordAtkMult * (COMBAT_TUNING.ENEMY_DMG_MIN_MULT + sRand(es + 303) * COMBAT_TUNING.ENEMY_DMG_SPREAD)));
+            const minionAfterDef = Math.max(1, Math.floor(rawDmg * (1 - target.def / (target.def + COMBAT_TUNING.DEF_SOFTCAP))));
+            target.hp = Math.max(0, target.hp - minionAfterDef);
+            text = sPick(T_ENEMY_ATK, es + 304)(attacker.name, target.name, minionAfterDef);
+            icon = '💀'; type = 'enemy';
+  
+            if (necroticReflectMag > 0) {
+              const reflectDmg = Math.max(1, Math.floor(necroticReflectMag * 0.35));
+              attacker.hp = Math.max(0, attacker.hp - reflectDmg);
+              if (target.ownerId && combatStats[target.ownerId]) {
+                combatStats[target.ownerId].dmgDealt += reflectDmg;
+                combatStats[target.ownerId].dmgReflected += reflectDmg;
+              }
+              events.push({ text, type, icon, phase: 'battle' });
+              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+              text = sPick(T_NECROTIC_REFLECT, es + 305)(reflectDmg, attacker.name);
+              icon = '💜'; type = 'debuff';
+              if (attacker.hp <= 0) {
+                attacker.alive = false;
+                fallenEnemies.push(attacker.name);
+                tryRaiseDead(attacker, es + 2239);
+              }
+            }
 
-      // Warden Last Stand — when 2+ allies KO'd, revive all at 25% HP (once per fight)
-      const koCount = partyHp.filter(p => p.hp <= 0).length;
-      if (koCount >= 2) {
-        const lastStandHero = partyHp.find(p =>
-          p.hp > 0 && heroesWithLastStand.has(p.id) && !lastStandUsed[p.id]
-        );
-        if (lastStandHero) {
-          lastStandUsed[lastStandHero.id] = true;
-          const fallen = partyHp.filter(p => p.hp <= 0);
-          fallen.forEach(p => {
-            const reviveHp = Math.max(1, Math.floor(p.maxHp * 0.25));
-            p.hp = reviveHp;
-            if (combatStats[lastStandHero.id]) combatStats[lastStandHero.id].healingDone += reviveHp;
-            if (combatStats[p.id]) combatStats[p.id].healingReceived += reviveHp;
-          });
-          events.push({ text, type, icon, phase: 'battle' });
-          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-          text = sPick(T_LAST_STAND, es + 88)(lastStandHero.name, fallen.length);
-          icon = '🌅'; type = 'divine';
-        }
-      }
-
-      // Heroic Revival (HRO_HEROIC_REVIVAL) — when Awakening triggers on a Hero, also revive a random KO'd ally at 20% HP
-      // (This piggybacks off the Hero Awakening passive — if a Hero just proc'd Awakening this round, check for KO'd allies)
-      if (talentHeroicRevival) {
-        const koAllies = partyHp.filter(p => p.hp <= 0);
-        const livingHeroes = partyHp.filter(p => p.hp > 0 && p.class === 'HERO');
-        // Simple heuristic: if a hero is alive and any ally is KO'd, 15% chance per round to trigger revival
-        if (livingHeroes.length > 0 && koAllies.length > 0 && sRand(es + 400) < 0.15) {
-          const revived = sPick(koAllies, es + 401);
-          revived.hp = Math.max(1, Math.floor(revived.maxHp * 0.20));
-          events.push({ text, type, icon, phase: 'battle' });
-          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-          text = `${livingHeroes[0].name}'s heroic spirit revives ${revived.name} at ${revived.hp} HP!`;
-          icon = '✨'; type = 'heal';
-        }
-      }
-
-      // Hero Rally Cry — triggers when any ally drops below 30% HP
-      const woundedAlly = partyHp.find(p => p.hp > 0 && p.hp < p.maxHp * 0.30);
-      if (woundedAlly) {
-        const availableHero = partyHp.find(p =>
-          p.hp > 0 && heroesWithRally.has(p.id) && rallyCooldowns[p.id] === 0
-        );
-        if (availableHero) {
-          const heroMag = availableHero.mag || 5;
-          const rallyHeal = Math.max(1, Math.floor(woundedAlly.maxHp * 0.10 + heroMag * 0.8));
-          const before = woundedAlly.hp;
-          woundedAlly.hp = Math.min(woundedAlly.maxHp, woundedAlly.hp + rallyHeal);
-          const actual = woundedAlly.hp - before;
-          rallyCooldowns[availableHero.id] = 4;
-
-          if (actual > 0) {
-            if (combatStats[availableHero.id]) combatStats[availableHero.id].healingDone += actual;
-            if (combatStats[woundedAlly.id]) combatStats[woundedAlly.id].healingReceived += actual;
+            if (target.hp <= 0) {
+              events.push({ text, type, icon, phase: 'battle' });
+              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+              text = sPick(T_MINION_DEATH, es + 306)(target.name);
+              icon = '🧟'; type = 'defeat';
+              necroMinions.splice(necroMinions.indexOf(target), 1);
+            }
             events.push({ text, type, icon, phase: 'battle' });
             snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-            text = sPick(T_RALLY_CRY, es + 85)(availableHero.name, woundedAlly.name, actual);
-            icon = '📣'; type = 'buff';
-            // Rallying Heal (HRO_RALLYING_HEAL) — Rally also applies HoT (3% max HP/round, 2 rounds) to all
-            if (talentRallyingHeal) {
-              for (const p of partyHp) {
-                if (p.hp > 0) sacredWarmthRounds[p.id] = 2; // reuse the HoT tracker
+            atbGauges[attacker.id].attack = 0;
+            continue;
+          }
+  
+          // Discord fumble
+          if (discordRounds > 0 && sRand(es + 310) < 0.25) {
+            text = `${attacker.name} staggers from the Discord — the attack goes wide!`;
+            icon = '🎸'; type = 'dodge';
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            atbGauges[attacker.id].attack = 0;
+            continue;
+          }
+
+          // Frostbite fumble (Mage) — numb fingers, missed swing
+          if (frostbiteRounds > 0 && sRand(es + 314) < 0.20) {
+            text = `${attacker.name} shivers from the Frostbite — the attack fails to land!`;
+            icon = '❄'; type = 'dodge';
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            atbGauges[attacker.id].attack = 0;
+            continue;
+          }
+  
+          // Dodge check — Iron Stance adds +15% dodge to monks in stance.
+          // INLINED BY DESIGN — 0.15 dodge is Iron Stance's class-signature number
+          // and belongs to the MNK_COUNTER_ATK talent, not to COMBAT_TUNING.
+          // The 0.40 camouflage dodge bonus is similarly Rogue/Ranger class-specific.
+          const ironStanceDodge = (target.class === 'MONK' && ironStanceBuffs[target.id] > 0) ? 0.15 : 0;
+          const totalDodge = dodgeChance(target) + (camoRounds[target.id] > 0 ? 0.40 : 0) + ironStanceDodge;
+          if (sRand(es + 311) < totalDodge) {
+            const dodgeReason = camoRounds[target.id] > 0 ? 'is camouflaged' : 'deftly sidesteps';
+            text = `${target.name} ${dodgeReason} — the attack misses!`;
+            icon = camoRounds[target.id] > 0 ? '🍃' : '💨';
+            type = 'dodge';
+            const estRaw = Math.max(1, Math.floor(attacker.atk * (discordRounds > 0 ? 0.80 : 1.0) * 0.85));
+            const estDodged = applyDef(estRaw, target);
+            if (combatStats[target.id]) combatStats[target.id].dmgDodged += estDodged;
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+
+            // Flowing Strike — Monks counter on dodge (3-round cooldown, 1.5× ATK).
+            // INLINED BY DESIGN — the 1.5× counter multiplier and 3-round cooldown
+            // are Flowing Strike's class-signature numbers and are intentionally NOT
+            // in COMBAT_TUNING. Change here if rebalancing the Monk counter window.
+            if (target.class === 'MONK' && monksWithFlowingStrike.has(target.id)
+                && flowingStrikeCooldowns[target.id] === 0 && target.hp > 0 && attacker.alive) {
+              const fsDmg = Math.max(1, Math.floor((target.atk || 10) * 1.5));
+              attacker.hp = Math.max(0, attacker.hp - fsDmg);
+              if (combatStats[target.id]) combatStats[target.id].dmgDealt += fsDmg;
+              flowingStrikeCooldowns[target.id] = 3;
+              const fsText = sPick(T_FLOWING_STRIKE, es + 318)(target.name, attacker.name, fsDmg);
+              events.push({ text: fsText, type: 'skill', icon: '☯', phase: 'battle' });
+              // MNK_COUNTER_ATK → "Iron Stance": Flowing Strike also grants
+              // +20% DEF / +15% dodge for 2 rounds to the Monk.
+              if (talentRetaliating) {
+                ironStanceBuffs[target.id] = 2;
+                snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                const isText = sPick(T_IRON_STANCE, es + 319)(target.name);
+                events.push({ text: isText, type: 'buff', icon: '🛡', phase: 'battle' });
+              }
+              if (attacker.hp <= 0) {
+                attacker.alive = false;
+                fallenEnemies.push(attacker.name);
+                tryRaiseDead(attacker, es + 2313);
+              }
+              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            }
+
+            atbGauges[attacker.id].attack = 0;
+            continue;
+          }
+  
+          // Damage calculation
+          const discordAtkMult = (discordRounds > 0 ? 0.80 : 1.0) * (frostbiteRounds > 0 ? 0.85 : 1.0);
+          // Pressure Point debuff — enemies with the debuff deal -20% damage (translated from "ATB fill" design)
+          const pressurePointAtkMult = (pressurePointDebuffs[attacker.id] > 0) ? 0.80 : 1.0;
+          // ROG_POISON "Venomous Blades" — when the talent is active, poisoned enemies
+          // also deal -15% ATK for the duration of the poison. Piggybacks on the
+          // existing poisonTargets tracker so expiry is automatic.
+          const venomAtkMult = (talentPoison && poisonTargets[attacker.id] && poisonTargets[attacker.id].rounds > 0) ? 0.85 : 1.0;
+          const rawDmg = Math.max(1, Math.floor(attacker.atk * discordAtkMult * pressurePointAtkMult * venomAtkMult * (COMBAT_TUNING.ENEMY_DMG_MIN_MULT + sRand(es + 312) * COMBAT_TUNING.ENEMY_DMG_SPREAD)));
+          const shieldReduction = divineShieldRounds > 0 ? 0.15 : 0;
+          const consecrationReduction = consecrationRounds > 0 ? 0.10 : 0;
+          // Iron Stance — Monks in stance gain +20% DEF (extra flat reduction before other mitigations).
+          // INLINED BY DESIGN — 0.20 reduction is Iron Stance's class-signature number.
+          const ironStanceRed = (target.class === 'MONK' && ironStanceBuffs[target.id] > 0) ? 0.20 : 0;
+          // Knight Last Stand — +35% DEF while active (class-signature, INLINED BY DESIGN)
+          const lastStandRed = (target.class === 'KNIGHT' && lastStandBuffRounds[target.id] > 0) ? 0.35 : 0;
+          const afterDef = Math.max(1, Math.floor(applyDef(rawDmg, target) * (1 - ironStanceRed) * (1 - lastStandRed) * (1 - graveHungerDefBonus)));
+          const baseDmg = Math.max(1, Math.floor(afterDef * (1 - dmgReduction) * (1 - shieldReduction) * (1 - consecrationReduction)));
+          const isSkill = sRand(es + 313) < COMBAT_TUNING.ENEMY_SKILL_PROC_CHANCE;
+  
+          let actualDmg = isSkill ? Math.floor(baseDmg * COMBAT_TUNING.ENEMY_SKILL_DMG_MULT) : baseDmg;
+          if (unbreakableDR[target.id] > 0) {
+            actualDmg = Math.max(1, Math.floor(actualDmg * 0.20));
+          }
+  
+          // Ki Shield absorb — Monk Ki Shield soaks damage before HP is touched
+          if (target.class === 'MONK' && kiShieldHP[target.id] > 0 && actualDmg > 0) {
+            const ksAbs = Math.min(actualDmg, kiShieldHP[target.id]);
+            kiShieldHP[target.id] -= ksAbs;
+            actualDmg = Math.max(0, actualDmg - ksAbs);
+            if (combatStats[target.id]) combatStats[target.id].dmgAbsorbed += ksAbs;
+            const ksText = sPick(T_KI_SHIELD_ABSORB, es + 319)(target.name, ksAbs);
+            events.push({ text: ksText, type: 'buff', icon: '🔵', phase: 'battle' });
+            if (kiShieldHP[target.id] <= 0) delete kiShieldHP[target.id];
+          }
+
+          if (combatStats[target.id]) combatStats[target.id].dmgMitigated += Math.max(0, rawDmg - actualDmg);
+  
+          if (isSkill) {
+            const skillName = sPick(MONSTER_SKILLS, es + 314);
+            target.hp = Math.max(0, target.hp - actualDmg);
+            if (combatStats[target.id]) combatStats[target.id].dmgTaken += actualDmg;
+            text = sPick(T_ENEMY_SKILL, es + 315)(attacker.name, skillName, target.name, actualDmg);
+            icon = '🔥'; type = 'enemy';
+          } else {
+            target.hp = Math.max(0, target.hp - actualDmg);
+            if (combatStats[target.id]) combatStats[target.id].dmgTaken += actualDmg;
+            text = sPick(T_ENEMY_ATK, es + 315)(attacker.name, target.name, actualDmg);
+            icon = '💀'; type = 'enemy';
+          }
+
+          // ═════════════════════════════════════════════════════════
+          // §3.10 REACTIVE PRIORITY STACK — Phase 1 → 2 → 3 → 4 → 5
+          // Damage was applied above (target.hp -= actualDmg + text set).
+          // Phase 1/2 (Bulwark/Guardian's Grasp/Vanguard) use a refund
+          // pattern: if they fire, target.hp is restored and actualDmg
+          // is zeroed so downstream Phase 3/4/5 hooks correctly skip.
+          // See reactive-priority-audit.md for the full catalog.
+          // ═════════════════════════════════════════════════════════
+
+          // ─── §3.10 PHASE 1 — INTERCEPT (damage redirect) ──────────
+          // Knight Bulwark: redirects hit to a covering Knight at full dmg.
+          // Fires FIRST so downstream Phase 5 counters correctly gate off
+          // when the hit was redirected (they must see actualDmg === 0).
+          let dmgTaken = actualDmg;
+          const availableBulwark = livingParty.filter(p =>
+            p.hp > 0 && p.id !== target.id && knightsWithCover.has(p.id) && coverCooldowns[p.id] === 0
+          );
+          const availableVanguard = livingParty.filter(p =>
+            p.hp > 0 && p.id !== target.id && heroesWithVanguard.has(p.id) && vanguardCooldowns[p.id] === 0
+          );
+
+          if (availableBulwark.length > 0 && dmgTaken > 0) {
+            const knight = sPick(availableBulwark, es + 320);
+            const interceptedDmg = dmgTaken; // captured before zero-out for counter hooks
+            if (combatStats[target.id]) combatStats[target.id].dmgTaken -= dmgTaken;
+            target.hp = Math.min(target.hp + dmgTaken, target.maxHp);
+            knight.hp = Math.max(0, knight.hp - dmgTaken);
+            if (combatStats[knight.id]) {
+              combatStats[knight.id].dmgTaken += dmgTaken;
+              combatStats[knight.id].dmgAbsorbed += dmgTaken;
+            }
+            coverCooldowns[knight.id] = 3;
+            // Bulwark consumed the hit — zero out so P3/P4/P5 skip.
+            dmgTaken = 0;
+            actualDmg = 0;
+
+            // KNT_COUNTER "Stalwart Counter" — P5 effect nested in P1 per §3.10 note.
+            if (talentKntCounter) {
+              const counterDmg = Math.max(1, Math.floor(interceptedDmg * 0.50));
+              const counterTarget = sPick(livingEnemies, es + 321);
+              if (counterTarget) {
+                counterTarget.hp = Math.max(0, counterTarget.hp - counterDmg);
+                if (combatStats[knight.id]) combatStats[knight.id].dmgDealt += counterDmg;
+                if (counterTarget.hp <= 0) { counterTarget.alive = false; fallenEnemies.push(counterTarget.name); tryRaiseDead(counterTarget, es + 2417); }
+                events.push({ text, type, icon, phase: 'battle' });
+                snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                text = `${knight.name} answers the blow — <span class="dmg-num" style="color:#f39c12">Stalwart Counter</span> strikes ${counterTarget.name} for <span class="dmg-num dmg-phys">${counterDmg}</span>!`;
+                icon = '⚔'; type = 'attack';
+                _logReactive('Stalwart Counter', knight.name, counterTarget.name, `counter ${counterDmg} dmg`);
+              }
+            }
+
+            // KNT_TAUNT_AURA secondary hook — Bulwark intercept marks attacker.
+            if (talentTauntAura && attacker.alive) {
+              tauntedEnemies[attacker.id] = 2;
+            }
+
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            text = sPick(T_BULWARK, es + 323)(knight.name, target.name, interceptedDmg);
+            icon = '🛡'; type = 'cover';
+            _logReactive('Bulwark', knight.name, target.name, `absorbed ${interceptedDmg} dmg`);
+
+            // Nested P3 — DI saves the covering Knight if Bulwark KOs them.
+            if (knight.hp <= 0) {
+              const diSaveKnight = livingParty.find(p =>
+                p.hp > 0 && p.id !== knight.id && clericsWithIntervention.has(p.id) && interventionCooldowns[p.id] === 0
+              );
+              if (diSaveKnight) {
+                knight.hp = 1;
+                interventionCooldowns[diSaveKnight.id] = 4;
+                if (combatStats[diSaveKnight.id]) combatStats[diSaveKnight.id].healingDone += 1;
+                events.push({ text, type, icon, phase: 'battle' });
+                snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                text = sPick(T_DIVINE_INTERVENTION, es + 324)(diSaveKnight.name, knight.name);
+                _logReactive('Divine Intervention', diSaveKnight.name, knight.name, 'saved from KO');
+                icon = '🕊'; type = 'divine';
+              } else {
+                events.push({ text, type, icon, phase: 'battle' });
+                snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                text = sPick(T_PARTY_KO, es + 325)(knight.name, attacker.name);
+                icon = '💀'; type = 'ko';
               }
             }
           }
-        }
-      }
 
-      // Warden Guardian Spirit — reactive heal when ally drops below 25% HP
-      const criticalAlly = partyHp.find(p => p.hp > 0 && p.hp < p.maxHp * 0.25);
-      if (criticalAlly) {
-        const guardian = partyHp.find(p =>
-          p.hp > 0 && heroesWithGuardian.has(p.id) && guardianCooldowns[p.id] === 0
-        );
-        if (guardian) {
-          const healAmt = Math.max(1, Math.floor(criticalAlly.maxHp * 0.30));
-          const before = criticalAlly.hp;
-          criticalAlly.hp = Math.min(criticalAlly.maxHp, criticalAlly.hp + healAmt);
-          const actual = criticalAlly.hp - before;
-          guardianCooldowns[guardian.id] = 3;
+          // ─── §3.10 PHASE 2 — NEGATE (damage prevented, no redirect) ──
+          // Guardian's Grasp (Cleric) — negates the hit entirely, no-cost.
+          // Vanguard's Oath (Hero Vanguard spec) — partial intercept (40% DR).
+          // Both gated on actualDmg > 0 so they skip when Phase 1 handled it.
+          const availableGuardian = livingParty.filter(p =>
+            p.hp > 0 && p.id !== target.id && clericsWithGuardianGrasp.has(p.id) && guardianGraspCooldowns[p.id] === 0
+          );
 
-          if (actual > 0) {
-            if (combatStats[guardian.id]) combatStats[guardian.id].healingDone += actual;
-            if (combatStats[criticalAlly.id]) combatStats[criticalAlly.id].healingReceived += actual;
+          if (actualDmg > 0 && availableGuardian.length > 0) {
+            const cleric = sPick(availableGuardian, es + 340);
+            if (combatStats[target.id]) combatStats[target.id].dmgTaken -= actualDmg;
+            target.hp = Math.min(target.hp + actualDmg, target.maxHp);
+            guardianGraspCooldowns[cleric.id] = 3;
             events.push({ text, type, icon, phase: 'battle' });
             snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-            text = sPick(T_GUARDIAN_SPIRIT, es + 87)(guardian.name, criticalAlly.name, actual);
-            icon = '💚'; type = 'heal';
+            text = `${cleric.name} reaches out with <span class="dmg-num" style="color:#f1c40f">Guardian's Grasp</span> — ${target.name} is pulled from harm's way!`;
+            icon = '🤲'; type = 'divine';
+            _logReactive("Guardian's Grasp", cleric.name, target.name, `negated ${actualDmg} dmg`);
+            actualDmg = 0;
+            dmgTaken = 0;
+          } else if (actualDmg > 0 && availableVanguard.length > 0) {
+            const hero = sPick(availableVanguard, es + 326);
+            const reducedDmg = Math.max(1, Math.floor(actualDmg * 0.60));
+            if (combatStats[target.id]) combatStats[target.id].dmgTaken -= actualDmg;
+            target.hp = Math.min(target.hp + actualDmg, target.maxHp);
+            hero.hp = Math.max(0, hero.hp - reducedDmg);
+            if (combatStats[hero.id]) {
+              combatStats[hero.id].dmgTaken += reducedDmg;
+              combatStats[hero.id].dmgAbsorbed += reducedDmg;
+              combatStats[hero.id].dmgMitigated += (actualDmg - reducedDmg);
+            }
+            vanguardCooldowns[hero.id] = 3;
+            // Vanguard consumed the hit — zero out so P3/P4/P5 skip.
+            dmgTaken = 0;
+            actualDmg = 0;
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            text = sPick(T_VANGUARD_OATH, es + 327)(hero.name, target.name, reducedDmg);
+            icon = '🛡'; type = 'cover';
+
+            // Nested P3 — Unbreakable / DI save if Vanguard hero KOs.
+            if (hero.hp <= 0) {
+              if (heroesWithUnbreakable.has(hero.id) && unbreakableCooldowns[hero.id] === 0) {
+                hero.hp = 1;
+                unbreakableCooldowns[hero.id] = 5;
+                unbreakableDR[hero.id] = 2;
+                events.push({ text, type, icon, phase: 'battle' });
+                snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                text = sPick(T_UNBREAKABLE, es + 328)(hero.name);
+                icon = '💎'; type = 'divine';
+                _logReactive('Unbreakable', hero.name, '', 'survived lethal');
+              } else {
+                const diSave = livingParty.find(p =>
+                  p.hp > 0 && p.id !== hero.id && clericsWithIntervention.has(p.id) && interventionCooldowns[p.id] === 0
+                );
+                if (diSave) {
+                  hero.hp = 1;
+                  interventionCooldowns[diSave.id] = 4;
+                  if (combatStats[diSave.id]) combatStats[diSave.id].healingDone += 1;
+                  events.push({ text, type, icon, phase: 'battle' });
+                  snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                  text = sPick(T_DIVINE_INTERVENTION, es + 329)(diSave.name, hero.name);
+                  icon = '🕊'; type = 'divine';
+                } else {
+                  events.push({ text, type, icon, phase: 'battle' });
+                  snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                  text = sPick(T_PARTY_KO, es + 330)(hero.name, attacker.name);
+                  icon = '💀'; type = 'ko';
+                }
+              }
+            }
+          }
+
+          // ─── §3.10 PHASE 3 — KO SAVES (prevent lethal damage) ─────
+          // Undying Oath / Forgo Death / Unbreakable / Divine Intervention.
+          // Only reached if Phase 1/2 didn't handle the hit (target still KO'd).
+          if (target.hp <= 0 && talentUndying && !undyingUsed) {
+            undyingUsed = true;
+            target.hp = Math.max(1, Math.floor(target.maxHp * 0.15));
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            text = `${target.name} is saved by the party's Undying Oath!`;
+            icon = '🔄'; type = 'heal';
+          } else if (target.hp <= 0) {
+            if (necrosWithForgoDeath.has(target.id) && necroMinions.length > 0) {
+              const sacrificed = necroMinions.pop();
+              target.hp = Math.max(1, Math.floor(target.maxHp * 0.20));
+              events.push({ text, type, icon, phase: 'battle' });
+              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+              text = sPick(T_FORGO_DEATH, es + 331)(sacrificed.name, target.name);
+              icon = '💀'; type = 'divine';
+              _logReactive('Forgo Death', target.name, sacrificed.name, 'minion sacrificed');
+            } else if (heroesWithUnbreakable.has(target.id) && unbreakableCooldowns[target.id] === 0) {
+              target.hp = 1;
+              unbreakableCooldowns[target.id] = 5;
+              unbreakableDR[target.id] = 2;
+              events.push({ text, type, icon, phase: 'battle' });
+              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+              text = sPick(T_UNBREAKABLE, es + 332)(target.name);
+              icon = '💎'; type = 'divine';
+              _logReactive('Unbreakable', target.name, '', 'survived lethal');
+            } else {
+              const diSave = livingParty.find(p =>
+                p.hp > 0 && p.id !== target.id && clericsWithIntervention.has(p.id) && interventionCooldowns[p.id] === 0
+              );
+              if (diSave) {
+                target.hp = 1;
+                interventionCooldowns[diSave.id] = 4;
+                if (combatStats[diSave.id]) combatStats[diSave.id].healingDone += 1;
+                events.push({ text, type, icon, phase: 'battle' });
+                snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                text = sPick(T_DIVINE_INTERVENTION, es + 333)(diSave.name, target.name);
+                icon = '🕊'; type = 'divine';
+                _logReactive('Divine Intervention', diSave.name, target.name, 'saved from KO');
+                if (talentWrath) wrathBuff[target.id] = 2;
+              } else {
+                events.push({ text, type, icon, phase: 'battle' });
+                snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                text = sPick(T_PARTY_KO, es + 334)(target.name, attacker.name);
+                icon = '💀'; type = 'ko';
+              }
+            }
+          }
+  
+          // Last Stand revival
+          const koCount = livingParty.filter(p => p.hp <= 0).length;
+          if (koCount >= 2) {
+            const lastStandHero = livingParty.find(p =>
+              p.hp > 0 && heroesWithLastStand.has(p.id) && !lastStandUsed[p.id]
+            );
+            if (lastStandHero) {
+              lastStandUsed[lastStandHero.id] = true;
+              const fallen = livingParty.filter(p => p.hp <= 0);
+              fallen.forEach(p => {
+                const reviveHp = Math.max(1, Math.floor(p.maxHp * 0.25));
+                p.hp = reviveHp;
+                if (combatStats[lastStandHero.id]) combatStats[lastStandHero.id].healingDone += reviveHp;
+                if (combatStats[p.id]) combatStats[p.id].healingReceived += reviveHp;
+              });
+              events.push({ text, type, icon, phase: 'battle' });
+              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+              text = sPick(T_LAST_STAND, es + 335)(lastStandHero.name, fallen.length);
+              icon = '🌅'; type = 'divine';
+              _logReactive('Last Stand', lastStandHero.name, '', `revived ${fallen.length} allies`);
+            }
+          }
+  
+          // ─── §3.10 PHASE 4 — POST-DAMAGE SELF / PARTY EFFECTS ─────
+          // Self-buffs, heals, and other non-counter responses that fire
+          // when the hit actually landed. All gated on actualDmg > 0 so an
+          // intercepted/negated hit doesn't falsely trigger thresholds.
+
+          // Knight Last Stand — reactive self-buff when HP drops below 30%.
+          // Moved here from pre-P1 position; gated on actualDmg > 0 so
+          // Bulwark/Guardian's Grasp refunds don't leave a bogus buff active.
+          if (actualDmg > 0 && target.class === 'KNIGHT' && knightsWithLastStand.has(target.id)
+              && target.hp > 0 && target.hp < target.maxHp * 0.30
+              && lastStandBuffRounds[target.id] === 0 && lastStandCooldowns[target.id] === 0) {
+            lastStandBuffRounds[target.id] = 3;
+            lastStandCooldowns[target.id] = 4;
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            text = sPick(T_LAST_STAND_KNIGHT, es + 317)(target.name);
+            icon = '⚒'; type = 'buff';
+            _logReactive('Last Stand', target.name, '', 'self-buff (+35% DEF, +20% ATK, 3rd)');
+          }
+
+          // Rally Cry reactive heal
+          const woundedAlly = livingParty.find(p => p.hp > 0 && p.hp < p.maxHp * 0.30);
+          if (woundedAlly) {
+            const availableHero = livingParty.find(p =>
+              p.hp > 0 && heroesWithRally.has(p.id) && rallyCooldowns[p.id] === 0
+            );
+            if (availableHero) {
+              const heroMag = availableHero.mag || 5;
+              const rallyHeal = Math.max(1, Math.floor(woundedAlly.maxHp * 0.10 + heroMag * 0.8));
+              const before = woundedAlly.hp;
+              woundedAlly.hp = Math.min(woundedAlly.maxHp, woundedAlly.hp + rallyHeal);
+              const actual = woundedAlly.hp - before;
+              rallyCooldowns[availableHero.id] = 4;
+  
+              if (actual > 0) {
+                if (combatStats[availableHero.id]) combatStats[availableHero.id].healingDone += actual;
+                if (combatStats[woundedAlly.id]) combatStats[woundedAlly.id].healingReceived += actual;
+                events.push({ text, type, icon, phase: 'battle' });
+                snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                text = sPick(T_RALLY_CRY, es + 336)(availableHero.name, woundedAlly.name, actual);
+                icon = '📣'; type = 'buff';
+                if (talentRallyingHeal) {
+                  for (const p of livingParty) {
+                    if (p.hp > 0) sacredWarmthRounds[p.id] = 2;
+                  }
+                }
+              }
+            }
+          }
+  
+          // Hero Second Wind — self reactive when the Hero drops below 35% HP (L14 baseline)
+          if (heroesWithSecondWind.size > 0) {
+            for (const heroId of heroesWithSecondWind) {
+              if ((secondWindCooldowns[heroId] || 0) > 0) continue;
+              if ((secondWindRounds[heroId] || 0) > 0) continue;
+              const hero = partyHp.find(p => p.id === heroId && p.hp > 0);
+              if (!hero) continue;
+              if (hero.hp >= hero.maxHp * 0.35) continue;
+              secondWindRounds[heroId] = 2;
+              secondWindCooldowns[heroId] = 4;
+              events.push({ text, type, icon, phase: 'battle' });
+              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+              text = `${hero.name} catches a <span class="dmg-num" style="color:#6cf">Second Wind</span> — +20% ATK for 2 rounds!`;
+              icon = '💨'; type = 'buff';
+              _logReactive('Second Wind', hero.name, '', '+20% ATK / 2rd');
+            }
+          }
+
+          // Guardian Spirit reactive heal
+          const criticalAlly = livingParty.find(p => p.hp > 0 && p.hp < p.maxHp * 0.25);
+          if (criticalAlly) {
+            const guardian = livingParty.find(p =>
+              p.hp > 0 && heroesWithGuardian.has(p.id) && guardianCooldowns[p.id] === 0
+            );
+            if (guardian) {
+              const healAmt = Math.max(1, Math.floor(criticalAlly.maxHp * 0.30));
+              const before = criticalAlly.hp;
+              criticalAlly.hp = Math.min(criticalAlly.maxHp, criticalAlly.hp + healAmt);
+              const actual = criticalAlly.hp - before;
+              guardianCooldowns[guardian.id] = 3;
+  
+              if (actual > 0) {
+                if (combatStats[guardian.id]) combatStats[guardian.id].healingDone += actual;
+                if (combatStats[criticalAlly.id]) combatStats[criticalAlly.id].healingReceived += actual;
+                events.push({ text, type, icon, phase: 'battle' });
+                snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                text = sPick(T_GUARDIAN_SPIRIT, es + 337)(guardian.name, criticalAlly.name, actual);
+                icon = '💚'; type = 'heal';
+              }
+            }
+          }
+
+          // ─── §3.10 PHASE 5 — POST-DAMAGE COUNTERS ────────────────
+          // Reflects and ripostes that fire only if the hit actually landed.
+          // All gated on actualDmg > 0 (or dmgTaken > 0) so intercepted hits
+          // correctly skip the counter — fixes the pre-refactor bug where
+          // Arcane Reflection could fire on damage refunded by Guardian's Grasp.
+
+          // MAG_ARCANE_REFLECT "Arcane Reflection" — Mages reflect 20% of damage
+          // taken back at the attacker. Scales on post-mitigation actualDmg.
+          if (talentArcaneReflect && target.class === 'MAGE' && actualDmg > 0 && attacker.alive) {
+            const reflDmg = Math.max(1, Math.floor(actualDmg * 0.20));
+            attacker.hp = Math.max(0, attacker.hp - reflDmg);
+            if (combatStats[target.id]) combatStats[target.id].dmgReflected = (combatStats[target.id].dmgReflected || 0) + reflDmg;
+            const fatal = attacker.hp <= 0;
+            if (fatal) { attacker.alive = false; fallenEnemies.push(attacker.name); tryRaiseDead(attacker, es + 2713); }
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            text = `Arcane wards flare around ${target.name} — <span class="dmg-num" style="color:#a569bd">Arcane Reflection</span> lashes ${attacker.name} for <span class="dmg-num dmg-mag">${reflDmg}</span>!`;
+            icon = '💜'; type = 'magic';
+            _logReactive('Arcane Reflection', target.name, attacker.name, `reflected ${reflDmg} dmg`);
+          }
+
+          // Necrotic Reflect — party-wide passive from Necromancer mastery.
+          // Gated on actualDmg > 0 so negated hits don't fire the reflect.
+          if (actualDmg > 0 && necroticReflectMag > 0 && attacker.alive) {
+            const reflectDmg = Math.max(1, Math.floor(necroticReflectMag * 0.35));
+            attacker.hp = Math.max(0, attacker.hp - reflectDmg);
+            if (combatStats[target.id]) {
+              combatStats[target.id].dmgDealt += reflectDmg;
+              combatStats[target.id].dmgReflected += reflectDmg;
+            }
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            text = sPick(T_NECROTIC_REFLECT, es + 316)(reflectDmg, attacker.name);
+            icon = '💜'; type = 'debuff';
+            if (attacker.hp <= 0) {
+              attacker.alive = false;
+              fallenEnemies.push(attacker.name);
+              tryRaiseDead(attacker, es + 2735);
+            }
+          }
+
+          // Dark Pact siphon — Necromancer buff converts party hits into
+          // life drain. Gated on actualDmg > 0 so negated hits don't siphon.
+          if (actualDmg > 0 && darkPactRounds > 0 && darkPactSource && target.hp > 0 && attacker.alive) {
+            const siphonMag = darkPactSource.mag || 10;
+            const siphonDmg = Math.max(1, Math.floor(siphonMag * 0.60));
+            const siphonHeal = Math.max(1, Math.floor(siphonDmg * 0.80));
+            attacker.hp = Math.max(0, attacker.hp - siphonDmg);
+            if (combatStats[target.id]) combatStats[target.id].dmgDealt += siphonDmg;
+            const bef = target.hp;
+            target.hp = Math.min(target.maxHp, target.hp + siphonHeal);
+            const actHeal = target.hp - bef;
+            if (actHeal > 0 && combatStats[target.id]) combatStats[target.id].healingReceived += actHeal;
+            if (combatStats[darkPactSource.id]) combatStats[darkPactSource.id].healingDone += actHeal;
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            text = `Dark energy lashes back at ${attacker.name} — <span class="dmg-num dmg-mag">${siphonDmg}</span> drained, <span class="dmg-num dmg-heal">+${actHeal}</span> to ${target.name}!`;
+            icon = '🩸'; type = 'magic';
+            if (attacker.hp <= 0) {
+              attacker.alive = false;
+              fallenEnemies.push(attacker.name);
+              tryRaiseDead(attacker, es + 2759);
+            }
+          }
+
+          // Rogue Riposte — counter-strike when the Rogue took actual damage
+          // and is still alive. 2-round cooldown (exception to default 3r —
+          // Rogue identity is fast counters). Uses dmgTaken which equals
+          // actualDmg in the non-intercepted path.
+          if (dmgTaken > 0 && target.class === 'ROGUE' && target.hp > 0
+              && roguesWithRiposte.has(target.id) && riposteCooldowns[target.id] === 0
+              && attacker.alive) {
+            const riposteDmg = Math.max(1, Math.floor((target.atk || 10) * 1.3));
+            const riposteCrit = sRand(es + 341) < (critChance(target) + 0.15);
+            const finalDmg = riposteCrit ? Math.floor(riposteDmg * COMBAT_TUNING.PARTY_BASE_CRIT_MULT) : riposteDmg;
+            attacker.hp = Math.max(0, attacker.hp - finalDmg);
+            if (combatStats[target.id]) combatStats[target.id].dmgDealt += finalDmg;
+            riposteCooldowns[target.id] = 2;
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            text = `${target.name} snaps back with a lightning <span class="dmg-num" style="color:#ecf0f1">Riposte</span> — ${attacker.name} takes <span class="dmg-num">${finalDmg}</span>${riposteCrit ? ' CRIT' : ''}!`;
+            icon = '⚔'; type = riposteCrit ? 'crit' : 'skill';
+            _logReactive('Riposte', target.name, attacker.name, `counter ${finalDmg}${riposteCrit ? ' crit' : ''}`);
+            if (attacker.hp <= 0) {
+              attacker.alive = false;
+              fallenEnemies.push(attacker.name);
+              tryRaiseDead(attacker, es + 2783);
+            }
+          }
+
+          // Final flush — the enemy-attack reactive chain uses a push-then-reassign
+          // pattern where each hook pushes the prior text and reassigns. Without a
+          // terminal flush, the last reassigned text (whether the enemy attack itself
+          // when no reactives fired, or the last reactive's message) would be orphaned.
+          // This mirrors the minion-branch flush at ~line 2230.
+          if (text) {
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+          }
+
+          atbGauges[attacker.id].attack = 0;
+        }
+  
+      } else if (actor.lane === 'buff') {
+        // ─────────────────────────────────────────────────────────────────────
+        // BUFF LANE: Apply buff effects
+        // ─────────────────────────────────────────────────────────────────────
+  
+        const buffMember = partyHp.find(p => p.id === actor.memberId);
+        if (!buffMember || buffMember.hp <= 0) continue;
+  
+        const buffSkills = memberBuffSkills[buffMember.id];
+        const readySkills = buffSkills.filter(sid => !skillCooldowns[buffMember.id][sid]);
+        const skillPool = readySkills.length > 0 ? readySkills : buffSkills;
+  
+        if (skillPool.length > 0) {
+          const skillId = sPick(skillPool, es + 400);
+          const skill = getSkill(skillId);
+          const buffProcRoll = sRand(es + 401);
+          const buffProcThreshold = skill ? (skill.procChance || 0.60) : 0.60;
+          if (_combatDebug.atb.laneActions[buffMember.id]) {
+            _combatDebug.atb.laneActions[buffMember.id].buff.attempts++;
+          }
+          _combatDebug.atb.procRolls.push({
+            round: roundCount, member: buffMember.name, lane: 'buff',
+            skillId, skillName: skill?.name || skillId,
+            procChance: buffProcThreshold, roll: Math.round(buffProcRoll * 1000) / 1000,
+            fired: skill && buffProcRoll < buffProcThreshold,
+          });
+
+          if (skill && buffProcRoll < buffProcThreshold) {
+            if (_combatDebug.atb.laneActions[buffMember.id]) {
+              _combatDebug.atb.laneActions[buffMember.id].buff.fires++;
+            }
+            text = '';
+            icon = '✨';
+            type = 'buff';
+  
+            // Buff skill handlers
+            if (skillId === 'RALLY_CRY') {
+              rallyCooldowns[buffMember.id] = 4;
+              dmgBonus = Math.floor(dmgBonus * 1.12);
+              text = sPick(T_RALLY_CRY, es + 402)(buffMember.name, livingParty[0]?.name || 'allies', Math.floor(dmgBonus * 0.12));
+              icon = '📣';
+            } else if (skillId === 'SHIELD_WALL') {
+              // Knight L8 mastery (lifted): party-wide -15% dmg for 3 rounds
+              divineShieldRounds = 3;
+              divineShieldSource = buffMember.name;
+              text = `${buffMember.name} raises their Shield Wall — the party braces behind an impenetrable guard!`;
+              icon = '🛡';
+            } else if (skillId === 'TAUNT') {
+              // Knight L16 mastery (lifted): mark all enemies for 2 rounds, triggers KNT_TAUNT_AURA
+              // talent for +10% dmg taken if learned.
+              for (const e of livingEnemies) {
+                if (e && e.alive) tauntedEnemies[e.id] = 2;
+              }
+              text = `${buffMember.name} bellows a furious Taunt — every enemy's eye snaps to the Knight!`;
+              icon = '😤';
+            } else if (skillId === 'MAGNUM_OPUS') {
+              // Bard L16 mastery (new): reuse Cadence machinery for party-wide dmg/crit amp.
+              // Magnum Opus is a stronger, shorter-duration Cadence cousin — 2 rounds at +15% dmg
+              // and +10% crit, plus a +15% party MAG flavor tick via partyMagBuff (handled
+              // naturally by cadenceRounds being active since it gates dmg amp).
+              cadenceRounds = Math.max(cadenceRounds, 2);
+              cadenceSource = buffMember.name;
+              skillCooldowns[buffMember.id][skillId] = 4;
+              text = `${buffMember.name} pours their soul into a <span class="dmg-num" style="color:#f39c12">Magnum Opus</span> — the party is lifted by transcendent song!`;
+              icon = '🎼';
+            } else if (skillId === 'MARK_FOR_DEATH') {
+              const target = sPick(livingEnemies, es + 403);
+              markedEnemies[target.id] = 2;
+              text = sPick(T_MARK_FOR_DEATH, es + 404)(buffMember.name, target.name);
+              icon = '🎯';
+            } else if (skillId === 'DISCORD') {
+              discordRounds = talentDiscordDmg ? 4 : 3;
+              discordSource = buffMember;
+              discordCooldowns[buffMember.id] = 4;
+              text = sPick(T_DISCORD, es + 405)(buffMember.name);
+              icon = '🎸';
+            } else if (skillId === 'CADENCE') {
+              cadenceRounds = 3;
+              cadenceSource = buffMember.name;
+              cadenceCooldowns[buffMember.id] = 4;
+              text = `${buffMember.name} sets a driving Cadence — the party's tempo quickens (+15% dmg, +10% crit for 3 rounds)!`;
+              icon = '🎼'; type = 'buff';
+            } else if (skillId === 'DARK_PACT') {
+              darkPactRounds = 3;
+              darkPactSource = buffMember;
+              text = sPick(T_DARK_PACT, es + 407)(buffMember.name);
+              icon = '🩸';
+            } else if (skillId === 'BLIGHT') {
+              blightRounds = 3;
+              blightSource = buffMember;
+              text = `${buffMember.name} unleashes a wave of Blight — <span class="dmg-num" style="color:#9b59b6">necrotic decay spreads through the enemy ranks!</span>`;
+              icon = '☠';
+            } else if (skillId === 'ARMY_OF_THE_DAMNED') {
+              const armyCount = Math.max(1, fallenEnemies.length);
+              const armyBaseDmg = Math.max(2, Math.floor(buffMember.mag * 1.1));
+              armyDmgPerTick = armyCount * Math.floor(armyBaseDmg * (1 + minionDmgBonusTotal) * 2.5);
+              armyRounds = talentUndeadVanguard ? 4 : 3;
+              armySource = buffMember;
+              blightRounds = 3;
+              blightSource = buffMember;
+              text = sPick(T_ARMY_OF_DAMNED, es + 408)(buffMember.name, armyCount);
+              icon = '👻';
+            } else if (skillId === 'REGEN_SONG') {
+              // Regen Song — persistent HoT that re-rolls for potency on each
+              // recast. Potency is MAG-scaled and explicitly tuned to be
+              // ~50-60% as effective as a single Cleric group-heal cast per
+              // tick (per member). Cleric per-member heal = mag × 0.75-1.25
+              // averaged ~mag × 1.0 (HEAL_MAG_MIN_MULT=1.5, SPREAD=1.0 halved
+              // by the per-member split). Bard per-tick = mag × (0.45-0.65)
+              // averaged mag × 0.55 — about 55% of a Cleric cast per member.
+              // We keep the max of the current value and the new roll so
+              // re-casting during the fight can only improve the per-tick
+              // heal, never degrade it. The HoT persists for the rest of the
+              // fight (no duration) so sustained Bard presence pays off in
+              // longer encounters.
+              const baseRoll = Math.max(1, Math.floor((buffMember.mag || 10) * (0.45 + sRand(es + 418) * 0.20)));
+              const newRegen = Math.max(1, Math.floor(baseRoll * healBonus));
+              const previous = regenPerTick;
+              if (newRegen > regenPerTick) regenPerTick = newRegen;
+              regenSource = buffMember.name;
+              regenSourceId = buffMember.id;
+              if (previous === 0) {
+                text = `${buffMember.name} begins a restorative Regen Song — the party's wounds slowly close (<span class="dmg-num dmg-heal">+${regenPerTick}</span> HP/rd)!`;
+              } else if (regenPerTick > previous) {
+                text = `${buffMember.name}'s Regen Song swells — the healing melody grows stronger (<span class="dmg-num dmg-heal">+${regenPerTick}</span> HP/rd)!`;
+              } else {
+                text = `${buffMember.name} reprises the Regen Song — the party's regen holds steady (<span class="dmg-num dmg-heal">+${regenPerTick}</span> HP/rd).`;
+              }
+              icon = '🎵'; type = 'heal';
+            } else if (skillId === 'SPELL_ECHO') {
+              spellEchoRounds[buffMember.id] = 2;
+              text = sPick(T_SPELL_ECHO, es + 411)(buffMember.name);
+              icon = '🌀';
+            } else if (skillId === 'CAMOUFLAGE') {
+              // Class guard — Camouflage is a Ranger-only buff. Without this
+              // guard a phantom trigger could fire on non-Rangers if CAMOUFLAGE
+              // ever landed in their buff pool (e.g. via legacy save data).
+              if (buffMember.class !== 'RANGER') {
+                skillCooldowns[buffMember.id][skillId] = SKILL_COOLDOWN;
+                continue;
+              }
+              camoRounds[buffMember.id] = 2;
+              if (talentSharedCamo) {
+                const lowestAlly = livingParty.filter(p => p.hp > 0 && p.id !== buffMember.id).sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp))[0];
+                if (lowestAlly) camoRounds[lowestAlly.id] = 2;
+              }
+              text = sPick(T_CAMOUFLAGE, es + 412)(buffMember.name);
+              icon = '🍃';
+            } else if (skillId === 'DIVINE_SHIELD') {
+              divineShieldRounds = 3;
+              divineShieldSource = buffMember.name;
+              text = sPick(T_DIVINE_SHIELD, es + 413)(buffMember.name);
+              icon = '⛨';
+              if (talentSacredWarmth) {
+                for (const p of livingParty) { sacredWarmthRounds[p.id] = 3; }
+              }
+            } else if (skillId === 'KI_BARRIER') {
+              text = sPick(T_KI_BARRIER, es + 414)(buffMember.name, Math.floor(buffMember.maxHp * 0.25));
+              icon = '🔮';
+            } else if (skillId === 'SMOKE_BOMB') {
+              const livingMembers = livingParty.filter(p => p.hp > 0);
+              if (talentSmokeHeal) {
+                for (const p of livingMembers) {
+                  const smokHeal = Math.max(1, Math.floor(p.maxHp * 0.05));
+                  const bef = p.hp;
+                  p.hp = Math.min(p.maxHp, p.hp + smokHeal);
+                  const act = p.hp - bef;
+                  if (act > 0 && combatStats[p.id]) combatStats[p.id].healingReceived += act;
+                }
+              }
+              text = `${buffMember.name} deploys Smoke Bomb — the party gains evasion!`;
+              icon = '💨';
+            } else {
+              text = sPick(T_SKILL, es + 415)(buffMember.name, skill.name, 'party', 'buff applied');
+            }
+  
+            skillCooldowns[buffMember.id][skillId] = SKILL_COOLDOWN;
+            actionPerformed = true;
+          } else {
+            // Buff proc failed — gauge resets, no buff this round
+            if (_combatDebug.atb.laneActions[buffMember.id]) {
+              _combatDebug.atb.laneActions[buffMember.id].buff.procFails++;
+            }
           }
         }
-      }
 
-    } else if (roll < 0.82) {
-      // ── Party defend / block ──
-      const defender = sPick(livingParty, es + 40);
-      const attacker = sPick(livingEnemies, es + 41);
-      const discordBlockMult = discordRounds > 0 ? 0.80 : 1.0;
-      const rawDmg = Math.max(1, Math.floor(attacker.atk * discordBlockMult * 0.3 * sRand(es + 42)));
-      // Blocking already reduces, then DEF reduces further, then synergy
-      const afterDef = applyDef(rawDmg, defender);
-      const reducedDmg = Math.max(1, Math.floor(afterDef * (1 - dmgReduction)));
-      defender.hp = Math.max(0, defender.hp - reducedDmg);
-      if (combatStats[defender.id]) combatStats[defender.id].dmgTaken += reducedDmg;
-      text = sPick(T_DEFEND, es)(defender.name, attacker.name, reducedDmg);
-      icon = '🛡'; type = 'defend';
+        atbGauges[buffMember.id].buff = 0;
+  
+      } else if (actor.lane === 'heal') {
+        // ─────────────────────────────────────────────────────────────────────
+        // HEAL LANE: Group heal
+        // ─────────────────────────────────────────────────────────────────────
+  
+        const healer = partyHp.find(p => p.id === actor.memberId);
+        if (!healer || healer.hp <= 0) continue;
+        if (_combatDebug.atb.laneActions[healer.id]) _combatDebug.atb.laneActions[healer.id].heal.fires++;
 
-    } else if (roll < 0.90) {
-      // ── Healing / Regen — only Clerics and Bards ──
-      const clerics = livingParty.filter(p => p.class === 'CLERIC');
-      const bards = livingParty.filter(p => p.class === 'BARD');
-
-      if (clerics.length === 0 && bards.length === 0) {
-        // No healer alive — fall back to a party attack
-        const attacker = sPickWeighted(livingParty, es + 60);
-        const target = sPick(livingEnemies, es + 61);
-        const fallbackDmg = calcPartyDmg(attacker, es + 62, dmgBonus);
-        target.hp = Math.max(0, target.hp - fallbackDmg);
-        if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += fallbackDmg;
-        const classId = attacker.class || 'HERO';
-        text = getAttackTemplate(classId, es)(attacker.name, target.name, fallbackDmg);
-        if (isMagicClass(classId)) { icon = '✨'; type = 'magic'; }
-        else { icon = '⚔'; type = 'attack'; }
-        if (target.hp <= 0) { target.alive = false; }
-      } else if (clerics.length > 0 && (bards.length === 0 || sRand(es + 44) < 0.6)) {
-        // ── Cleric: direct group heal — scales off MAG ──
-        const healer = sPick(clerics, es + 45);
         const magStat = healer.mag || 10;
-        const baseHeal = Math.max(3, Math.floor(magStat * (1.5 + sRand(es + 46) * 1.0)));
+        const baseHeal = Math.max(3, Math.floor(magStat * (COMBAT_TUNING.HEAL_MAG_MIN_MULT + sRand(es + 500) * COMBAT_TUNING.HEAL_MAG_SPREAD)));
         const healAmt = Math.floor(baseHeal * healBonus);
         const perMemberHeal = Math.floor(healAmt * 0.5);
-
+  
         const healed = [];
-        livingParty.forEach(p => {
+        // Skip KO'd members — group heals must not resurrect the dead.
+        // `livingParty` is filtered at round start, so a member who was alive
+        // then but has since been KO'd is still in this array with hp===0.
+        // Only Cleric Resurrection (below) is allowed to bring allies back.
+        for (const p of livingParty) {
+          if (p.hp <= 0) continue;
           const before = p.hp;
           p.hp = Math.min(p.maxHp, p.hp + perMemberHeal);
           const actual = p.hp - before;
@@ -2126,162 +3076,603 @@ function buildSimulation(aq, quest) {
             if (combatStats[p.id]) combatStats[p.id].healingReceived += actual;
             if (p.id !== healer.id) healed.push({ name: p.name, amt: actual });
           }
-        });
-        // Minions also receive group heals
-        necroMinions.forEach(m => {
+        }
+  
+        for (const m of necroMinions) {
           if (m.hp > 0 && m.hp < m.maxHp) {
             m.hp = Math.min(m.maxHp, m.hp + perMemberHeal);
           }
-        });
-
-        text = getHealTemplate(es)(healer.name, healAmt);
-        icon = '💚'; type = 'heal';
+        }
+  
+        text = getHealTemplate(es + 501)(healer.name, healAmt);
+        icon = '💚';
+        type = 'heal';
         events.push({ text, type, icon, phase: 'battle' });
         snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-
+  
         if (healed.length > 0) {
           const names = healed.map(h => `${h.name} (<span class="dmg-num dmg-heal">+${h.amt}</span>)`).join(', ');
           text = `${names} received healing from ${healer.name}.`;
-          icon = '💚'; type = 'heal';
-          events.push({ text, type, icon, phase: 'battle' });
-          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+          icon = '💚';
+          type = 'heal';
         }
-        // Cleric Divine Shield — activate after group heal
+  
+        // Divine Shield after healing
         if (clericsWithDivineShield.has(healer.id)) {
           divineShieldRounds = 3;
           divineShieldSource = healer.name;
-          _bufState.divineShieldRounds = divineShieldRounds;
-          _bufState.divineShieldSource = divineShieldSource;
-          const shieldText = sPick(T_DIVINE_SHIELD, es + 98)(healer.name);
+          events.push({ text, type, icon, phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+          const shieldText = sPick(T_DIVINE_SHIELD, es + 502)(healer.name);
           events.push({ text: shieldText, type: 'buff', icon: '⛨', phase: 'battle' });
           snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-          // Sacred Warmth (CLR_SHIELD_HOT) — Divine Shield also applies HoT to all allies
           if (talentSacredWarmth) {
             for (const p of livingParty) { sacredWarmthRounds[p.id] = 3; }
           }
         }
-        // Holy Splash (CLR_HOLY_SPLASH) — 25% of Holy Light damage splashes to all enemies
-        if (talentHolySplash && healer.class === 'CLERIC') {
-          const splashDmg = Math.max(1, Math.floor(healAmt * 0.25));
-          const currentLivingEnemies = enemies.filter(e => e.alive);
-          for (const e of currentLivingEnemies) {
-            e.hp = Math.max(0, e.hp - splashDmg);
-            if (combatStats[healer.id]) combatStats[healer.id].dmgDealt += splashDmg;
-            if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); }
-          }
-        }
-        // Cleric Resurrection — revive a fallen party member after healing
-        const deadParty = partyHp.filter(p => p.hp <= 0);
+  
+        // Resurrection
+        const deadParty = livingParty.filter(p => p.hp <= 0);
         if (deadParty.length > 0) {
-          const availableRezzer = partyHp.find(p =>
+          const availableRezzer = livingParty.find(p =>
             p.hp > 0 && clericsWithResurrection.has(p.id) && resurrectionCooldowns[p.id] === 0
           );
           if (availableRezzer) {
-            const reviveTarget = sPick(deadParty, es + 99);
+            const reviveTarget = sPick(deadParty, es + 503);
             const reviveHp = Math.max(1, Math.floor(reviveTarget.maxHp * 0.40 * healBonus));
             reviveTarget.hp = reviveHp;
             resurrectionCooldowns[availableRezzer.id] = 3;
             if (combatStats[availableRezzer.id]) combatStats[availableRezzer.id].healingDone += reviveHp;
-            const rezText = sPick(T_RESURRECTION, es + 100)(availableRezzer.name, reviveTarget.name);
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            const rezText = sPick(T_RESURRECTION, es + 504)(availableRezzer.name, reviveTarget.name);
             events.push({ text: rezText, type: 'divine', icon: '🌟', phase: 'battle' });
             snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
           }
         }
-        continue;
-      } else {
-        // ── Bard: regen buff — scales off MAG ──
-        const bard = sPick(bards, es + 45);
-        const bardMag = bard.mag || 5;
-        const baseRegen = Math.max(1, Math.floor(bardMag * (0.4 + sRand(es + 47) * 0.3)));
-        const regenAmt = Math.max(1, Math.floor(baseRegen * healBonus));
-        regenPerTick = regenAmt; // refreshes the regen value each time bard casts
-        regenSource = bard.name;
-        regenSourceId = bard.id;
+  
+        // CLR_SMITE_BURN "Righteous Burn" — see Smite hit path for the burn
+        // application. Heal lane no longer splashes.
 
-        text = sPick(T_BARD_REGEN, es)(bard.name, regenAmt);
-        icon = '🎵'; type = 'buff';
+        atbGauges[healer.id].heal = 0;
+      }
+  
+      if (actionPerformed) {
         events.push({ text, type, icon, phase: 'battle' });
         snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-
-        // Bard Discord — cast enemy debuff after regen if off cooldown
-        const discordBard = livingParty.find(p =>
-          p.hp > 0 && bardsWithDiscord.has(p.id) && discordCooldowns[p.id] === 0 && discordRounds === 0
-        );
-        if (discordBard) {
-          discordRounds = talentDiscordDmg ? 4 : 3; // Sonic Amplifier: doubled damage = extra tick
-          discordSource = discordBard.name;
-          discordCooldowns[discordBard.id] = 4;
-          _bufState.discordRounds = discordRounds;
-          _bufState.discordSource = discordSource;
-          const discordText = sPick(T_DISCORD, es + 110)(discordBard.name);
-          events.push({ text: discordText, type: 'debuff', icon: '🎸', phase: 'battle' });
-          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-        }
-
-        // Bard Crescendo — buff next party attack if off cooldown
-        const crescBard = livingParty.find(p =>
-          p.hp > 0 && bardsWithCrescendo.has(p.id) && crescendoCooldowns[p.id] === 0 && !crescendoActive
-        );
-        if (crescBard) {
-          crescendoActive = true;
-          crescendoSourceId = crescBard.id;
-          crescendoCooldowns[crescBard.id] = 3;
-          _bufState.crescendoActive = true;
-          // Grand Crescendo (BRD_CRESCENDO_ALLY) — crit also applies to next 2 ally attacks
-          if (talentCrescendoAlly) crescendoAllyCharges.count = 2;
-          const crescText = sPick(T_CRESCENDO, es + 115)(crescBard.name);
-          events.push({ text: crescText, type: 'buff', icon: '🎶', phase: 'battle' });
-          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-        }
-
-        continue;
       }
 
-    } else {
-      // ── Reinforcement spawn (limited) ──
-      if (reinforceCount < maxReinforcements && livingEnemies.length < 5 && sRand(es + 55) < 0.45) {
-        const template = sPick(enemyNames, es + 56);
-        const reinforceHp = Math.max(12, Math.floor(perEnemyBaseHp * (0.5 + sRand(es + 57) * 0.5)));
-        const newEnemy = {
-          id: `enemy_${nextEnemyId++}`, name: esc(template),
-          maxHp: reinforceHp, hp: 0,
-          atk: Math.max(3, Math.floor(avgMemberHp * (0.07 * difficultyScale + sRand(es + 58) * 0.10 * difficultyScale))),
-          alive: true, isReinforcement: true,
-        };
-        newEnemy.hp = newEnemy.maxHp;
-        enemies.push(newEnemy);
-        reinforceCount++;
-        text = sPick(T_REINFORCEMENT, es)(template);
-        icon = '📢'; type = 'reinforce';
-      } else {
-        // fallback — party attack
-        const attacker = sPickWeighted(livingParty, es + 60);
-        const target = sPick(livingEnemies, es + 61);
-        const baseDmg = calcPartyDmg(attacker, es + 62, dmgBonus);
-        target.hp = Math.max(0, target.hp - baseDmg);
-        if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += baseDmg;
-        text = sPick(T_ATTACK, es)(attacker.name, target.name, baseDmg);
-        icon = '⚔'; type = 'attack';
-        if (target.hp <= 0) { target.alive = false; }
+      // ── Arcane Aftershock reactive prime (§3.3 Mage rework) ──
+      // If this party actor's action reduced the enemy living count, prime
+      // every ready mage with Aftershock: 2 rounds of 1.5× spell damage,
+      // 3-round ICD. Enemy-actor kills (minion deaths) never trigger this.
+      if (actor.isParty && actionPerformed && magesWithSpellEcho.size > 0) {
+        const _enemiesAlivePost = enemies.filter(e => e.alive).length;
+        if (_enemiesAlivePost < _enemiesAlivePre) {
+          for (const mageId of magesWithSpellEcho) {
+            if ((aftershockCooldowns[mageId] || 0) > 0) continue;
+            if ((spellEchoRounds[mageId] || 0) > 0) continue;
+            const mage = partyHp.find(p => p.id === mageId && p.hp > 0);
+            if (!mage) continue;
+            spellEchoRounds[mageId] = 2;
+            aftershockCooldowns[mageId] = 3;
+            events.push({
+              text: `${mage.name} resonates with an <span class="dmg-num" style="color:#b0f">Arcane Aftershock</span> — next spells empowered for 2 rounds!`,
+              type: 'buff', icon: '🌀', phase: 'battle',
+            });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            _logReactive('Arcane Aftershock', mage.name, '', 'primed 2rd / 1.5× spell dmg');
+          }
+        }
       }
     }
 
-    events.push({ text, type, icon, phase: 'battle' });
-    snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-  }
+    // ─────────────────────────────────────────────────────────────────────────
+    // END-OF-ROUND PHASE: DoT/HoT ticks, debuff countdown, reinforcements
+    // ─────────────────────────────────────────────────────────────────────────
+    const es = seed + (i + 10) * 7919; // round-level seed for end-of-round events
 
-  // If we hit the event cap without natural resolution, force the fight to finish
-  // by generating rapid finishing blows so one side is fully eliminated.
+    roundCount++;
+
+    // ATB round snapshot
+    const _gaugeSnap = {};
+    for (const m of livingParty) {
+      _gaugeSnap[m.name] = {
+        attack: Math.round(atbGauges[m.id].attack),
+        buff: Math.round(atbGauges[m.id].buff),
+        heal: Math.round(atbGauges[m.id].heal),
+      };
+    }
+    _combatDebug.atb.gaugeSnapshots.push({ round: roundCount, gauges: _gaugeSnap });
+    const _partyHpTotal = livingParty.reduce((s, p) => s + p.hp, 0);
+    const _partyHpMax = livingParty.reduce((s, p) => s + p.maxHp, 0);
+    const _enemyHpTotal = livingEnemies.reduce((s, e) => s + e.hp, 0);
+    const _enemyHpMax = livingEnemies.reduce((s, e) => s + e.maxHp, 0);
+    _combatDebug.atb.roundSummaries.push({
+      round: roundCount,
+      livingParty: livingParty.length, livingEnemies: livingEnemies.length,
+      partyHpPct: _partyHpMax > 0 ? Math.round((_partyHpTotal / _partyHpMax) * 100) : 0,
+      enemyHpPct: _enemyHpMax > 0 ? Math.round((_enemyHpTotal / _enemyHpMax) * 100) : 0,
+    });
+
+    // Bard regen tick — heals every round but only logs every 3rd round to reduce spam
+    if (regenPerTick > 0) {
+      let anyHealed = false;
+      let totalRegenHealed = 0;
+      for (const p of livingParty) {
+        if (p.hp <= 0) continue; // skip members who died this round
+        const before = p.hp;
+        p.hp = Math.min(p.maxHp, p.hp + regenPerTick);
+        const actual = p.hp - before;
+        if (actual > 0) {
+          anyHealed = true;
+          totalRegenHealed += actual;
+          if (combatStats[p.id]) combatStats[p.id].healingReceived += actual;
+        }
+      }
+      // Credit the bard who cast Regen Song with the tick healing.
+      if (totalRegenHealed > 0 && regenSourceId && combatStats[regenSourceId]) {
+        combatStats[regenSourceId].healingDone += totalRegenHealed;
+      }
+      if (anyHealed && roundCount % 3 === 0) {
+        const regenEvent = sPick(T_REGEN_TICK, es + 600)(regenPerTick);
+        events.push({ text: regenEvent, type: 'heal', icon: '🎵', phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+      }
+    }
+  
+    // Necro minion attacks — each living minion deals dmgPerTick to a random enemy
+    for (const minion of necroMinions) {
+      if (minion.hp <= 0 || livingEnemies.length === 0) continue;
+      const target = sPick(livingEnemies, es + 550 + necroMinions.indexOf(minion));
+      const mDmg = Math.max(1, Math.floor(minion.dmgPerTick * (1 + minionDmgBonusTotal)));
+      target.hp = Math.max(0, target.hp - mDmg);
+      if (minion.ownerId && combatStats[minion.ownerId]) combatStats[minion.ownerId].dmgDealt += mDmg;
+      const mText = sPick(T_MINION_ATTACK, es + 551)(minion.name, target.name, mDmg);
+      events.push({ text: mText, type: 'magic', icon: '🧟', phase: 'battle' });
+      snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+      if (target.hp <= 0) {
+        target.alive = false;
+        fallenEnemies.push(target.name);
+        tryRaiseDead(target, es + 3160);
+        const defeatText = sPick(T_ENEMY_DEFEAT, es + 552)(target.name, minion.name);
+        events.push({ text: defeatText, type: 'defeat', icon: '💥', phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+      }
+    }
+
+    // Blight DoT — 40% MAG per enemy per tick, 3 rounds
+    // As the Necromancer's signature L10 AoE DoT this needs to actually
+    // compete with their direct-damage kit. Shadow Bolt scales at 130% MAG
+    // single-target per cast; Blight at 40% × 3 ticks = 120% MAG per enemy
+    // across its full duration, which beats Shadow Bolt on 2+ enemies
+    // while still losing to it single-target. That's the correct shape
+    // for an AoE DoT vs single-target burst.
+    if (blightRounds > 0) {
+      const blightTargets = livingEnemies;
+      let totalBlightDmg = 0;
+      for (const e of blightTargets) {
+        const blightDmg = Math.max(3, Math.floor((blightSource.mag || 10) * 0.40));
+        e.hp = Math.max(0, e.hp - blightDmg);
+        totalBlightDmg += blightDmg;
+        if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); tryRaiseDead(e, es + 3176); }
+      }
+      if (totalBlightDmg > 0) {
+        const dotText = sPick(T_BLIGHT_DOT, es + 601)(Math.floor(totalBlightDmg / Math.max(1, blightTargets.length)), blightTargets.length);
+        events.push({ text: dotText, type: 'debuff', icon: '☠', phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+      }
+      blightRounds--;
+    }
+  
+    // Army of the Damned tick
+    if (armyRounds > 0 && armyDmgPerTick > 0) {
+      const armyTargets = livingEnemies;
+      let totalArmyDmg = 0;
+      for (const e of armyTargets) {
+        e.hp = Math.max(0, e.hp - armyDmgPerTick);
+        totalArmyDmg += armyDmgPerTick;
+        if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); tryRaiseDead(e, es + 3193); }
+      }
+      if (totalArmyDmg > 0) {
+        const armyText = sPick(T_ARMY_TICK, es + 602)(armyDmgPerTick, armyTargets.length);
+        events.push({ text: armyText, type: 'magic', icon: '👻', phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+      }
+      armyRounds--;
+    }
+  
+    // Discord DoT — 32% MAG per enemy per tick
+    // Discord still carries its ATK -20% + fumble utility, but the sonic
+    // DoT now contributes meaningful damage too. At Bard MAG 100 that's
+    // 32/tick per enemy, ~96/tick vs a 3-enemy group, so across its full
+    // 3-round duration a Discord cast threatens ~300+ total AoE damage
+    // in addition to the debuff pressure. Discord is on a 4-round CD so
+    // it's essentially a maintenance stance — the DoT should matter.
+    if (discordRounds > 0) {
+      const discordTargets = livingEnemies;
+      let totalDiscordDmg = 0;
+      for (const e of discordTargets) {
+        const discordDmg = Math.max(3, Math.floor((discordSource?.mag || 10) * 0.32));
+        e.hp = Math.max(0, e.hp - discordDmg);
+        totalDiscordDmg += discordDmg;
+        if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); tryRaiseDead(e, es + 3211); }
+      }
+      if (totalDiscordDmg > 0) {
+        const dotText = sPick(T_DISCORD_DOT, es + 603)(Math.floor(totalDiscordDmg / Math.max(1, discordTargets.length)), discordTargets.length);
+        events.push({ text: dotText, type: 'debuff', icon: '🎸', phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+      }
+      discordRounds--;
+    }
+
+    // Consecration duration tick — applies party HoT then decrements
+    // HoT bumped 5% → 6% maxHp so the consecrated-ground tick feels like
+    // more than a rounding error (especially on Knights with big HP pools).
+    if (consecrationRounds > 0) {
+      let totalHealed = 0;
+      for (const p of livingParty) {
+        if (p.hp <= 0) continue;
+        const healAmt = Math.max(2, Math.floor(p.maxHp * 0.06));
+        const before = p.hp;
+        p.hp = Math.min(p.maxHp, p.hp + healAmt);
+        const actual = p.hp - before;
+        totalHealed += actual;
+        if (combatStats[p.id]) combatStats[p.id].healingReceived += actual;
+      }
+      if (totalHealed > 0 && consecrationSource) {
+        // credit the cleric that cast it
+        const src = livingParty.find(p => p.name === consecrationSource);
+        if (src && combatStats[src.id]) combatStats[src.id].healingDone += totalHealed;
+        events.push({ text: `Consecrated ground restores the party — <span class="dmg-num dmg-heal">+${totalHealed}</span> HP!`, type: 'heal', icon: '🌅', phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+      }
+      consecrationRounds--;
+      if (consecrationRounds === 0) {
+        events.push({ text: `The Consecration fades — the ground is no longer hallowed.`, type: 'buff', icon: '🌅', phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+      }
+    }
+
+    // Bard Cadence duration tick
+    if (cadenceRounds > 0) {
+      cadenceRounds--;
+      if (cadenceRounds === 0) {
+        events.push({ text: `The Cadence fades — the party's tempo returns to normal.`, type: 'buff', icon: '🎼', phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+      }
+    }
+
+    // Mage Frostbite duration tick
+    if (frostbiteRounds > 0) {
+      frostbiteRounds--;
+      if (frostbiteRounds === 0) {
+        events.push({ text: `The Frostbite thaws — enemies recover their footing.`, type: 'buff', icon: '❄', phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+      }
+    }
+
+    // Burn DoT tick (Cleric Righteous Burn + Mage Lingering Flames).
+    // Bucket hits by source so the tick message uses source-appropriate
+    // flavor — Meteor Storm burns are Mage-flavored, Smite/Righteous Burn
+    // are Cleric-flavored. Prior to this split the tick hardcoded "Sacred
+    // flame" regardless of source, which was thematically wrong for Mage
+    // parties with no Cleric present.
+    {
+      const burnIds = Object.keys(burnTargets);
+      if (burnIds.length > 0) {
+        const bucket = { MAG: { dmg: 0, hits: 0 }, CLR: { dmg: 0, hits: 0 } };
+        for (const eid of burnIds) {
+          const e = enemies.find(en => en.id === eid);
+          if (!e || !e.alive || e.hp <= 0) { delete burnTargets[eid]; continue; }
+          const b = burnTargets[eid];
+          const dmg = b.dmgPerTick;
+          e.hp = Math.max(0, e.hp - dmg);
+          const src = (b.source === 'MAG') ? 'MAG' : 'CLR';
+          bucket[src].dmg += dmg;
+          bucket[src].hits++;
+          if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); tryRaiseDead(e, es + 3284); }
+          b.rounds--;
+          if (b.rounds <= 0) delete burnTargets[eid];
+        }
+        if (bucket.MAG.hits > 0) {
+          const avg = Math.floor(bucket.MAG.dmg / bucket.MAG.hits);
+          events.push({ text: `Lingering flames scorch ${bucket.MAG.hits} foe${bucket.MAG.hits > 1 ? 's' : ''} for <span class="dmg-num dmg-mag">${avg}</span> each!`, type: 'debuff', icon: '☄', phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        }
+        if (bucket.CLR.hits > 0) {
+          const avg = Math.floor(bucket.CLR.dmg / bucket.CLR.hits);
+          events.push({ text: `Sacred flame sears ${bucket.CLR.hits} foe${bucket.CLR.hits > 1 ? 's' : ''} for <span class="dmg-num dmg-mag">${avg}</span> each!`, type: 'debuff', icon: '🔥', phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        }
+      }
+    }
+
+    // Rogue Poison DoT tick
+    {
+      const poisonIds = Object.keys(poisonTargets);
+      if (poisonIds.length > 0) {
+        let totalPoisonDmg = 0;
+        let poisonHits = 0;
+        for (const eid of poisonIds) {
+          const e = enemies.find(en => en.id === eid);
+          if (!e || !e.alive || e.hp <= 0) { delete poisonTargets[eid]; continue; }
+          const p = poisonTargets[eid];
+          const dmg = p.dmgPerTick;
+          e.hp = Math.max(0, e.hp - dmg);
+          totalPoisonDmg += dmg;
+          poisonHits++;
+          if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); tryRaiseDead(e, es + 3315); }
+          p.rounds--;
+          if (p.rounds <= 0) delete poisonTargets[eid];
+        }
+        if (poisonHits > 0) {
+          const avg = Math.floor(totalPoisonDmg / poisonHits);
+          events.push({ text: `Venom sears ${poisonHits} foe${poisonHits > 1 ? 's' : ''} for <span class="dmg-num dmg-phys">${avg}</span> each!`, type: 'debuff', icon: '🧪', phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        }
+      }
+    }
+  
+    // ── Executioner's Mark reactive fire ────────────────────────────────
+    // Champion-spec Hero trigger: when any enemy falls below 30% HP, a
+    // Champion off cooldown marks them (+10% party dmg for 2 rounds) and
+    // strikes for 2.0× ATK. 3-round CD. Only fires on enemies not already
+    // marked (prevents re-firing on the same target round over round).
+    if (heroesWithExecutioner.size > 0) {
+      const execTarget = livingEnemies.find(e =>
+        e.hp > 0 && e.hp < e.maxHp * 0.30 && !(executeMarkRounds[e.id] > 0)
+      );
+      if (execTarget) {
+        const execHero = livingParty.find(p =>
+          p.hp > 0 && heroesWithExecutioner.has(p.id) && executionerCooldowns[p.id] === 0
+        );
+        if (execHero) {
+          // Apply mark debuff (+10% party dmg for 2 rounds).
+          // Set to 3 so the post-event countdown decrement leaves 2 rounds of effect.
+          executeMarkRounds[execTarget.id] = 3;
+          // Deal the Executioner's strike — 2.0× ATK is the Champion-signature
+          // burst multiplier for this skill, INLINED BY DESIGN (not in COMBAT_TUNING).
+          const baseDmg = calcPartyDmg(execHero, es + 750, dmgBonus);
+          const strikeDmg = Math.max(1, Math.floor(baseDmg * 2.0));
+          const actualDmg = applyDef(strikeDmg, execTarget.def || 0);
+          execTarget.hp = Math.max(0, execTarget.hp - actualDmg);
+          if (combatStats[execHero.id]) combatStats[execHero.id].dmgDealt += actualDmg;
+          executionerCooldowns[execHero.id] = 3;
+          const execText = sPick(T_EXECUTIONER, es + 751)(execHero.name, execTarget.name, actualDmg);
+          events.push({ text: execText, type: 'crit', icon: '🎯', phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+          _logReactive("Executioner's Mark", execHero.name, execTarget.name, `${actualDmg} dmg + marked`);
+          if (execTarget.hp <= 0) {
+            execTarget.alive = false;
+            fallenEnemies.push(execTarget.name);
+            tryRaiseDead(execTarget, es + 3357);
+            const defeatText = sPick(T_ENEMY_DEFEAT, es + 752)(execTarget.name, execHero.name);
+            events.push({ text: defeatText, type: 'defeat', icon: '💥', phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            // Feed Bloodlust on kill if another hero has the passive
+            const bloodlustHero = livingParty.find(p => p.hp > 0 && heroesWithBloodlust.has(p.id));
+            if (bloodlustHero) bloodlustActive[bloodlustHero.id] = true;
+          }
+        }
+      }
+    }
+
+    // ── Equipment active skill procs (bonus end-of-round action) ────────
+    // Equipment active skills fire as a bonus action on top of the ATB attack
+    // lane — they do NOT steal turn time from class skills. Per-member CD
+    // (equipProcCooldowns) gates firing to at most once every 2 rounds to
+    // prevent proc spam. Each skill also uses the standard skillCooldowns map.
+    //
+    // SLOT-DRIVEN DISPATCH: a proc's behavior is decided by the bound item's
+    // slot (pulled from data.js at proc time):
+    //   • weapon  → deals direct damage (honors powerMultiplier + atkBonus/
+    //               magBonus + critChance boost)
+    //   • other   → drops a pending buff on the member that empowers their
+    //               NEXT damage/heal action (consumed in calcPartyDmg)
+    // Celestial 2H weapons can still grant auras — those live as passives and
+    // apply in applyPassiveSkills, not here. The only way to reach this lane
+    // is a skill with type === 'active'.
+    for (const m of livingParty) {
+      if (m.hp <= 0) continue;
+      if (equipProcCooldowns[m.id] > 0) continue;
+      const equipPool = memberEquipProcSkills[m.id] || [];
+      if (equipPool.length === 0) continue;
+      const readyEquip = equipPool.filter(sid => !skillCooldowns[m.id][sid]);
+      if (readyEquip.length === 0) continue;
+
+      const pickedSid = sPick(readyEquip, es + 810 + equipPool.length);
+      const eqSkill = getSkill(pickedSid);
+      if (!eqSkill) continue;
+
+      // Roll proc
+      const procRoll = sRand(es + 811);
+      const procThresh = eqSkill.procChance || 0.55;
+      if (procRoll >= procThresh) continue;
+
+      // Slot lookup → dispatch path
+      const boundItem = eqSkill.itemId ? getItem(eqSkill.itemId) : null;
+      const isWeaponProc = boundItem && boundItem.slot === 'weapon' && !eqSkill.pendingBuff;
+      const isCelestial = boundItem && boundItem.rarity === 'celestial';
+
+      if (!isWeaponProc) {
+        // ── Non-weapon proc → empower next action ─────────────────────
+        // Drop a pending buff on this member. calcPartyDmg consumes it on
+        // the next damage-dealing action. No damage is dealt right now.
+        pendingEquipBuffs[m.id] = {
+          source: eqSkill.name,
+          effects: eqSkill.effects || {},
+        };
+        const tmpl = isCelestial ? T_CELESTIAL_BUFF : T_EQUIP_BUFF;
+        const buffText = sPick(tmpl, es + 817)(m.name, eqSkill.name);
+        const buffIcon = eqSkill.icon || (isCelestial ? '✦' : '•');
+        const buffType = isCelestial ? 'celestial' : 'equip';
+        events.push({ text: buffText, type: buffType, icon: buffIcon, phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        equipProcCooldowns[m.id] = 2;
+        skillCooldowns[m.id][pickedSid] = SKILL_COOLDOWN;
+        continue;
+      }
+
+      // ── Weapon proc → direct damage ───────────────────────────────
+      // Compute damage: baseDmg × powerMultiplier × (1 + atkBonus + magBonus)
+      const eff = eqSkill.effects || {};
+      const powerMult = eff.powerMultiplier || 1.0;
+      const bonusMult = 1.0 + (eff.atkBonus || 0) + (eff.magBonus || 0);
+      const rawBase = calcPartyDmg(m, es + 812, dmgBonus);
+      let baseDmg = Math.max(3, Math.floor(rawBase * powerMult * bonusMult));
+
+      // Extra crit chance from skill effects stacks with member's base crit
+      const extraCrit = eff.critChance || 0;
+      const equipIsCrit = sRand(es + 813) < Math.min(COMBAT_TUNING.CRIT_CAP, critChance(m) + extraCrit + graveHungerCritBonus);
+      if (equipIsCrit) baseDmg = Math.floor(baseDmg * COMBAT_TUNING.PARTY_BASE_CRIT_MULT);
+
+      // Route AoE through the shared AOE_SKILLS table
+      const aoeInfo = AOE_SKILLS[pickedSid];
+      let equipText;
+
+      if (aoeInfo) {
+        // AoE fire — baseDmg already reflects powerMultiplier; scale by aoe.dmgScale
+        const currentLiving = enemies.filter(e => e.alive);
+        if (currentLiving.length === 0) continue; // No targets — skip this equip proc
+        let totalDmg = 0;
+        const perTarget = Math.max(1, Math.floor(baseDmg * aoeInfo.dmgScale));
+        for (const e of currentLiving) {
+          let hit = perTarget;
+          if (markedEnemies[e.id]) hit = Math.floor(hit * 1.20);
+          if (executeMarkRounds[e.id] > 0) hit = Math.floor(hit * 1.10);
+          const applied = eff.defPierce ? hit : applyDef(hit, e.def || 0);
+          e.hp = Math.max(0, e.hp - applied);
+          totalDmg += applied;
+          if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); tryRaiseDead(e, es + 3456); }
+        }
+        if (combatStats[m.id]) combatStats[m.id].dmgDealt += totalDmg;
+        const tmpl = isCelestial ? T_CELESTIAL_SKILL : T_EQUIP_SKILL;
+        equipText = sPick(tmpl, es + 814)(m.name, eqSkill.name, `${currentLiving.length} foes`, totalDmg);
+      } else {
+        // Single-target fire
+        const tgt = sPick(livingEnemies, es + 815);
+        if (!tgt) continue;
+        if (markedEnemies[tgt.id]) baseDmg = Math.floor(baseDmg * 1.20);
+        if (executeMarkRounds[tgt.id] > 0) baseDmg = Math.floor(baseDmg * 1.10);
+        const applied = eff.defPierce ? baseDmg : applyDef(baseDmg, tgt.def || 0);
+        tgt.hp = Math.max(0, tgt.hp - applied);
+        if (combatStats[m.id]) combatStats[m.id].dmgDealt += applied;
+        const tmpl = isCelestial ? T_CELESTIAL_SKILL : T_EQUIP_SKILL;
+        equipText = sPick(tmpl, es + 816)(m.name, eqSkill.name, tgt.name, applied);
+        if (tgt.hp <= 0) {
+          tgt.alive = false;
+          fallenEnemies.push(tgt.name);
+          tryRaiseDead(tgt, es + 3474);
+        }
+      }
+
+      const procIcon = eqSkill.icon || (isCelestial ? '✦' : '•');
+      const procType = isCelestial ? 'celestial' : 'equip';
+      events.push({ text: equipText, type: procType, icon: procIcon, phase: 'battle' });
+      snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+
+      equipProcCooldowns[m.id] = 2;
+      skillCooldowns[m.id][pickedSid] = SKILL_COOLDOWN;
+    }
+
+    // Countdown all debuffs and buffs
+    for (const e of livingEnemies) {
+      if (markedEnemies[e.id] > 0) markedEnemies[e.id]--;
+      if (stormMarkRounds[e.id] > 0) stormMarkRounds[e.id]--;
+      if (tauntedEnemies[e.id] > 0) tauntedEnemies[e.id]--;
+      if (defShredTargets[e.id] > 0) defShredTargets[e.id]--;
+      if (exposedTargets[e.id] > 0) exposedTargets[e.id]--;
+      if (executeMarkRounds[e.id] > 0) executeMarkRounds[e.id]--;
+    }
+
+    for (const m of livingParty) {
+      if (spellEchoRounds[m.id] > 0) spellEchoRounds[m.id]--;
+      if (aftershockCooldowns[m.id] > 0) aftershockCooldowns[m.id]--;
+      if (camoRounds[m.id] > 0) camoRounds[m.id]--;
+      if (sacredWarmthRounds[m.id] > 0) sacredWarmthRounds[m.id]--;
+      if (unbreakableDR[m.id] > 0) unbreakableDR[m.id]--;
+      if (wrathBuff[m.id] > 0) wrathBuff[m.id]--;
+      // Monk class rework countdowns
+      if (flowingStrikeCooldowns[m.id] > 0) flowingStrikeCooldowns[m.id]--;
+      if (ironStanceBuffs[m.id] > 0) ironStanceBuffs[m.id]--;
+      // Ranger Hunter's Mark cooldown
+      if (huntersMarkCooldowns[m.id] > 0) huntersMarkCooldowns[m.id]--;
+      // Knight Last Stand buff/cooldown
+      if (lastStandBuffRounds[m.id] > 0) lastStandBuffRounds[m.id]--;
+      if (lastStandCooldowns[m.id] > 0) lastStandCooldowns[m.id]--;
+      // Bard Crescendo / Cadence cooldowns
+      if (crescendoCooldowns[m.id] > 0) crescendoCooldowns[m.id]--;
+      if (cadenceCooldowns[m.id] > 0) cadenceCooldowns[m.id]--;
+      // Hero spec cooldowns
+      if (vanguardCooldowns[m.id] > 0) vanguardCooldowns[m.id]--;
+      if (unbreakableCooldowns[m.id] > 0) unbreakableCooldowns[m.id]--;
+      if (executionerCooldowns[m.id] > 0) executionerCooldowns[m.id]--;
+      if (wrathCooldowns[m.id] > 0) wrathCooldowns[m.id]--;
+      if (guardianCooldowns[m.id] > 0) guardianCooldowns[m.id]--;
+      // Hero L14 Second Wind buff + cooldown
+      if (secondWindRounds[m.id] > 0) secondWindRounds[m.id]--;
+      if (secondWindCooldowns[m.id] > 0) secondWindCooldowns[m.id]--;
+      // Equipment proc lane lockout
+      if (equipProcCooldowns[m.id] > 0) equipProcCooldowns[m.id]--;
+      // Rogue Riposte / Cleric Guardian's Grasp reactive cooldowns
+      if (riposteCooldowns[m.id] > 0) riposteCooldowns[m.id]--;
+      if (guardianGraspCooldowns[m.id] > 0) guardianGraspCooldowns[m.id]--;
+      // Necromancer Raise Dead cooldown (2-round corpse-gated signature)
+      if (raiseDeadCooldowns[m.id] > 0) raiseDeadCooldowns[m.id]--;
+    }
+    // Retry any pending corpses — fires AFTER the Raise Dead cooldown has
+    // decremented so a necro whose CD expires this round can immediately
+    // raise a queued corpse, and AFTER the minion-death reconciliation
+    // earlier in this round so a thrall dying opens the gate for the next
+    // raise in the same round rather than making the party wait a turn.
+    sweepPendingRaises();
+    // Pressure Point debuff countdown on enemies
+    for (const e of livingEnemies) {
+      if (pressurePointDebuffs[e.id] > 0) pressurePointDebuffs[e.id]--;
+    }
+  
+    // Skill cooldown countdown
+    for (const m of livingParty) {
+      for (const sid in skillCooldowns[m.id]) {
+        if (skillCooldowns[m.id][sid] > 0) skillCooldowns[m.id][sid]--;
+      }
+    }
+  
+    // Reinforcement spawn
+    if (reinforceCount < maxReinforcements && livingEnemies.length < 5 && sRand(es + 700) < 0.45) {
+      const template = sPick(enemyNames, es + 701);
+      const reinforceHp = Math.max(12, Math.floor(perEnemyBaseHp * (0.5 + sRand(es + 702) * 0.5)));
+      const newEnemy = {
+        id: `enemy_${nextEnemyId++}`, name: esc(template),
+        maxHp: reinforceHp, hp: reinforceHp,
+        atk: Math.max(3, Math.floor(avgMemberHp * (0.07 * difficultyScale + sRand(es + 703) * 0.10 * difficultyScale))),
+        alive: true, isReinforcement: true,
+      };
+      enemies.push(newEnemy);
+      atbGauges[newEnemy.id] = { attack: 0 };
+      reinforceCount++;
+      const reinfText = sPick(T_REINFORCEMENT, es + 704)(template);
+      events.push({ text: reinfText, type: 'reinforce', icon: '📢', phase: 'battle' });
+      snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+    }
+  }
+  
+  // Finalize ATB debug
+  _combatDebug.atb.totalRounds = roundCount;
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // SECTION 3: Post-Battle Resolution
+  // ─────────────────────────────────────────────────────────────────────────────
+  
   if (!battleOutcome) {
     const livingEnemies = enemies.filter(e => e.alive);
     const livingParty = partyHp.filter(p => p.hp > 0);
-    // Decide winner based on remaining HP ratio
     const partyHpLeft = livingParty.reduce((s, p) => s + p.hp, 0);
     const enemyHpLeft = livingEnemies.reduce((s, e) => s + e.hp, 0);
     const partyWins = partyHpLeft >= enemyHpLeft;
-
+  
     if (partyWins) {
-      // Party finishes off remaining enemies
       let finishSeed = seed + 200000;
       for (const enemy of livingEnemies) {
         const attacker = sPickWeighted(livingParty.filter(p => p.hp > 0), finishSeed++);
@@ -2291,7 +3682,7 @@ function buildSimulation(aq, quest) {
         enemy.alive = false;
         if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += dmg;
         const classId = attacker.class || 'HERO';
-        const atkText = getAttackTemplate(classId, finishSeed)(attacker.name, enemy.name, `${dmg}`);
+        const atkText = getAttackTemplate(classId, finishSeed)(attacker.name, enemy.name, dmg);
         events.push({ text: atkText, type: 'attack', icon: '⚔', phase: 'battle' });
         snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
         const defeatText = sPick(T_ENEMY_DEFEAT, finishSeed + 1)(enemy.name, attacker.name);
@@ -2301,7 +3692,6 @@ function buildSimulation(aq, quest) {
       }
       battleOutcome = 'victory';
     } else {
-      // Enemies overwhelm the remaining party
       let finishSeed = seed + 300000;
       for (const member of livingParty) {
         const attacker = sPick(enemies.filter(e => e.alive), finishSeed++);
@@ -2320,8 +3710,7 @@ function buildSimulation(aq, quest) {
       battleOutcome = 'defeat';
     }
   }
-
-  // ── Phase 4: Resolution (1 event) ──
+  
   {
     const es = seed + 99999;
     const m = sPick(members, es + 1);
@@ -2331,8 +3720,27 @@ function buildSimulation(aq, quest) {
     snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
   }
 
+
   const totalEvents = events.length;
-  return { events, snapshots, partyHp, enemies, totalEvents, battleOutcome, effectiveInterval, combatStats, combatDebug: _combatDebug };
+
+  // Compute "decisive moment" — the snapshot after which the fight is permanently over.
+  // Must handle reinforcements: enemies may briefly all die, then respawn. So we scan
+  // from the END backwards and find the last snapshot where the fight was still
+  // contested (both sides had living members). The next snapshot is the true decisive
+  // frame — everything after plays at fast-forward to avoid UI drag.
+  let decisiveIndex = totalEvents - 1;
+  for (let idx = snapshots.length - 1; idx >= 0; idx--) {
+    const snap = snapshots[idx];
+    if (!snap) continue;
+    const enemiesAlive = snap.enemies && snap.enemies.some(e => e.hp > 0 && e.alive !== false);
+    const partyAlive = snap.party && snap.party.some(p => p.hp > 0);
+    if (enemiesAlive && partyAlive) {
+      decisiveIndex = Math.min(totalEvents - 1, idx + 1);
+      break;
+    }
+  }
+
+  return { events, snapshots, partyHp, enemies, totalEvents, battleOutcome, effectiveInterval, combatStats, combatDebug: _combatDebug, decisiveIndex };
 }
 
 function makeSnapshot(party, enemies, buffs) {
@@ -2368,11 +3776,13 @@ function makeSnapshot(party, enemies, buffs) {
       if (b.roguesWithMark && b.roguesWithMark.has(p.id)) {
         pBuffs.push({ id: 'mark', icon: '🎯', label: 'Mark', desc: 'On crit' });
       }
-      // Mage Spell Echo
+      // Mage Arcane Aftershock (reactive) — status + ICD cooldown
       if (b.spellEchoRounds && b.spellEchoRounds[p.id] > 0) {
-        pBuffs.push({ id: 'spell_echo', icon: '🌀', label: 'Spell Echo', desc: `${b.spellEchoRounds[p.id]}rd — 1.5× dmg` });
-      } else if (b.magesWithSpellEcho && b.magesWithSpellEcho.has(p.id) && b.spellEchoRounds && b.spellEchoRounds[p.id] === 0) {
-        pBuffs.push({ id: 'spell_echo_ready', icon: '🌀', label: 'Echo', desc: 'Ready', cooldown: true });
+        pBuffs.push({ id: 'aftershock', icon: '🌀', label: 'Aftershock', desc: `${b.spellEchoRounds[p.id]}rd — 1.5× dmg` });
+      } else if (b.aftershockCooldowns && b.aftershockCooldowns[p.id] > 0) {
+        pBuffs.push({ id: 'aftershock_cd', icon: '🌀', label: 'Aftershock', desc: `CD: ${b.aftershockCooldowns[p.id]}`, cooldown: true });
+      } else if (b.magesWithSpellEcho && b.magesWithSpellEcho.has(p.id)) {
+        pBuffs.push({ id: 'aftershock_ready', icon: '🌀', label: 'Aftershock', desc: 'Ready', cooldown: true });
       }
       // Ranger Camouflage
       if (b.camoRounds && b.camoRounds[p.id] > 0) {
@@ -2400,6 +3810,15 @@ function makeSnapshot(party, enemies, buffs) {
             : { id: 'rez', icon: '🌟', label: 'Resurrect', desc: 'Ready' });
         }
       }
+      // Hero Champion — Executioner's Mark cooldown
+      if (b.executionerCooldowns && b.executionerCooldowns[p.id] !== undefined) {
+        const cd = b.executionerCooldowns[p.id];
+        if (b.heroesWithExecutioner && b.heroesWithExecutioner.has(p.id)) {
+          pBuffs.push(cd > 0
+            ? { id: 'exec_cd', icon: '🎯', label: "Exec Mark", desc: `CD: ${cd}`, cooldown: true }
+            : { id: 'exec', icon: '🎯', label: "Exec Mark", desc: 'Ready' });
+        }
+      }
       // Bard Discord cooldown
       if (b.discordCooldowns && b.discordCooldowns[p.id] !== undefined) {
         const cd = b.discordCooldowns[p.id];
@@ -2421,6 +3840,20 @@ function makeSnapshot(party, enemies, buffs) {
       // Crescendo active (party-wide indicator)
       if (b.crescendoActive) {
         pBuffs.push({ id: 'cresc_active', icon: '🎶', label: 'Crescendo', desc: 'Next atk: 2.5× CRIT' });
+      }
+      // Bard Cadence cooldown (per-bard) + active rounds (party-wide)
+      if (b.cadenceCooldowns && b.cadenceCooldowns[p.id] !== undefined && p.class === 'BARD') {
+        const cd = b.cadenceCooldowns[p.id];
+        pBuffs.push(cd > 0
+          ? { id: 'cadence_cd', icon: '🎼', label: 'Cadence', desc: `CD: ${cd}`, cooldown: true }
+          : { id: 'cadence', icon: '🎼', label: 'Cadence', desc: 'Ready' });
+      }
+      if (b.cadenceRounds > 0) {
+        pBuffs.push({ id: 'cadence_active', icon: '🎼', label: 'Cadence', desc: `+15% dmg, +10% crit (${b.cadenceRounds}r)` });
+      }
+      // Mage Frostbite active debuff (party-wide enemy debuff)
+      if (b.frostbiteRounds > 0) {
+        pBuffs.push({ id: 'frostbite', icon: '❄', label: 'Frostbite', desc: `Enemies -15% ATK, 20% fumble (${b.frostbiteRounds}r)` });
       }
       // Necromancer Raise Dead cooldown
       if (b.raiseDeadCooldowns && b.raiseDeadCooldowns[p.id] !== undefined) {
@@ -2452,6 +3885,15 @@ function makeSnapshot(party, enemies, buffs) {
       if (b.necroticReflectMag > 0) {
         pBuffs.push({ id: 'nec_reflect', icon: '💜', label: 'Decay', desc: 'Dmg reflect' });
       }
+      // Dark Pact active (party-wide)
+      if (b.darkPactRounds > 0) {
+        pBuffs.push({ id: 'dark_pact', icon: '🩸', label: 'D.Pact', desc: `${b.darkPactRounds}rd — life siphon` });
+      }
+      // Grave Hunger stacks (party-wide dmg/crit/def from kills)
+      if (b.graveHungerStacks > 0) {
+        const gh = b.graveHungerStacks;
+        pBuffs.push({ id: 'grave_hunger', icon: '🪓', label: `GH×${gh}`, desc: `+${gh * 2}% party dmg, +${gh}% crit, +${gh}% DEF (Shroud stack)` });
+      }
       // Passive bonus indicators (from items, passive skills, auras)
       if (p.dodgeChance > 0) {
         pBuffs.push({ id: 'dodge_bonus', icon: '💨', label: 'Dodge+', desc: `+${Math.round(p.dodgeChance * 100)}% dodge` });
@@ -2466,6 +3908,9 @@ function makeSnapshot(party, enemies, buffs) {
     }),
     enemies: enemies.map(e => {
       const eDebuffs = [];
+      if (b.executeMarkRounds && b.executeMarkRounds[e.id] > 0) {
+        eDebuffs.push({ id: 'exec_mark', icon: '🎯', label: 'Exec Mark', desc: `${b.executeMarkRounds[e.id]}rd — +10% dmg`, rounds: b.executeMarkRounds[e.id] });
+      }
       if (b.markedEnemies && b.markedEnemies[e.id] > 0) {
         eDebuffs.push({ id: 'marked', icon: '🎯', label: 'Marked', desc: `${b.markedEnemies[e.id]}rd`, rounds: b.markedEnemies[e.id] });
       }
@@ -2476,6 +3921,17 @@ function makeSnapshot(party, enemies, buffs) {
       // Blight debuff on enemies
       if (b.blightRounds > 0) {
         eDebuffs.push({ id: 'blight', icon: '☠', label: 'Blight', desc: `${b.blightRounds}rd — necrotic DoT` });
+      }
+      // Poison DoT (Rogue venom / Poison Blade proc)
+      if (b.poisonTargets && b.poisonTargets[e.id] && b.poisonTargets[e.id].rounds > 0) {
+        const pt = b.poisonTargets[e.id];
+        eDebuffs.push({ id: 'poison', icon: '🧪', label: 'Poison', desc: `${pt.rounds}rd — ${pt.dmgPerTick}/tick`, rounds: pt.rounds });
+      }
+      // Burn DoT (Meteor Storm / Righteous Burn)
+      if (b.burnTargets && b.burnTargets[e.id] && b.burnTargets[e.id].rounds > 0) {
+        const bt = b.burnTargets[e.id];
+        const icon = bt.source === 'CLR' ? '☀' : '🔥';
+        eDebuffs.push({ id: 'burn', icon, label: 'Burn', desc: `${bt.rounds}rd — ${bt.dmgPerTick}/tick`, rounds: bt.rounds });
       }
       return {
         id: e.id, name: e.name, hp: Math.max(0, e.hp), maxHp: e.maxHp,
@@ -2513,6 +3969,30 @@ function _getInterval() {
   return _sim ? _sim.effectiveInterval : EVENT_INTERVAL;
 }
 
+// Fast-forward interval for post-decisive events (DoTs, cleanup, resolve text).
+// Once the fight is decided, burn through trailing events quickly so the UI doesn't drag.
+const FAST_FORWARD_INTERVAL = 0.08;
+
+// Shared dynamic-pacing visible count calculation.
+// Events before decisiveIndex reveal at the normal interval; after, they accelerate.
+function _computeVisibleCount(sim, aq) {
+  if (!sim || !aq) return 0;
+  const interval = sim.effectiveInterval || EVENT_INTERVAL;
+  const elapsedSec = (Date.now() - aq.startedAt) / 1000;
+  const decisive = (sim.decisiveIndex != null) ? sim.decisiveIndex : sim.totalEvents - 1;
+
+  // Time at which the decisive event is revealed (using normal pacing).
+  const decisiveTime = (decisive + 1) * interval;
+
+  if (elapsedSec <= decisiveTime) {
+    return Math.min(sim.totalEvents, Math.max(1, Math.floor(elapsedSec / interval) + 1));
+  }
+  // Past the decisive moment — play trailing events at the fast-forward rate.
+  const extraSec = elapsedSec - decisiveTime;
+  const extraEvents = Math.floor(extraSec / FAST_FORWARD_INTERVAL);
+  return Math.min(sim.totalEvents, decisive + 1 + extraEvents);
+}
+
 export function generateCombatLog() {
   const aq = Game.state.guild.activeQuest;
   if (!aq) { _sim = null; _simQuestId = null; return []; }
@@ -2520,10 +4000,7 @@ export function generateCombatLog() {
   const sim = ensureSim();
   if (!sim) return [];
 
-  const interval = _getInterval();
-  const elapsed = Date.now() - aq.startedAt;
-  const visibleCount = Math.min(sim.totalEvents, Math.max(1, Math.floor(elapsed / (interval * 1000)) + 1));
-
+  const visibleCount = _computeVisibleCount(sim, aq);
   return sim.events.slice(0, visibleCount);
 }
 
@@ -2532,17 +4009,20 @@ export function getCombatSnapshot() {
   const aq = Game.state.guild.activeQuest;
   if (!aq || !_sim) return null;
 
-  const interval = _getInterval();
-  const elapsed = Date.now() - aq.startedAt;
-  const visibleCount = Math.min(_sim.totalEvents, Math.max(1, Math.floor(elapsed / (interval * 1000)) + 1));
+  const visibleCount = _computeVisibleCount(_sim, aq);
   return _sim.snapshots[visibleCount - 1] || null;
 }
 
-// Get sim info for game.js: { eventCount, intervalMs }
+// Get sim info for game.js: { eventCount, intervalMs, decisiveIndex, fastForwardMs }
 export function getSimInfo() {
   const sim = ensureSim();
   if (!sim) return null;
-  return { eventCount: sim.totalEvents, intervalMs: sim.effectiveInterval * 1000 };
+  return {
+    eventCount: sim.totalEvents,
+    intervalMs: sim.effectiveInterval * 1000,
+    decisiveIndex: sim.decisiveIndex != null ? sim.decisiveIndex : sim.totalEvents - 1,
+    fastForwardMs: FAST_FORWARD_INTERVAL * 1000,
+  };
 }
 
 // Get per-member combat stats from the simulation

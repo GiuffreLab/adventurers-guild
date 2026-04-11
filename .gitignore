@@ -1,0 +1,20 @@
+# ── macOS ─────────────────────────────────────────
+.DS_Store
+**/.DS_Store
+
+# ── Editor / IDE cruft ────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Design docs & audits (local-only planning) ────
+class-rework-design.md
+combat-tuning-design.md
+reactive-priority-audit.md
+*-design.md
+*-audit.md
+*-notes.md
+/design/
+/notes/

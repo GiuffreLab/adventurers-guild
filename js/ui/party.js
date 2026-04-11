@@ -4,7 +4,7 @@ import {
   getSkill, getClassSkills, getUnlockedClassSkills, getNextClassSkill,
   getClassMasteries, getUnlockedClassMasteries, getNextClassMastery,
   getAllClassUnlocks, getNextUnlock, getEquipmentSkill,
-  HERO_SPECS, HERO_RESPEC_COSTS, getSpecSkills, getUnlockedSpecSkills
+  HERO_SPECS, getSpecSkills, getUnlockedSpecSkills, HERO_SPEC_REPLACED_SKILLS
 } from '../skills.js';
 import { hpClass, fmtTime, showToast } from './helpers.js';
 import { esc } from '../util.js';
@@ -12,11 +12,13 @@ import { esc } from '../util.js';
 let partyView = 'roster';   // 'roster' | 'sheet' | 'recruit'
 let selectedMemberId = null;
 let pickingSlot = null;      // which equipment slot is open for picking
+let respecPickerOpen = false; // hero respec inline picker visibility
 
 export function resetPartyState() {
   partyView = 'roster';
   selectedMemberId = null;
   pickingSlot = null;
+  respecPickerOpen = false;
 }
 
 // ── Lightweight tick update for HP bars (no full re-render) ──────────────
@@ -127,7 +129,7 @@ export function renderParty() {
       <div class="roster-row${isActive ? ' in-active' : ''}" data-member-id="${m.id}">
         <div class="roster-info">
           <div class="roster-name">${esc(m.name)} <span class="member-sigil">${cls.sigil}</span>${specBadge}</div>
-          <div class="roster-sub">Lv.${m.level} ${cls.label} · Power: ${Math.round(Game.memberPower(m))}</div>
+          <div class="roster-sub">Lv.${m.level}${m.level >= Game.PLAYER_LEVEL_CAP ? ' <span class="lvl-max-tag">MAX</span>' : ''} ${cls.label} · Power: ${Math.round(Game.memberPower(m))}</div>
         </div>
         <div class="roster-hp progress-bar">
           <div class="progress-fill ${hpClass(eff.hp, eff.maxHp)}" style="width:${hpPct}%"></div>
@@ -234,8 +236,9 @@ function renderCharSheet(el, s) {
   const isPlayer = selectedMemberId === 'player';
   const isActive = s.activeSlots.includes(m.id);
   const hpPct = Math.round((eff.hp / eff.maxHp) * 100);
+  const atLevelCap = m.level >= Game.PLAYER_LEVEL_CAP;
   const expNeeded = Math.floor(100 * Math.pow(m.level, 1.5));
-  const expPct = Math.round((m.exp / Math.max(1, expNeeded)) * 100);
+  const expPct = atLevelCap ? 100 : Math.round((m.exp / Math.max(1, expNeeded)) * 100);
   const power = Math.round(Game.memberPower(m));
 
   // Equipment section
@@ -267,7 +270,7 @@ function renderCharSheet(el, s) {
         </div>
         <div class="char-header-info">
           <div class="char-name">${esc(m.name)}</div>
-          <div class="char-class">${cls.label} · Level ${m.level}</div>
+          <div class="char-class">${cls.label} · Level ${m.level}${atLevelCap ? ' <span class="lvl-max-tag">MAX</span>' : ''}</div>
           <div class="char-power">Power: <strong>${power}</strong></div>
           <div class="char-bars">
             <div class="char-bar-row">
@@ -278,7 +281,7 @@ function renderCharSheet(el, s) {
             <div class="char-bar-row">
               <span class="char-bar-label">EXP</span>
               <div class="progress-bar" style="flex:1"><div class="progress-fill exp-bar" style="width:${expPct}%"></div></div>
-              <span class="char-bar-value">${m.exp} / ${expNeeded}</span>
+              <span class="char-bar-value">${atLevelCap ? 'MAX' : `${m.exp} / ${expNeeded}`}</span>
             </div>
           </div>
         </div>
@@ -464,8 +467,14 @@ function renderStatsPanel(base, eff) {
 // ── Skills Panel ─────────────────────────────────────────────────────────
 
 function renderSkillsPanel(m) {
-  const allClassSkills = getClassSkills(m.class);
-  const unlockedClass = getUnlockedClassSkills(m.class, m.level);
+  // Hero spec replacement: when a Hero picks a spec, the baseline L10/L14/L18
+  // skills are stripped from the class list in favor of spec skills. Apply the
+  // same filter the sim uses so the UI reflects what actually fires in combat.
+  const isSpeccedHero = m.class === 'HERO' && m.heroSpec;
+  const allClassSkills = getClassSkills(m.class)
+    .filter(s => !(isSpeccedHero && HERO_SPEC_REPLACED_SKILLS.includes(s.id)));
+  const unlockedClass = getUnlockedClassSkills(m.class, m.level)
+    .filter(s => !(isSpeccedHero && HERO_SPEC_REPLACED_SKILLS.includes(s.id)));
   const unlockedIds = new Set(unlockedClass.map(s => s.id));
 
   // Equipment-granted skills
@@ -488,6 +497,10 @@ function renderSkillsPanel(m) {
 
   // Class skills
   html += `<div class="skills-category-label">Class Skills</div>`;
+  if (isSpeccedHero) {
+    const specLabel = HERO_SPECS[m.heroSpec]?.label || m.heroSpec;
+    html += `<div class="skill-empty-note" style="opacity:0.7;font-size:0.72rem;margin-bottom:6px">Lv.10, Lv.14 &amp; Lv.18 baseline skills replaced by ${specLabel} spec — see Specialization below.</div>`;
+  }
   if (allClassSkills.length === 0) {
     html += `<div class="skill-empty-note">No class skills available.</div>`;
   }
@@ -554,18 +567,58 @@ function renderSpecSection(m) {
     return html;
   }
 
-  // Spec chosen — show spec skills + respec button
+  // Spec chosen — show spec skills + respec button (or inline picker)
   const track = HERO_SPECS[m.heroSpec];
   const allSpecSkills = getSpecSkills(m.heroSpec);
   const unlockedSpecIds = new Set(getUnlockedSpecSkills(m.heroSpec, m.level).map(s => s.id));
 
-  const respecCost = Game.getRespecCost();
   html += `<div class="skills-category-label" style="margin-top:12px">
     ${track.icon} ${track.label} Specialization
   </div>
   <div class="spec-respec-bar">
-    <button class="btn btn-sm btn-respec" title="Change specialization for ${respecCost.toLocaleString()}g">⟳ Respec (${respecCost.toLocaleString()}g)</button>
+    <button class="btn btn-sm btn-respec" title="Change specialization (free)">⟳ Respec</button>
   </div>`;
+
+  // Inline respec picker — renders spec cards like the initial picker, plus
+  // an "Unspec" card so players can return to baseline L10/L14/L18 skills.
+  if (respecPickerOpen) {
+    html += `<div class="spec-picker" style="margin-top:8px">`;
+    for (const [trackId, t] of Object.entries(HERO_SPECS)) {
+      const specSkills = getSpecSkills(trackId);
+      const skillList = specSkills.map(s => `<span class="spec-skill-preview">${s.icon} ${s.name} (Lv.${s.unlockLevel})</span>`).join('');
+      const isCurrent = trackId === m.heroSpec;
+      html += `
+        <div class="spec-card${isCurrent ? ' spec-card-current' : ''}" data-spec="${trackId}">
+          <div class="spec-card-header">
+            <span class="spec-card-icon">${t.icon}</span>
+            <span class="spec-card-name">${t.label}${isCurrent ? ' (Current)' : ''}</span>
+          </div>
+          <div class="spec-card-desc">${t.description}</div>
+          <div class="spec-card-skills">${skillList}</div>
+          ${isCurrent
+            ? `<button class="btn btn-sm" disabled>Current Spec</button>`
+            : `<button class="btn btn-sm btn-primary btn-respec-to" data-spec="${trackId}">Switch to ${t.label}</button>`}
+        </div>`;
+    }
+    // Unspec card — returns to pure baseline Hero
+    html += `
+      <div class="spec-card">
+        <div class="spec-card-header">
+          <span class="spec-card-icon">❓</span>
+          <span class="spec-card-name">No Specialization</span>
+        </div>
+        <div class="spec-card-desc">Return to a pure baseline Hero — relearns Awakening, Second Wind, and Starfall Slash at their level gates.</div>
+        <div class="spec-card-skills">
+          <span class="spec-skill-preview">⭐ Awakening (Lv.10)</span>
+          <span class="spec-skill-preview">💨 Second Wind (Lv.14)</span>
+          <span class="spec-skill-preview">🌠 Starfall Slash (Lv.18)</span>
+        </div>
+        <button class="btn btn-sm btn-primary btn-respec-to" data-spec="">Clear Specialization</button>
+      </div>`;
+    html += `<button class="btn btn-sm btn-respec-cancel" style="margin-top:8px">Cancel</button>`;
+    html += `</div>`;
+  }
+
   for (const sk of allSpecSkills) {
     const unlocked = unlockedSpecIds.has(sk.id);
     html += renderSkillRow(sk, unlocked, unlocked ? null : `Unlocks at Lv.${sk.unlockLevel}`);
@@ -688,36 +741,33 @@ function bindCharSheetEvents(el, s, m) {
     });
   });
 
-  // Hero specialization — respec
+  // Hero specialization — toggle inline respec picker
   el.querySelector('.btn-respec')?.addEventListener('click', () => {
-    const cost = Game.getRespecCost();
-    const currentTrack = m.heroSpec ? HERO_SPECS[m.heroSpec] : null;
-    const otherTracks = Object.entries(HERO_SPECS).filter(([id]) => id !== m.heroSpec);
-    const options = otherTracks.map(([id, t]) => `${t.icon} ${t.label}`).join(', ');
-    if (!confirm(`Respec from ${currentTrack?.label || '?'} to another track?\n\nCost: ${cost.toLocaleString()}g\nAvailable: ${options}\n\nYou'll choose your new track after confirming.`)) return;
+    respecPickerOpen = !respecPickerOpen;
+    renderParty();
+  });
 
-    if (Game.state.gold < cost) {
-      showToast(`Need ${cost.toLocaleString()}g to respec`, 'error');
-      return;
-    }
+  // Hero specialization — pick a track (or unspec with empty data-spec)
+  el.querySelectorAll('.btn-respec-to').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const specTrack = btn.dataset.spec || null;
+      const result = Game.respecHeroSpec(selectedMemberId, specTrack);
+      if (result.ok) {
+        const label = specTrack
+          ? `${HERO_SPECS[specTrack]?.icon || ''} ${HERO_SPECS[specTrack]?.label || specTrack}`
+          : 'baseline Hero';
+        showToast(`Respecced to ${label}!`, 'success');
+      } else {
+        showToast(result.reason, 'error');
+      }
+      respecPickerOpen = false;
+      renderParty();
+    });
+  });
 
-    // Show second prompt for which track
-    const trackChoices = otherTracks.map(([id, t], i) => `${i + 1}. ${t.icon} ${t.label} — ${t.description}`).join('\n');
-    const choice = prompt(`Choose your new specialization:\n\n${trackChoices}\n\nEnter 1 or 2:`);
-    if (!choice) return;
-    const idx = parseInt(choice) - 1;
-    if (isNaN(idx) || idx < 0 || idx >= otherTracks.length) {
-      showToast('Invalid choice', 'error');
-      return;
-    }
-    const [newSpecId, newTrack] = otherTracks[idx];
-    const result = Game.respecHeroSpec(selectedMemberId, newSpecId);
-    if (result.ok) {
-      showToast(`${newTrack.icon} Respecced to ${newTrack.label}! (${result.cost.toLocaleString()}g)`, 'success');
-      document.getElementById('header-gold').textContent = Game.state.gold.toLocaleString();
-    } else {
-      showToast(result.reason, 'error');
-    }
+  // Hero specialization — cancel picker
+  el.querySelector('.btn-respec-cancel')?.addEventListener('click', () => {
+    respecPickerOpen = false;
     renderParty();
   });
 }
@@ -726,7 +776,9 @@ function bindCharSheetEvents(el, s, m) {
 // ── Recruit View ─────────────────────────────────────────────────────────
 
 function renderRecruit(el, s) {
-  const available = getAvailableClasses(s.guild.rank);
+  const available = getAvailableClasses(s.guild.rank)
+    .slice()
+    .sort((a, b) => a.label.localeCompare(b.label));
   const cost = getRecruitCost(s.party.length);
   const rows = available.map(cls => {
     const canAfford = s.gold >= cost;

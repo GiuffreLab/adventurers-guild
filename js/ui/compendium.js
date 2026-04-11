@@ -1,16 +1,27 @@
 // ── Compendium — In-game encyclopedia ─────────────────────────────────────
 import Game from '../game.js';
 import { CLASSES, RANK_ORDER, EQUIPMENT, LOOT_ITEMS, ITEM_RARITIES, getItemRarity } from '../data.js';
-import { SKILLS, getClassSkills, getClassMasteries, HERO_SPECS, HERO_RESPEC_COSTS, getSpecSkills } from '../skills.js';
+import { SKILLS, getClassSkills, getClassMasteries, HERO_SPECS, getSpecSkills } from '../skills.js';
 import { rankCss } from '../util.js';
 
 let _currentSection = 'overview';
 
 // ── Section registry ──────────────────────────────────────────────────────
+// Class pages generated dynamically from CLASSES data
+const CLASS_ORDER = ['HERO', 'BARD', 'CLERIC', 'KNIGHT', 'MAGE', 'MONK', 'NECROMANCER', 'RANGER', 'ROGUE'];
+const CLASS_ICONS = {
+  HERO: '⚔', BARD: '🎵', CLERIC: '✨', KNIGHT: '🛡', MAGE: '🔮',
+  MONK: '☯', NECROMANCER: '💀', RANGER: '🏹', ROGUE: '🗡',
+};
+
 const SECTIONS = [
   { id: 'overview',   label: 'Overview',          icon: '📖' },
   { id: 'stats',      label: 'Stats Guide',       icon: '📊' },
-  { id: 'classes',    label: 'Classes & Skills',   icon: '⚔' },
+  { id: 'divider-classes', label: '── Classes ──', icon: '', divider: true },
+  ...CLASS_ORDER.map(cid => ({
+    id: `class_${cid}`, label: CLASSES[cid]?.label || cid, icon: CLASS_ICONS[cid] || '•',
+  })),
+  { id: 'divider-game', label: '── Game Systems ──', icon: '', divider: true },
   { id: 'equipment',  label: 'Equipment & Procs',  icon: '🛡' },
   { id: 'combat',     label: 'Combat Mechanics',   icon: '💥' },
   { id: 'tower',      label: 'Tower Climb',        icon: '🗼' },
@@ -26,9 +37,10 @@ export function renderCompendium() {
   if (!el) { console.warn('Compendium: #tab-compendium not found'); return; }
 
   try {
-    const nav = SECTIONS.map(s =>
-      `<button class="comp-nav-btn${_currentSection === s.id ? ' active' : ''}" data-section="${s.id}">${s.icon} ${s.label}</button>`
-    ).join('');
+    const nav = SECTIONS.map(s => {
+      if (s.divider) return `<div class="comp-nav-divider">${s.label}</div>`;
+      return `<button class="comp-nav-btn${_currentSection === s.id ? ' active' : ''}" data-section="${s.id}">${s.icon} ${s.label}</button>`;
+    }).join('');
 
     el.innerHTML = `
       <div class="compendium-layout">
@@ -50,17 +62,20 @@ export function renderCompendium() {
 
     // Render active section
     const body = document.getElementById('comp-body');
-    switch (_currentSection) {
-      case 'overview':  body.innerHTML = renderOverview(); break;
-      case 'stats':     body.innerHTML = renderStats(); break;
-      case 'classes':   body.innerHTML = renderClasses(); break;
-      case 'equipment': body.innerHTML = renderEquipment(); break;
-      case 'combat':    body.innerHTML = renderCombat(); break;
-      case 'tower':     body.innerHTML = renderTowerGuide(); break;
-      case 'synergy':   body.innerHTML = renderSynergy(); break;
-      case 'legacy':    body.innerHTML = renderLegacyGuide(); break;
-      case 'ranks':     body.innerHTML = renderRanks(); break;
-      case 'saves':     body.innerHTML = renderSavesGuide(); break;
+    if (_currentSection.startsWith('class_')) {
+      body.innerHTML = renderClassPage(_currentSection.replace('class_', ''));
+    } else {
+      switch (_currentSection) {
+        case 'overview':  body.innerHTML = renderOverview(); break;
+        case 'stats':     body.innerHTML = renderStats(); break;
+        case 'equipment': body.innerHTML = renderEquipment(); break;
+        case 'combat':    body.innerHTML = renderCombat(); break;
+        case 'tower':     body.innerHTML = renderTowerGuide(); break;
+        case 'synergy':   body.innerHTML = renderSynergy(); break;
+        case 'legacy':    body.innerHTML = renderLegacyGuide(); break;
+        case 'ranks':     body.innerHTML = renderRanks(); break;
+        case 'saves':     body.innerHTML = renderSavesGuide(); break;
+      }
     }
   } catch (err) {
     console.error('Compendium render error:', err);
@@ -118,69 +133,124 @@ function renderStats() {
   `;
 }
 
-// ── Classes & Skills ──────────────────────────────────────────────────────
-function renderClasses() {
-  const classOrder = ['HERO', 'BARD', 'CLERIC', 'KNIGHT', 'MAGE', 'MONK', 'NECROMANCER', 'RANGER', 'ROGUE'];
-  const roleMap = {
-    HERO: 'Balanced DPS / Support',
-    KNIGHT: 'Tank / Protector',
-    MAGE: 'Magic DPS / Crit',
-    ROGUE: 'Physical DPS / Crit',
-    CLERIC: 'Healer / Support',
-    RANGER: 'Ranged DPS / AoE',
-    BARD: 'Support / Regen',
-    MONK: 'Hybrid / Self-Sustain',
-    NECROMANCER: 'Summoner / Drain Caster',
+// ── Per-Class Page ───────────────────────────────────────────────────────
+const CLASS_ROLES = {
+  HERO: { role: 'All-Rounder / Party Leader', desc: 'The Hero is the backbone of every guild. A versatile fighter who can fill any role through specializations, and whose base kit provides party-wide ATK, DEF, and SPD buffs. The Hero isn\'t the best tank, healer, or DPS — but they\'re the best <em>second choice</em> for any of those roles, and their leadership makes the whole party stronger.' },
+  KNIGHT: { role: 'Tank / Party Protector', desc: 'The Knight is the definitive wall. Massive HP and DEF scaling, with skills that absorb hits meant for allies and reduce incoming damage for the whole party. Bring a Knight when the content hits hard enough that raw DPS can\'t outrace it.' },
+  MAGE: { role: 'Magic DPS / Elemental Destruction', desc: 'The Mage deals the highest sustained magic damage in the game. Glass cannon with devastating power multipliers and MAG stacking. You bring a Mage because they kill things — their party aura now also gives some ATK and CRIT to physical allies.' },
+  ROGUE: { role: 'Physical DPS / Crit Specialist', desc: 'The Rogue is the burst damage king. Highest crit chance, evasion, and single-target damage. Mark for Death lets the whole party pile onto a target, and Shadow Network gives universal SPD, CRIT, and DODGE to allies.' },
+  CLERIC: { role: 'Healer / Sustain Anchor', desc: 'The Cleric keeps the party alive with sustained healing, revives, and defensive auras. Their Sanctuary now provides universal stats (HP, DEF, SPD, CRIT) so every party member benefits, not just other casters.' },
+  RANGER: { role: 'Ranged DPS / Utility', desc: 'The Ranger combines strong physical damage with party utility. Precision Shot marks enemies for +10% damage from all sources, Nature Bond gives party-wide dodge and bonus gold/exp. The best class for farming and a strong DPS pick for any composition.' },
+  BARD: { role: 'Buffer / Party Force Multiplier', desc: 'The Bard is the supreme party buffer. Their songs boost ATK, SPD, and CRIT for the whole team, Discord debuffs enemies, and Crescendo grants guaranteed devastating crits. Bards make everyone better — they\'re the strongest "always include" after the Hero.' },
+  MONK: { role: 'Hybrid Melee / Reactive Bruiser', desc: 'The Monk is a flurry-of-fists bruiser with strong reactive defense. Hundred Fists pummels the entire enemy line, Flowing Strike counters on dodge, and Pressure Point disables dangerous foes. Ki Resonance gives the party an equal spread of ATK, DEF, SPD, and CRIT — never the wrong pick, never a wasted slot.' },
+  NECROMANCER: { role: 'Summoner / Party Sustain Specialist', desc: 'The Necromancer commands the dead and siphons the living. Raise Dead produces tanky thralls, Shadow Bolt blasts a single target while healing every ally for 6% of their own max HP, and Blight ticks AoE damage over time. With the Grave Hunger talent, Shroud of Decay grows stronger with every kill.' },
+};
+
+function renderClassPage(cid) {
+  const cls = CLASSES[cid];
+  if (!cls) return '<div class="comp-section"><p class="comp-text">Class not found.</p></div>';
+  const bs = cls.baseStats;
+  const gr = cls.growthRates;
+  const info = CLASS_ROLES[cid] || { role: '', desc: '' };
+
+  // Skills & masteries
+  const skills = getClassSkills(cid);
+  const masteries = getClassMasteries(cid);
+
+  const buildSkillRow = (s, isMastery) => {
+    const isPassive = s.type === 'passive' || s.procChance >= 1.0;
+    const badge = s.reactive
+      ? '<span class="comp-skill-badge reactive">Reactive</span>'
+      : isPassive
+        ? '<span class="comp-skill-badge passive">Passive</span>'
+        : '<span class="comp-skill-badge active">Active</span>';
+    const lvl = s.unlockLevel ? ` <em class="comp-skill-lvl">Lv.${s.unlockLevel}</em>` : '';
+    return `<div class="comp-skill-row${isMastery ? ' comp-mastery' : ''}">
+      <span class="comp-skill-icon">${s.icon || '•'}</span>
+      <span class="comp-skill-name">${s.name}${lvl}</span>
+      ${badge}
+      <span class="comp-skill-desc">${s.description || ''}</span>
+    </div>`;
   };
 
-  const buildCard = (cid) => {
-    const cls = CLASSES[cid];
-    if (!cls) return '';
-    const bs = cls.baseStats;
-    const gr = cls.growthRates;
+  const skillList = skills.map(s => buildSkillRow(s, false)).join('');
+  const masteryList = masteries.map(s => buildSkillRow(s, true)).join('');
 
-    // Get class skills and masteries
-    const skills = getClassSkills(cid);
-    const masteries = getClassMasteries(cid);
+  // Talents for this class
+  const talents = Game.LEGACY_TALENTS;
+  let talentSection = '';
+  if (talents) {
+    const classTalents = Object.values(talents).filter(t => t.classId === cid).sort((a, b) => a.tier - b.tier);
+    if (classTalents.length > 0) {
+      const talentRows = classTalents.map(t => `<div class="comp-legacy-talent">
+        <span class="comp-legacy-icon">${t.icon}</span>
+        <div class="comp-legacy-info">
+          <span class="comp-legacy-name">${t.label} <span class="comp-legacy-tier">Tier ${t.tier} &middot; ${t.cost} pt${t.cost > 1 ? 's' : ''} &middot; Req Lv.${t.reqLevel}</span></span>
+          <span class="comp-legacy-desc">${t.desc}</span>
+        </div>
+      </div>`).join('');
+      talentSection = `
+        <div class="comp-skill-section" style="margin-top:16px">
+          <div class="comp-skill-header">Legacy Talents</div>
+          <p class="comp-text" style="margin:4px 0 8px;opacity:0.7">Unlocked via the Guild Legacy system at S++ rank. Each talent tier costs more points and requires a higher Legacy Level.</p>
+          ${talentRows}
+        </div>`;
+    }
+  }
 
-    const skillList = skills.map(s => {
-      const isPassive = s.type === 'passive' || s.procChance >= 1.0;
-      const badge = isPassive
-        ? '<span class="comp-skill-badge passive">Passive</span>'
-        : `<span class="comp-skill-badge active">Active ${Math.round(s.procChance * 100)}%</span>`;
-      const lvl = s.unlockLevel ? ` <em class="comp-skill-lvl">Lv.${s.unlockLevel}</em>` : '';
-      return `<div class="comp-skill-row">
-        <span class="comp-skill-icon">${s.icon || '•'}</span>
-        <span class="comp-skill-name">${s.name}${lvl}</span>
-        ${badge}
-        <span class="comp-skill-desc">${s.description || ''}</span>
-      </div>`;
+  // Hero-only: Specializations + design philosophy
+  let heroSpecSection = '';
+  if (cid === 'HERO') {
+    const specCards = Object.entries(HERO_SPECS).map(([trackId, track]) => {
+      const specSkills = getSpecSkills(trackId);
+      const specRows = specSkills.map(s => buildSkillRow(s, false)).join('');
+      return `
+        <div class="comp-class-card" style="border-left:3px solid var(--cyan);margin-top:12px">
+          <div class="comp-class-header">
+            <span class="comp-class-sigil">${track.icon}</span>
+            <div>
+              <div class="comp-class-name">${track.label}</div>
+              <div class="comp-class-role">${track.description}</div>
+            </div>
+          </div>
+          <div class="comp-skill-section"><div class="comp-skill-header">Specialization Skills</div>${specRows}</div>
+        </div>`;
     }).join('');
 
-    const masteryList = masteries.map(s => {
-      const isPassive = s.type === 'passive' || s.procChance >= 1.0;
-      const badge = isPassive
-        ? '<span class="comp-skill-badge passive">Passive</span>'
-        : `<span class="comp-skill-badge active">Active ${Math.round(s.procChance * 100)}%</span>`;
-      const lvl = s.unlockLevel ? ` <em class="comp-skill-lvl">Lv.${s.unlockLevel}</em>` : '';
-      return `<div class="comp-skill-row comp-mastery">
-        <span class="comp-skill-icon">${s.icon || '•'}</span>
-        <span class="comp-skill-name">${s.name}${lvl}</span>
-        ${badge}
-        <span class="comp-skill-desc">${s.description || ''}</span>
-      </div>`;
-    }).join('');
+    heroSpecSection = `
+      <h3 class="comp-subtitle" style="margin-top:20px">Hero Specializations</h3>
+      <p class="comp-text">At Level 10, the Hero chooses a specialization track that replaces their baseline L10/L14/L18 skills with three new spec-defining abilities. Each track defines a distinct combat role — and respec is free, so experiment freely.</p>
+      ${specCards}
 
-    return `
-      <div class="comp-class-card">
+      <div class="comp-class-card" style="border-left:3px solid var(--gold);margin-top:16px">
         <div class="comp-class-header">
-          <span class="comp-class-sigil">${cls.sigil}</span>
+          <span class="comp-class-sigil">💡</span>
           <div>
-            <div class="comp-class-name">${cls.label}</div>
-            <div class="comp-class-role">${roleMap[cid] || ''}</div>
+            <div class="comp-class-name">Specialization Design Philosophy</div>
+            <div class="comp-class-role">Understanding what each spec brings to a party</div>
           </div>
         </div>
-        <div class="comp-class-desc">${cls.description}</div>
+        <div style="padding:8px 12px">
+          <p class="comp-text" style="margin-bottom:10px">The Hero is the ultimate flex pick — not the best at any single role, but the best <em>second choice</em> for any role. Each spec is roughly 70–80% as effective as the dedicated class at their primary job, but brings secondary party bonuses that the specialist never provides.</p>
+          <p class="comp-text" style="margin-bottom:6px"><strong style="color:var(--cyan)">🛡 Vanguard — The off-tank who inspires.</strong> Not as tanky as a Knight, but the Vanguard's Iron Bastion also boosts party ATK and SPD — something a Knight never touches. Pair with a Monk instead of a Knight and you trade raw defense for offensive party stats that benefit everyone.</p>
+          <p class="comp-text" style="margin-bottom:6px"><strong style="color:var(--red)">🩸 Champion — The DPS who marks prey for the pack.</strong> Not as bursty as a Rogue, but Executioner's Mark lets the whole team focus-fire weakened enemies, and Bloodlust gives party-wide CRIT and ATK. Pair with a Mage or Necromancer and the whole team hits harder, not just one assassin.</p>
+          <p class="comp-text" style="margin-bottom:6px"><strong style="color:var(--green)">🚩 Warden — The off-healer who holds the line.</strong> Not as much sustained healing as a Cleric, but War Banner touches five different stats at once — breadth over depth. Guardian Spirit and Second Dawn provide emergency safety nets. Pair with a Bard and you get enough sustain plus offensive buffs that a Cleric comp would lack.</p>
+          <p class="comp-text" style="margin-top:10px;opacity:0.7">In short: bring a dedicated class for a specialized role, or bring the Hero spec and fill the gap with broader party value. Both paths are viable — that's the Hero's true strength.</p>
+        </div>
+      </div>`;
+  }
+
+  return `
+    <div class="comp-section">
+      <div class="comp-class-card">
+        <div class="comp-class-header">
+          <span class="comp-class-sigil" style="font-size:1.8rem">${cls.sigil}</span>
+          <div>
+            <div class="comp-class-name" style="font-size:1.3rem">${cls.label}</div>
+            <div class="comp-class-role">${info.role}</div>
+          </div>
+        </div>
+        <p class="comp-text" style="margin:8px 0">${info.desc}</p>
         <div class="comp-class-stats">
           <span>HP ${bs.maxHp} <em>(+${gr.maxHp})</em></span>
           <span>ATK ${bs.atk} <em>(+${gr.atk})</em></span>
@@ -190,63 +260,12 @@ function renderClasses() {
           <span>CRT ${bs.crit} <em>(+${gr.crit})</em></span>
           <span>DDG ${bs.dodge} <em>(+${gr.dodge})</em></span>
         </div>
-        ${skills.length > 0 ? `<div class="comp-skill-section"><div class="comp-skill-header">Class Skills</div>${skillList}</div>` : ''}
-        ${masteries.length > 0 ? `<div class="comp-skill-section"><div class="comp-skill-header">Masteries</div>${masteryList}</div>` : ''}
       </div>
-    `;
-  };
 
-  const heroCard = buildCard('HERO');
-  const otherCards = classOrder.slice(1).map(buildCard).join('');
-
-  // Hero Specialization section
-  const specCards = Object.entries(HERO_SPECS).map(([trackId, track]) => {
-    const specSkills = getSpecSkills(trackId);
-    const skillRows = specSkills.map(s => {
-      const isPassive = s.type === 'passive' || s.procChance >= 1.0;
-      const badge = s.reactive
-        ? '<span class="comp-skill-badge reactive">Reactive</span>'
-        : isPassive
-          ? '<span class="comp-skill-badge passive">Passive</span>'
-          : `<span class="comp-skill-badge active">Active ${Math.round(s.procChance * 100)}%</span>`;
-      return `<div class="comp-skill-row">
-        <span class="comp-skill-icon">${s.icon || '•'}</span>
-        <span class="comp-skill-name">${s.name} <em class="comp-skill-lvl">Lv.${s.unlockLevel}</em></span>
-        ${badge}
-        <span class="comp-skill-desc">${s.description || ''}</span>
-      </div>`;
-    }).join('');
-
-    return `
-      <div class="comp-class-card" style="border-left:3px solid var(--cyan)">
-        <div class="comp-class-header">
-          <span class="comp-class-sigil">${track.icon}</span>
-          <div>
-            <div class="comp-class-name">${track.label}</div>
-            <div class="comp-class-role">${track.description}</div>
-          </div>
-        </div>
-        <div class="comp-skill-section"><div class="comp-skill-header">Specialization Skills</div>${skillRows}</div>
-      </div>
-    `;
-  }).join('');
-
-  const respecCosts = Object.entries(HERO_RESPEC_COSTS)
-    .map(([rank, cost]) => `${rank}: ${cost.toLocaleString()}g`)
-    .join(' · ');
-
-  return `
-    <div class="comp-section">
-      <h2 class="comp-title">Classes & Skills</h2>
-      <p class="comp-text">All 9 classes are available from the start. Base stats show Level 1 values, with per-level growth in parentheses. Active skills show their proc chance; passives are always active.</p>
-      ${heroCard}
-
-      <h2 class="comp-title" style="margin-top:24px">Hero Specializations</h2>
-      <p class="comp-text">At Level 10, the Hero chooses a specialization track that adds 3 new skills on top of existing abilities (at Lv.10, 14, and 18). Each track defines a distinct combat role. You can respec to a different track for gold — the cost scales with guild rank.</p>
-      <p class="comp-text" style="opacity:0.7">Respec costs: ${respecCosts}</p>
-      ${specCards}
-
-      ${otherCards}
+      ${skills.length > 0 ? `<div class="comp-skill-section" style="margin-top:12px"><div class="comp-skill-header">Class Skills</div>${skillList}</div>` : ''}
+      ${masteries.length > 0 ? `<div class="comp-skill-section" style="margin-top:12px"><div class="comp-skill-header">Masteries</div>${masteryList}</div>` : ''}
+      ${heroSpecSection}
+      ${talentSection}
     </div>
   `;
 }
@@ -559,47 +578,28 @@ function renderLegacyGuide() {
     return `<div class="comp-section"><h2 class="comp-title">Guild Legacy</h2><p class="comp-text">Guild Legacy unlocks at S++ rank.</p></div>`;
   }
 
-  // Group talents by class/party
-  const groups = {};
-  for (const [id, t] of Object.entries(talents)) {
-    const key = t.classId || 'PARTY';
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(t);
+  // Only show party-wide talents here — per-class talents are on each class page
+  const partyTalents = Object.values(talents).filter(t => !t.classId).sort((a, b) => a.tier - b.tier);
+  let partySection = '';
+  if (partyTalents.length > 0) {
+    const rows = partyTalents.map(t => `<div class="comp-legacy-talent">
+      <span class="comp-legacy-icon">${t.icon}</span>
+      <div class="comp-legacy-info">
+        <span class="comp-legacy-name">${t.label} <span class="comp-legacy-tier">Tier ${t.tier} &middot; ${t.cost} pt${t.cost > 1 ? 's' : ''} &middot; Req Lv.${t.reqLevel}</span></span>
+        <span class="comp-legacy-desc">${t.desc}</span>
+      </div>
+    </div>`).join('');
+    partySection = `
+      <h3 class="comp-subtitle">Party-Wide Talents</h3>
+      <p class="comp-text">These talents benefit your entire guild regardless of class composition.</p>
+      <div class="comp-legacy-tree">
+        <div class="comp-legacy-group">${rows}</div>
+      </div>`;
   }
 
-  const talentClassOrder = ['HERO', ...Object.keys(CLASSES).filter(c => c !== 'HERO').sort()];
-  let talentRows = '';
-
-  for (const cid of talentClassOrder) {
-    if (!groups[cid]) continue;
-    const cls = CLASSES[cid];
-    const sorted = groups[cid].sort((a, b) => a.tier - b.tier);
-    talentRows += `<div class="comp-legacy-group">
-      <div class="comp-legacy-class">${cls?.label || cid}</div>
-      ${sorted.map(t => `<div class="comp-legacy-talent">
-        <span class="comp-legacy-icon">${t.icon}</span>
-        <div class="comp-legacy-info">
-          <span class="comp-legacy-name">${t.label} <span class="comp-legacy-tier">Tier ${t.tier} &middot; ${t.cost} pt${t.cost > 1 ? 's' : ''} &middot; Req Lv.${t.reqLevel}</span></span>
-          <span class="comp-legacy-desc">${t.desc}</span>
-        </div>
-      </div>`).join('')}
-    </div>`;
-  }
-
-  // Party-wide
-  if (groups.PARTY) {
-    const sorted = groups.PARTY.sort((a, b) => a.tier - b.tier);
-    talentRows += `<div class="comp-legacy-group">
-      <div class="comp-legacy-class">Party-Wide</div>
-      ${sorted.map(t => `<div class="comp-legacy-talent">
-        <span class="comp-legacy-icon">${t.icon}</span>
-        <div class="comp-legacy-info">
-          <span class="comp-legacy-name">${t.label} <span class="comp-legacy-tier">Tier ${t.tier} &middot; ${t.cost} pt${t.cost > 1 ? 's' : ''} &middot; Req Lv.${t.reqLevel}</span></span>
-          <span class="comp-legacy-desc">${t.desc}</span>
-        </div>
-      </div>`).join('')}
-    </div>`;
-  }
+  // Count class talents for the summary
+  const classTalentCount = Object.values(talents).filter(t => t.classId).length;
+  const classCount = new Set(Object.values(talents).filter(t => t.classId).map(t => t.classId)).size;
 
   return `
     <div class="comp-section">
@@ -609,11 +609,13 @@ function renderLegacyGuide() {
       <h3 class="comp-subtitle">Passive Bonuses (per level)</h3>
       <p class="comp-text">Each Legacy Level grants: +2% gold, +1% item find, +1% EXP, +0.5% celestial drop rate. These stack indefinitely.</p>
 
-      <h3 class="comp-subtitle">Talent System</h3>
-      <p class="comp-text">Each Legacy Level also grants one talent point. Talents augment class abilities — addressing weaknesses and amplifying strengths. There are 3 tiers of talents per class (costing 1, 2, and 3 points respectively), plus 5 party-wide talents that benefit the entire guild.</p>
-      <p class="comp-text">Tier requirements: Tier 1 talents need Legacy Lv.1+, Tier 2 needs Lv.3+, and Tier 3 needs Lv.6+. Talents can be reset for free from the Guild Hall.</p>
+      <h3 class="comp-subtitle">How Talents Work</h3>
+      <p class="comp-text">Each Legacy Level grants one talent point. Talents augment class abilities — addressing weaknesses and amplifying strengths. There are 3 tiers of talents per class (costing 1, 2, and 3 points respectively), plus party-wide talents that benefit the entire guild.</p>
+      <p class="comp-text"><strong>Tier requirements:</strong> Tier 1 talents unlock at Legacy Lv.1+, Tier 2 at Lv.3+, and Tier 3 at Lv.6+. You can reset all talents for free from the Guild Hall at any time.</p>
+      <p class="comp-text"><strong>Earning points:</strong> You'll need many Legacy Levels to unlock everything. With ${classTalentCount} class talents across ${classCount} classes (costing 6 points each to max a single class) plus the party-wide talents below, prioritize talents for your core party members first.</p>
+      <p class="comp-text" style="opacity:0.7">Class-specific talents are listed on each class's compendium page — check the class tabs in the sidebar.</p>
 
-      <div class="comp-legacy-tree">${talentRows}</div>
+      ${partySection}
     </div>
   `;
 }
