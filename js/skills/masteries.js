@@ -72,18 +72,19 @@ export const MASTERIES = {
     icon: '⚜', effects: { defBonus: 0.30, maxHpBonus: 0.25, atkBonus: 0.10 }, procChance: 1.0,
     narrative: null,
   },
-  MAGE_M_ARCANE_FOCUS: {
-    id: 'MAGE_M_ARCANE_FOCUS', name: 'Arcane Focus', type: 'passive', source: 'mastery',
+  MAGE_M_PHASE_SHIFT: {
+    id: 'MAGE_M_PHASE_SHIFT', name: 'Phase Shift', type: 'active', source: 'mastery',
     classId: 'MAGE', unlockLevel: 4,
-    description: 'MAG +10%, SPD +5%. Sharper magical focus.',
-    icon: '✧', effects: { magBonus: 0.10, spdBonus: 0.05 }, procChance: 1.0,
+    description: 'REACTIVE — When the Mage drops below 40% HP or would be killed, they phase out of reality for 2 rounds (untargetable). Lethal hits leave the Mage at 1 HP. 4-round cooldown.',
+    icon: '🌀', effects: { phaseShiftDuration: 2, phaseShiftThreshold: 0.40 }, procChance: 1.0,
+    reactive: true, cooldown: 4,
     narrative: null,
   },
-  MAGE_M_MANA_SURGE: {
-    id: 'MAGE_M_MANA_SURGE', name: 'Mana Surge', type: 'passive', source: 'mastery',
+  MAGE_M_ARCANE_FOCUS: {
+    id: 'MAGE_M_ARCANE_FOCUS', name: 'Arcane Focus', type: 'passive', source: 'mastery',
     classId: 'MAGE', unlockLevel: 8,
-    description: 'MAG +20%. The Mage\'s arcane reserves are always primed.',
-    icon: '💠', effects: { magBonus: 0.20 }, procChance: 1.0,
+    description: 'MAG +30%, SPD +5%. Deep arcane reserves and sharper magical focus.',
+    icon: '✧', effects: { magBonus: 0.30, spdBonus: 0.05 }, procChance: 1.0,
     narrative: null,
   },
   MAGE_M_ARCANE_EMPOWERMENT: {

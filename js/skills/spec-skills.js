@@ -39,8 +39,8 @@ export const SPEC_SKILLS = {
   HEROS_WRATH: {
     id: 'HEROS_WRATH', name: 'Hero\'s Wrath', type: 'active', source: 'spec',
     classId: 'HERO', specTrack: 'champion', unlockLevel: 18,
-    description: 'EPIC SPEC — Guaranteed 3.0× critical hit. 45% proc.',
-    icon: '⚡', effects: { powerMultiplier: 3.0, guaranteedCrit: true }, procChance: 0.45,
+    description: 'EPIC SPEC — Guaranteed 2.5× critical hit. 45% proc.',
+    icon: '⚡', effects: { powerMultiplier: 2.5, guaranteedCrit: true }, procChance: 0.45,
     narrative: 'unleashes devastating fury — HERO\'S WRATH!',
   },
   GUARDIAN_SPIRIT: {

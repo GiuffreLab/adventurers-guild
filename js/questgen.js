@@ -4,6 +4,20 @@
 
 import { RANK_ORDER, EQUIPMENT, LOOT_ITEMS, getItem, getClass, rankIndex, randInt } from './data.js';
 import { getSkill } from './skills.js';
+import {
+  SUB_TIER_MULTIPLIERS,
+  BOARD_MIX_SLOTS,
+  WILDCARD_WEIGHTS,
+  MINE_SUB_TIER_WEIGHTS,
+  RANK_POWER_TARGETS,
+  BOSS_POWER_MULT,
+  RAID_POWER_MULT,
+  BOSS_RP_MULT,
+  RAID_RP_MULT,
+  subTierForRankGap,
+  wildcardBracket,
+  rankGap as computeRankGap,
+} from './data/rankScales.js';
 
 // ── Difficulty Tiers ────────────────────────────────────────────────────
 
@@ -554,16 +568,22 @@ const QUEST_TEMPLATES = {
 
 // Base scales — these define the FLOOR for each rank.
 // Quest power is dynamically scaled up based on actual party strength.
+// Base reward ranges — bumped ~2.5× from original values because the old
+// partyScalingMultiplier (now forced to 1.0) used to inflate rewards by
+// ~4× via rewardScale. These ranges represent the Standard sub-tier payout;
+// applySubTierRewards multiplies by rewardMult (0.60× Easy → 2.00× Brutal).
+// diff/recPow are legacy fields — recommendedPower is recomputed in
+// applySubTierRewards from RANK_POWER_TARGETS.
 const RANK_SCALES = {
-  F: { gold:[10,50],    exp:[12,35],  rp:[25,60],      dur:[15,20],   diff:[0.4,1.0],  recPow:[12,30] },
-  E: { gold:[50,180],   exp:[35,80],  rp:[75,175],     dur:[20,30],   diff:[1.0,2.0],  recPow:[40,75] },
-  D: { gold:[180,500],  exp:[80,200], rp:[225,450],    dur:[25,35],   diff:[2.0,3.5],  recPow:[100,180] },
-  C: { gold:[400,1200], exp:[180,420],rp:[400,1000],   dur:[30,40],   diff:[3.0,5.0],  recPow:[200,400] },
-  B: { gold:[1200,3000],exp:[400,900],rp:[1000,2250],  dur:[35,50],   diff:[5.0,8.0],  recPow:[400,700] },
-  A: { gold:[3000,10000],exp:[800,2500],rp:[2000,5000],dur:[40,55],  diff:[8.0,14.0], recPow:[700,1200] },
-  S:      { gold:[15000,35000],  exp:[3000,8000],  rp:[7500,15000],  dur:[50,60], diff:[14.0,22.0],  recPow:[1400,2200] },
-  'S+':   { gold:[30000,60000],  exp:[6000,15000], rp:[12000,25000], dur:[55,65], diff:[20.0,35.0],  recPow:[2200,3800] },
-  'S++':  { gold:[50000,100000], exp:[10000,25000],rp:[20000,45000], dur:[60,75], diff:[30.0,55.0],  recPow:[3500,6000] },
+  F: { gold:[25,125],     exp:[30,90],    rp:[60,150],      dur:[15,20],   diff:[0.4,1.0],  recPow:[12,30] },
+  E: { gold:[125,450],    exp:[90,200],   rp:[190,440],     dur:[20,30],   diff:[1.0,2.0],  recPow:[40,75] },
+  D: { gold:[450,1250],   exp:[200,500],  rp:[560,1125],    dur:[25,35],   diff:[2.0,3.5],  recPow:[100,180] },
+  C: { gold:[1000,3000],  exp:[450,1050], rp:[1000,2500],   dur:[30,40],   diff:[3.0,5.0],  recPow:[200,400] },
+  B: { gold:[3000,7500],  exp:[1000,2250],rp:[2500,5625],   dur:[35,50],   diff:[5.0,8.0],  recPow:[400,700] },
+  A: { gold:[7500,25000], exp:[2000,6250],rp:[5000,12500],  dur:[40,55],   diff:[8.0,14.0], recPow:[700,1200] },
+  S:      { gold:[37500,87500],  exp:[7500,20000],  rp:[18750,37500],  dur:[50,60], diff:[14.0,22.0],  recPow:[1400,2200] },
+  'S+':   { gold:[75000,150000], exp:[15000,37500], rp:[30000,62500],  dur:[55,65], diff:[20.0,35.0],  recPow:[2200,3800] },
+  'S++':  { gold:[125000,250000],exp:[25000,62500], rp:[50000,112500], dur:[60,75], diff:[30.0,55.0],  recPow:[3500,6000] },
 };
 
 // Loot table definitions per rank
@@ -789,8 +809,15 @@ export function generateQuestInstance(rank, templateIndex, seed, partyStrength) 
   const envName = seededPick(envPool, seed);
   const envIcon = ENV_ICONS[t.mood] || '?';
 
-  // Party-adaptive scaling — scales quest power up when party outgrows base range
-  const pScale = partyScalingMultiplier(partyStrength || 0, rank);
+  // Party-adaptive scaling — NEUTRALIZED under the §9 rework.
+  // pScale used to inflate quest power against party strength, but the new
+  // intrinsic curve model (RANK_SCALES + sub-tier mults) handles scaling
+  // declaratively per rank. Forcing pScale = 1.0 keeps the downstream reward
+  // ranges and rarity rolls from being skewed by the old calculateMemberStrength
+  // inflation (which was running ~7× at level 1 and saturating rarityShift to
+  // produce 4-out-of-5 Legendary boards at fresh start). applySubTierRewards
+  // overwrites recommendedPower/difficulty authoritatively after this runs.
+  const pScale = 1.0;
 
   // Randomize rewards within rank range (rewards also scale with difficulty)
   const rewardScale = 1.0 + (pScale - 1.0) * 0.5; // rewards scale at half the rate of difficulty
@@ -956,82 +983,189 @@ export function generateQuestInstance(rank, templateIndex, seed, partyStrength) 
 const BOARD_SIZE = 5; // quests available per rank
 const BOARD_REFRESH_MS = 15 * 60 * 1000; // 15 minutes
 
-export function generateQuestBoard(rank, partyStrength, seed) {
-  const templates = QUEST_TEMPLATES[rank];
+// ── Internal helpers for the guaranteed-mix board (§9.3) ────────────────
+
+// Weighted roll for the wildcard slot type. Returns one of
+// 'standard' | 'mine' | 'boss' | 'raidBoss'.
+function rollWildcardType(rank, seed) {
+  const weights = WILDCARD_WEIGHTS[wildcardBracket(rank)];
+  const roll = seededRand(seed);
+  let acc = 0;
+  for (const key of ['standard', 'mine', 'boss', 'raidBoss']) {
+    acc += weights[key] || 0;
+    if (roll < acc) return key;
+  }
+  return 'standard';
+}
+
+// Weighted sub-tier roll used by mine wildcards.
+function rollMineSubTier(seed) {
+  const roll = seededRand(seed);
+  let acc = 0;
+  for (const key of ['easy', 'standard', 'hard', 'brutal']) {
+    acc += MINE_SUB_TIER_WEIGHTS[key] || 0;
+    if (roll < acc) return key;
+  }
+  return 'standard';
+}
+
+// Apply the sub-tier stamp to a quest. Rewrites reward fields AND overwrites
+// quest.recommendedPower/difficulty so the UI display tracks the actual
+// combat toughness of the new intrinsic curve + sub-tier model. HP/ATK
+// scaling in combat is handled in combatlog.js via RANK_SCALES; this is
+// UI + success-formula metadata only.
+function applySubTierRewards(quest, subTier) {
+  quest.subTier = subTier;
+  const tier = SUB_TIER_MULTIPLIERS[subTier] || SUB_TIER_MULTIPLIERS.standard;
+
+  // ── Rewards ──
+  if (quest.goldReward) {
+    quest.goldReward.min = Math.floor(quest.goldReward.min * tier.rewardMult);
+    quest.goldReward.max = Math.floor(quest.goldReward.max * tier.rewardMult);
+  }
+  if (quest.expReward) {
+    quest.expReward.min = Math.floor(quest.expReward.min * tier.rewardMult);
+    quest.expReward.max = Math.floor(quest.expReward.max * tier.rewardMult);
+  }
+  // §9.8 updated: sub-tier rewardMult now applies to RP, gold & exp.
+  // Boss/raid encounters get an additional RP + reward multiplier on top.
+  const bossRewardMult = quest.raidBoss ? RAID_RP_MULT
+    : quest.boss ? BOSS_RP_MULT : 1.0;
+  if (quest.rankPointReward) {
+    quest.rankPointReward = Math.floor(quest.rankPointReward * tier.rewardMult * bossRewardMult);
+  }
+  // Boss/raid gold & exp bonus (stacks with sub-tier rewardMult already applied above)
+  if (bossRewardMult > 1.0) {
+    if (quest.goldReward) {
+      quest.goldReward.min = Math.floor(quest.goldReward.min * bossRewardMult);
+      quest.goldReward.max = Math.floor(quest.goldReward.max * bossRewardMult);
+    }
+    if (quest.expReward) {
+      quest.expReward.min = Math.floor(quest.expReward.min * bossRewardMult);
+      quest.expReward.max = Math.floor(quest.expReward.max * bossRewardMult);
+    }
+  }
+
+  // ── recommendedPower rebase ──
+  // Compute from the rank power target × sub-tier power mult × boss/raid
+  // layer × rarity flavor. This replaces the old recPow range which was
+  // built from party-scaled numbers and is no longer meaningful.
+  const rankTarget = RANK_POWER_TARGETS[quest.rank] || 100;
+  let recPow = rankTarget * tier.powerMult;
+  if (quest.raidBoss) recPow *= RAID_POWER_MULT;
+  else if (quest.boss) recPow *= BOSS_POWER_MULT;
+  // Preserve rarity flavor: legendary/rare content is slightly above its
+  // sub-tier baseline. Common/uncommon sit at baseline.
+  const rarityMult = quest.rarity === 'legendary' ? 1.15
+                   : quest.rarity === 'rare' ? 1.08
+                   : quest.rarity === 'uncommon' ? 1.03
+                   : 1.00;
+  recPow *= rarityMult;
+  quest.recommendedPower = Math.round(recPow);
+
+  // Keep `difficulty` as a legacy-compatible scalar for any callers that
+  // still read it — recompute it from recommendedPower so legacy ratio
+  // math at least points in the right direction. The authoritative field
+  // is now quest.subTier.
+  quest.difficulty = Math.round((recPow / 20) * 100) / 100;
+
+  return quest;
+}
+
+// Pick a template index by predicate, with dedupe against `used`.
+function pickTemplate(templates, predicate, seed, used) {
+  const pool = templates.map((t, i) => predicate(t) ? i : -1).filter(i => i >= 0 && !used.has(i));
+  if (pool.length === 0) {
+    // Fall back to ignoring dedupe if we've exhausted distinct options
+    const unfiltered = templates.map((t, i) => predicate(t) ? i : -1).filter(i => i >= 0);
+    if (unfiltered.length === 0) return -1;
+    return unfiltered[Math.floor(seededRand(seed) * unfiltered.length)];
+  }
+  return pool[Math.floor(seededRand(seed) * pool.length)];
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// generateQuestBoard — guaranteed-mix + over-ranked trickle (§9.1/§9.3)
+// ────────────────────────────────────────────────────────────────────────
+// `viewedRank` is the rank the player is currently looking at.
+// `playerRank` is their actual guild rank. When they differ, the rank-gap
+// trickle locks all slots to a lower sub-tier instead of using the mix.
+// `playerRank` is optional for backward compat — if omitted, the board is
+// treated as on-rank (guaranteed mix).
+export function generateQuestBoard(viewedRank, partyStrength, seed, playerRank) {
+  const templates = QUEST_TEMPLATES[viewedRank];
   if (!templates) return [];
 
-  // Separate boss templates from normal templates
-  const bossIndices = templates.map((t, i) => t.boss ? i : -1).filter(i => i >= 0);
-  const normalIndices = templates.map((t, i) => !t.boss ? i : -1).filter(i => i >= 0);
+  const normalPred = (t) => !t.boss && !t.gemMining;
+  const minePred = (t) => !!t.gemMining;
+  const bossPred = (t) => !!t.boss && !t.raidBoss;
+  const raidPred = (t) => !!t.boss && !!t.raidBoss;
 
-  const indices = [];
+  const gap = playerRank ? computeRankGap(playerRank, viewedRank) : 0;
+  const lockedSubTier = subTierForRankGap(gap); // null when on-rank or above-rank
+  const boardQuests = [];
   const used = new Set();
 
-  // ~35% chance per board refresh to include a boss quest (replaces one harder slot)
-  const bossRoll = seededRand(seed + 500);
-  const hasBoss = bossRoll < 0.35 && bossIndices.length > 0;
+  // ── Slots 1–4: sub-tier mix (or all locked to trickle) ──
+  for (let i = 0; i < BOARD_MIX_SLOTS.length; i++) {
+    const subTier = lockedSubTier || BOARD_MIX_SLOTS[i];
+    const slotSeed = seed + i * 1000;
+    const idx = pickTemplate(templates, normalPred, slotSeed + 1, used);
+    if (idx < 0) continue;
+    used.add(idx);
+    const quest = generateQuestInstance(viewedRank, idx, slotSeed, partyStrength);
+    if (!quest) continue;
+    applySubTierRewards(quest, subTier);
+    boardQuests.push(quest);
+  }
 
-  // First, pick 3 quests that should be at-level (moderate difficulty) — never bosses
-  let attempts = 0;
-  while (indices.length < 3 && attempts < 50) {
-    const poolIdx = Math.floor(seededRand(seed + attempts) * normalIndices.length);
-    const idx = normalIndices[poolIdx];
-    if (!used.has(idx)) {
+  // ── Slot 5: wildcard ──
+  // Type rolls from bracket weights (or pinned to the trickle sub-tier if
+  // over-ranked). Raid bosses are S+ only and always Brutal.
+  const slotSeed = seed + 4 * 1000;
+  const wildcardType = rollWildcardType(viewedRank, slotSeed + 777);
+  let wildcardPred = normalPred;
+  let wildcardSubTier = lockedSubTier || 'standard';
+
+  if (wildcardType === 'mine') {
+    wildcardPred = minePred;
+    // Mines roll their own sub-tier for flavor when on-rank.
+    if (!lockedSubTier) wildcardSubTier = rollMineSubTier(slotSeed + 778);
+  } else if (wildcardType === 'boss') {
+    wildcardPred = bossPred;
+    // Wildcard boss sub-tier: Easy/Standard rerolls collapse to Hard(62.5%) / Brutal(37.5%)
+    if (!lockedSubTier) {
+      wildcardSubTier = seededRand(slotSeed + 779) < 0.625 ? 'hard' : 'brutal';
+    }
+  } else if (wildcardType === 'raidBoss') {
+    wildcardPred = raidPred;
+    wildcardSubTier = 'brutal';
+  }
+
+  const wildcardIdx = pickTemplate(templates, wildcardPred, slotSeed + 1, used);
+  if (wildcardIdx >= 0) {
+    used.add(wildcardIdx);
+    const quest = generateQuestInstance(viewedRank, wildcardIdx, slotSeed, partyStrength);
+    if (quest) {
+      applySubTierRewards(quest, wildcardSubTier);
+      boardQuests.push(quest);
+    }
+  } else {
+    // Fallback: if the rolled wildcard type has no templates at this rank,
+    // fill with a normal quest at the default sub-tier so the board still
+    // has 5 slots.
+    const idx = pickTemplate(templates, normalPred, slotSeed + 2, used);
+    if (idx >= 0) {
       used.add(idx);
-      indices.push({ idx, harder: false, boss: false });
+      const quest = generateQuestInstance(viewedRank, idx, slotSeed, partyStrength);
+      if (quest) {
+        applySubTierRewards(quest, lockedSubTier || 'standard');
+        boardQuests.push(quest);
+      }
     }
-    attempts++;
   }
 
-  // If boss spawns, add one boss quest as a "harder" slot
-  if (hasBoss) {
-    const bossPoolIdx = Math.floor(seededRand(seed + 600) * bossIndices.length);
-    const bossIdx = bossIndices[bossPoolIdx];
-    used.add(bossIdx);
-    indices.push({ idx: bossIdx, harder: true, boss: true });
-  }
-
-  // Fill remaining slots with harder normal quests
-  attempts = 0;
-  while (indices.length < BOARD_SIZE && attempts < 50) {
-    const poolIdx = Math.floor(seededRand(seed + 100 + attempts) * normalIndices.length);
-    const idx = normalIndices[poolIdx];
-    if (!used.has(idx)) {
-      used.add(idx);
-      indices.push({ idx, harder: true, boss: false });
-    }
-    attempts++;
-  }
-
-  // Generate quest instances — pass partyStrength so quests scale with the party
-  return indices.map(({ idx, harder, boss }, i) => {
-    const quest = generateQuestInstance(rank, idx, seed + i * 1000, partyStrength);
-    if (!quest) return null;
-
-    if (boss) {
-      // Boss quests: significantly harder (2.5-3.7x) with boosted rewards
-      const bossBoost = 2.5 + seededRand(seed + 300 + i) * 1.2;
-      quest.difficulty = Math.round(quest.difficulty * bossBoost * 100) / 100;
-      quest.recommendedPower = Math.floor(quest.recommendedPower * bossBoost);
-      quest.goldReward.min = Math.floor(quest.goldReward.min * bossBoost * 1.5);
-      quest.goldReward.max = Math.floor(quest.goldReward.max * bossBoost * 1.5);
-      quest.expReward.min = Math.floor(quest.expReward.min * bossBoost * 1.3);
-      quest.expReward.max = Math.floor(quest.expReward.max * bossBoost * 1.3);
-      quest.rankPointReward = Math.floor(quest.rankPointReward * bossBoost * 1.2);
-    } else if (harder) {
-      // Boost difficulty by 50-110% for the harder slots (wider range for stronger parties)
-      const baseBoost = 1.5 + seededRand(seed + 200 + i) * 0.6;
-      const boost = baseBoost;
-      quest.difficulty = Math.round(quest.difficulty * boost * 100) / 100;
-      quest.recommendedPower = Math.floor(quest.recommendedPower * boost);
-      quest.goldReward.min = Math.floor(quest.goldReward.min * boost);
-      quest.goldReward.max = Math.floor(quest.goldReward.max * boost);
-      quest.expReward.min = Math.floor(quest.expReward.min * boost);
-      quest.expReward.max = Math.floor(quest.expReward.max * boost);
-      quest.rankPointReward = Math.floor(quest.rankPointReward * boost);
-    }
-    return quest;
-  }).filter(Boolean);
+  return boardQuests;
 }
 
 export function shouldRefreshBoard(lastRefreshed) {

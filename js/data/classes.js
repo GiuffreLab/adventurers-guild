@@ -20,7 +20,7 @@ export const CLASSES = {
     id: 'MAGE', label: 'Mage', sigil: 'MAG',
     description: 'Glass cannon. Devastating magic, fragile body.',
     baseStats: { maxHp: 70, atk: 4, def: 4, spd: 7, mag: 18, crit: 9, dodge: 2 },
-    growthRates: { maxHp: 10, atk: 0.5, def: 0.6, spd: 1.0, mag: 3.5, crit: 1.6, dodge: 0.2 },
+    growthRates: { maxHp: 11, atk: 0.5, def: 0.8, spd: 1.0, mag: 3.5, crit: 1.6, dodge: 0.2 },
     recruitCost: true, unlockRank: null,
   },
   ROGUE: {

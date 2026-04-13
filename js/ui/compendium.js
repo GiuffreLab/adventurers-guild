@@ -1,6 +1,7 @@
 // ── Compendium — In-game encyclopedia ─────────────────────────────────────
 import Game from '../game.js';
 import { CLASSES, RANK_ORDER, EQUIPMENT, LOOT_ITEMS, ITEM_RARITIES, getItemRarity } from '../data.js';
+import { RANK_SCALES, SUB_TIER_MULTIPLIERS, RANK_POWER_TARGETS, RANK_ENEMY_COUNT, BOSS_ROLE_MULTS, BOSS_COMPOSITIONS, RAID_COMPOSITIONS, BRUTAL_PROMOTION, BOSS_POWER_MULT, RAID_POWER_MULT } from '../data/rankScales.js';
 import { SKILLS, getClassSkills, getClassMasteries, HERO_SPECS, getSpecSkills } from '../skills.js';
 import { rankCss } from '../util.js';
 
@@ -24,10 +25,12 @@ const SECTIONS = [
   { id: 'divider-game', label: '── Game Systems ──', icon: '', divider: true },
   { id: 'equipment',  label: 'Equipment & Procs',  icon: '🛡' },
   { id: 'combat',     label: 'Combat Mechanics',   icon: '💥' },
+  { id: 'combatlog',  label: 'Combat Log Guide',   icon: '📋' },
   { id: 'tower',      label: 'Tower Climb',        icon: '🗼' },
   { id: 'synergy',    label: 'Party Synergy',      icon: '🔗' },
   { id: 'legacy',     label: 'Guild Legacy',       icon: '🏆' },
   { id: 'ranks',      label: 'Ranking System',     icon: '⭐' },
+  { id: 'difficulty', label: 'Difficulty & Scaling', icon: '📈' },
   { id: 'saves',      label: 'Save & Backup',      icon: '💾' },
 ];
 
@@ -70,10 +73,12 @@ export function renderCompendium() {
         case 'stats':     body.innerHTML = renderStats(); break;
         case 'equipment': body.innerHTML = renderEquipment(); break;
         case 'combat':    body.innerHTML = renderCombat(); break;
+        case 'combatlog': body.innerHTML = renderCombatLogGuide(); break;
         case 'tower':     body.innerHTML = renderTowerGuide(); break;
         case 'synergy':   body.innerHTML = renderSynergy(); break;
         case 'legacy':    body.innerHTML = renderLegacyGuide(); break;
         case 'ranks':     body.innerHTML = renderRanks(); break;
+        case 'difficulty': body.innerHTML = renderDifficulty(); break;
         case 'saves':     body.innerHTML = renderSavesGuide(); break;
       }
     }
@@ -411,7 +416,7 @@ function renderCombat() {
 
       <h3 class="comp-subtitle">Special Mechanics</h3>
       <p class="comp-text"><strong>Bulwark (Knight):</strong> Reactively intercepts hits aimed at allies every 3 rounds. Independent of SPD — always triggers when ready.</p>
-      <p class="comp-text"><strong>Rally Cry (Hero):</strong> When any ally drops below 30% HP, a Hero with this skill automatically heals them. 4-round cooldown.</p>
+      <p class="comp-text"><strong>Rally Cry (Hero):</strong> When any ally drops below 30% HP, a Hero with this skill automatically heals them for 15% of their max HP. 4-round cooldown.</p>
       <p class="comp-text"><strong>Mark for Death (Rogue):</strong> On a critical hit, marks the target. All party members deal +20% damage to marked enemies for 2 rounds.</p>
       <p class="comp-text"><strong>Ki Barrier (Monk):</strong> 25% of all damage dealt is returned as HP. Self-sustain without a healer.</p>
       <p class="comp-text"><strong>Spell Echo (Mage):</strong> After casting a skill, the Mage gains 1.5× damage for 2 rounds.</p>
@@ -439,6 +444,119 @@ function renderCombat() {
       <p class="comp-text"><strong>Celestial-only loot:</strong> Raid Bosses suppress all non-celestial equipment drops. Every piece of gear that drops from a raid is guaranteed celestial rarity.</p>
       <p class="comp-text"><strong>Guaranteed drops:</strong> Normal bosses guarantee 4–8 loot drops. Raid Bosses guarantee 8–12 drops, making them the most rewarding encounters in the game.</p>
       <p class="comp-text"><strong>Drop rate boost:</strong> Celestial drop chance is massively amplified on raids (up to 45% cap vs 25% for normal S++ quests). This makes raid bosses the fastest path to completing celestial sets.</p>
+    </div>
+  `;
+}
+
+// ── Combat Log Guide ──────────────────────────────────────────────────────
+function renderCombatLogGuide() {
+  /* ── Chip-legend helper ── */
+  const chip = (color, label, border) => {
+    const bdr = border ? `border-left:3px solid ${border};` : '';
+    return `<div class="clg-chip"><div class="clg-swatch" style="background:${color};${bdr}"></div>${label}</div>`;
+  };
+
+  return `
+    <div class="comp-section">
+      <h2 class="comp-title">📋 Combat Log Guide</h2>
+      <p class="comp-text">The combat log displays a detailed play-by-play of every quest battle. Each entry is color-coded — background tint, inline skill names, and damage numbers all follow a consistent system so you can read the flow of battle at a glance.</p>
+
+      <!-- ═══ ROW BACKGROUNDS ═══ -->
+      <h3 class="comp-subtitle">Row Backgrounds (by event type)</h3>
+      <p class="comp-text">Every log row has a subtle background tint and a colored left-border accent that tells you the event type instantly.</p>
+      <div class="clg-legend">
+        ${chip('rgba(200,210,230,0.15)', 'Attack',     'rgba(200,210,230,0.4)')}
+        ${chip('rgba(240,192,96,0.18)',  'Skill',      '#f0c060')}
+        ${chip('rgba(255,216,102,0.22)', 'Crit',       '#ffd866')}
+        ${chip('rgba(155,89,182,0.18)',  'Magic',      '#9b59b6')}
+        ${chip('rgba(168,100,255,0.18)', 'Equip Proc', '#a864ff')}
+        ${chip('rgba(0,229,200,0.18)',   'Celestial',  '#00e5c8')}
+        ${chip('rgba(46,204,113,0.16)',  'Heal',       '#2ecc71')}
+        ${chip('rgba(100,181,246,0.16)', 'Buff',       '#64b5f6')}
+        ${chip('rgba(243,156,18,0.16)',  'Debuff',     '#e67e22')}
+        ${chip('rgba(231,76,60,0.18)',   'Enemy',      '#e74c3c')}
+        ${chip('rgba(255,68,68,0.20)',   'KO',         '#ff4444')}
+        ${chip('rgba(46,204,113,0.18)',  'Defeat',     '#2ecc71')}
+        ${chip('rgba(255,216,102,0.18)', 'Divine',     '#ffd866')}
+        ${chip('rgba(100,181,246,0.16)', 'Cover',      '#90caf9')}
+        ${chip('rgba(243,156,18,0.18)',  'Reinforce',  '#f39c12')}
+        ${chip('rgba(243,156,18,0.18)', 'Encounter',   '#e67e22')}
+        ${chip('rgba(78,205,196,0.08)',  'Travel',     false)}
+        ${chip('rgba(255,255,255,0.05)', 'Dodge',      false)}
+        ${chip('rgba(78,205,196,0.14)',  'Resolve',    '#4ecdc4')}
+        ${chip('rgba(52,152,219,0.14)',  'Defend',     '#3498db')}
+      </div>
+
+      <!-- ═══ INLINE TEXT COLORS ═══ -->
+      <h3 class="comp-subtitle">Inline Text Colors (skill names)</h3>
+      <p class="comp-text">Skill and ability names are highlighted inline so they pop from the neutral body text. Each skill category has one consistent color.</p>
+      <div class="clg-legend">
+        ${chip('#e0e0e0',  'Basic ATK')}
+        ${chip('#f0c060',  'Skill')}
+        ${chip('#f5a623',  'AoE')}
+        ${chip('#c882ff',  'Magic')}
+        ${chip('#5dde8e',  'Heal')}
+        ${chip('#64b5f6',  'Buff')}
+        ${chip('#f39c12',  'Debuff')}
+        ${chip('#e67e22',  'DoT')}
+        ${chip('#80deea',  'Reactive')}
+        ${chip('#ffd866',  'Divine / Crit')}
+        ${chip('#00e5c8',  'Celestial')}
+        ${chip('#ff7675',  'Enemy ability')}
+      </div>
+
+      <!-- ═══ NUMBER CHIPS ═══ -->
+      <h3 class="comp-subtitle">Damage &amp; Healing Numbers</h3>
+      <p class="comp-text">Damage and healing values appear as compact number chips. The color always matches the damage source, regardless of context.</p>
+      <div class="clg-legend">
+        <div class="clg-chip"><span class="dmg-num dmg-phys" style="padding:1px 6px;">142</span> Physical</div>
+        <div class="clg-chip"><span class="dmg-num dmg-magic" style="padding:1px 6px;">98</span> Magic</div>
+        <div class="clg-chip"><span class="dmg-num dmg-heal" style="padding:1px 6px;">+65</span> Healing</div>
+        <div class="clg-chip"><span class="dmg-num dmg-crit" style="padding:1px 6px;">213!</span> Critical</div>
+        <div class="clg-chip"><span class="dmg-num dmg-aoe" style="padding:1px 6px;">77</span> AoE</div>
+        <div class="clg-chip"><span class="dmg-num dmg-dot" style="padding:1px 6px;">34</span> DoT</div>
+      </div>
+
+      <!-- ═══ SAMPLE COMBAT SEQUENCE ═══ -->
+      <h3 class="comp-subtitle">Sample Combat Sequence</h3>
+      <p class="comp-text">Here's how actual log entries look in context — showing how backgrounds, skill highlights, and number chips work together:</p>
+      <div class="clg-sample">
+        <div class="combat-log-entry log-travel"><span class="log-icon">🗺</span><span class="log-text">The air grows tense near Crystal Cavern. Kira grips her weapon.</span></div>
+        <div class="combat-log-entry log-encounter"><span class="log-icon">👁</span><span class="log-text">A wild <span class="sk-enemy">Ember Dragon</span> appears from the shadows!</span></div>
+        <div class="combat-log-entry log-attack"><span class="log-icon">⚔</span><span class="log-text">Binx lunges forward, cutting Volcanic Worm for <span class="dmg-num dmg-phys">202</span>!</span></div>
+        <div class="combat-log-entry log-crit"><span class="log-icon">💥</span><span class="log-text">Lyra flicks a dagger into Lava Elemental's weak spot — <span class="dmg-num dmg-crit">235 CRIT</span>!</span></div>
+        <div class="combat-log-entry log-skill"><span class="log-icon">👊</span><span class="log-text">Tomas activates <span class="sk-aoe">Hundred Fists</span> — <span class="sk-aoe">5</span> enemies battered for <span class="dmg-num dmg-aoe">61</span> each!</span></div>
+        <div class="combat-log-entry log-magic"><span class="log-icon">🌑</span><span class="log-text">Rowan's <span class="sk-magic">Shadow Bolt</span> strikes Lava Elemental for <span class="dmg-num dmg-magic">664</span>!</span></div>
+        <div class="combat-log-entry log-heal"><span class="log-icon">🩸</span><span class="log-text">Dark energy floods back — <span class="sk-heal">4</span> allies drink <span class="dmg-num dmg-heal">+138</span> HP from the shadow!</span></div>
+        <div class="combat-log-entry log-enemy"><span class="log-icon">🔥</span><span class="log-text">Ember Dragon casts <span class="sk-enemy">Cursed Touch</span> — Rowan takes <span class="dmg-num dmg-enemy">238</span>!</span></div>
+        <div class="combat-log-entry log-cover"><span class="log-icon">🛡</span><span class="log-text">Binx intercepts the blow — <span class="sk-react">Vanguard's Oath</span> absorbs <span class="dmg-num dmg-phys">41</span> damage!</span></div>
+        <div class="combat-log-entry log-divine"><span class="log-icon">🕊</span><span class="log-text">A holy light erupts! <span class="sk-divine">Divine Intervention</span> shields Rowan from the killing blow!</span></div>
+        <div class="combat-log-entry log-buff"><span class="log-icon">✨</span><span class="log-text">Tomas activates <span class="sk-buff">Swift Palm</span> — +25% ATK, +15% SPD for 2 rounds!</span></div>
+        <div class="combat-log-entry log-debuff"><span class="log-icon">🎸</span><span class="log-text">A dissonant chord — <span class="sk-debuff">Discord</span>: -20% ATK, fumble &amp; sonic DoT (3rd)!</span></div>
+        <div class="combat-log-entry log-defeat"><span class="log-icon">💥</span><span class="log-text">With a mighty strike, Tomas defeats <span style="color:#2ecc71;font-weight:600;">Volcanic Worm</span>!</span></div>
+        <div class="combat-log-entry log-ko"><span class="log-icon">💀</span><span class="log-text">Rowan staggers and drops — knocked out of the fight!</span></div>
+        <div class="combat-log-entry log-dodge"><span class="log-icon">💨</span><span class="log-text">Lyra deftly sidesteps — the attack misses!</span></div>
+        <div class="combat-log-entry log-reinforce"><span class="log-icon">⚠</span><span class="log-text">The ground trembles — <span class="sk-enemy">Lava Elemental</span> joins the fray!</span></div>
+        <div class="combat-log-entry log-resolve"><span class="log-icon">✦</span><span class="log-text">Binx sheathes their weapon as the dust settles.</span></div>
+      </div>
+
+      <!-- ═══ DESIGN PRINCIPLES ═══ -->
+      <h3 class="comp-subtitle">Design Principles</h3>
+      <div class="clg-principles">
+        <p><strong>One background per event type.</strong> Every row immediately tells you what's happening through its subtle background tint and left-border accent.</p>
+        <p><strong>Uniform body text.</strong> All descriptive text is the same warm off-white. The background and highlights do the work — body text stays neutral and readable.</p>
+        <p><strong>Skill names pop.</strong> Each skill category gets one consistent highlight color — gold for class skills, amber for AoE, purple for magic, blue for buffs, teal for reactives. The skill name is the only colored word in the sentence.</p>
+        <p><strong>Numbers match their source.</strong> Physical = white, skill = gold, magic = purple, heals = green, enemy = red, crits = bright gold glow, DoTs = orange. Always consistent.</p>
+        <p><strong>Weight = importance.</strong> Crits, defeats, KOs, and divine saves get bold text. Travel and dodges are italic and muted — low priority info stays quiet.</p>
+      </div>
+
+      <!-- ═══ READING TIPS ═══ -->
+      <h3 class="comp-subtitle">Reading Tips</h3>
+      <p class="comp-text"><strong>Round markers</strong> appear as centered dividers showing the round number. Events within each round are listed sequentially for readability.</p>
+      <p class="comp-text"><strong>Reactive abilities</strong> (Ki Barrier, Bulwark, Divine Intervention, Riposte) trigger automatically and appear as separate entries from the triggering attack.</p>
+      <p class="comp-text"><strong>Equipment procs</strong> fire after their triggering attack. Look for purple-highlighted proc names like Lifesteal or Spell Echo.</p>
+      <p class="comp-text"><strong>KO and Revival</strong> — a red KO entry may be followed by a golden divine entry if a Cleric has Resurrection ready.</p>
+      <p class="comp-text"><strong>Target counts</strong> in multi-hit attacks are colored to match the damage type — e.g. an amber "5" in "5 enemies battered" matches the amber AoE damage chip.</p>
     </div>
   `;
 }
@@ -616,6 +734,205 @@ function renderLegacyGuide() {
       <p class="comp-text" style="opacity:0.7">Class-specific talents are listed on each class's compendium page — check the class tabs in the sidebar.</p>
 
       ${partySection}
+    </div>
+  `;
+}
+
+// ── Difficulty & Scaling Guide ────────────────────────────────────────────
+function renderDifficulty() {
+  const chip = (color, label, border) => {
+    const bdr = border ? `border-left:3px solid ${border};` : '';
+    return `<div class="clg-chip"><div class="clg-swatch" style="background:${color};${bdr}"></div>${label}</div>`;
+  };
+
+  // Sub-tier data table
+  const tiers = ['easy', 'standard', 'hard', 'brutal'];
+  const tierLabels = { easy: 'Easy', standard: 'Standard', hard: 'Hard', brutal: 'Brutal' };
+  const tierColors = { easy: '#2ecc71', standard: '#3498db', hard: '#f39c12', brutal: '#e74c3c' };
+  const subTierRows = tiers.map(t => {
+    const m = SUB_TIER_MULTIPLIERS[t];
+    return `<tr>
+      <td style="color:${tierColors[t]};font-weight:600;">${tierLabels[t]}</td>
+      <td>${(m.hpMult * 100).toFixed(0)}%</td>
+      <td>${(m.atkMult * 100).toFixed(0)}%</td>
+      <td>${(m.rewardMult * 100).toFixed(0)}%</td>
+    </tr>`;
+  }).join('');
+
+  // Rank scaling table
+  const rankRows = RANK_ORDER.map(r => {
+    const s = RANK_SCALES[r];
+    const ec = RANK_ENEMY_COUNT[r];
+    const pt = RANK_POWER_TARGETS[r];
+    return `<tr>
+      <td style="font-weight:600;color:var(--gold);">${r}</td>
+      <td>${s.baseHp.toLocaleString()}</td>
+      <td>${s.baseAtk.toLocaleString()}</td>
+      <td>${ec}</td>
+      <td>${pt.toLocaleString()}</td>
+    </tr>`;
+  }).join('');
+
+  // Boss composition table
+  const bossRows = RANK_ORDER.map(r => {
+    const c = BOSS_COMPOSITIONS[r];
+    if (!c) return '';
+    const adds = [];
+    if (c.generals > 0) adds.push(`${c.generals} General${c.generals > 1 ? 's' : ''}`);
+    if (c.lts > 0) adds.push(`${c.lts} Lt${c.lts > 1 ? 's' : ''}`);
+    if (c.captains > 0) adds.push(`${c.captains} Captain${c.captains > 1 ? 's' : ''}`);
+    if (c.minions > 0) adds.push(`${c.minions} Minion${c.minions > 1 ? 's' : ''}`);
+    const total = 1 + (c.generals || 0) + (c.lts || 0) + (c.captains || 0) + (c.minions || 0);
+    return `<tr>
+      <td style="font-weight:600;color:var(--gold);">${r}</td>
+      <td>${total}</td>
+      <td>Boss + ${adds.join(', ')}</td>
+    </tr>`;
+  }).join('');
+
+  // Boss role multipliers
+  const roleData = [
+    { role: 'Minion',    hp: BOSS_ROLE_MULTS.minion.hpMult,   atk: BOSS_ROLE_MULTS.minion.atkMult,   note: 'F-E boss adds' },
+    { role: 'Captain',   hp: BOSS_ROLE_MULTS.captain.hpMult,  atk: BOSS_ROLE_MULTS.captain.atkMult,  note: 'D-C boss adds' },
+    { role: 'Lieutenant',hp: BOSS_ROLE_MULTS.lt.hpMult,       atk: BOSS_ROLE_MULTS.lt.atkMult,       note: 'B-A boss adds' },
+    { role: 'General',   hp: BOSS_ROLE_MULTS.general.hpMult,  atk: BOSS_ROLE_MULTS.general.atkMult,  note: 'S+ boss adds' },
+    { role: 'Boss',      hp: BOSS_ROLE_MULTS.boss.hpMult,     atk: BOSS_ROLE_MULTS.boss.atkMult,     note: 'Main boss' },
+    { role: 'Raid Boss', hp: BOSS_ROLE_MULTS.raidBoss.hpMult, atk: BOSS_ROLE_MULTS.raidBoss.atkMult, note: 'S++ raids' },
+  ];
+  const roleRows = roleData.map(r => `<tr>
+    <td style="font-weight:600;">${r.role}</td>
+    <td>${r.hp.toFixed(2)}×</td>
+    <td>${r.atk.toFixed(2)}×</td>
+    <td style="color:var(--text-dim);font-size:0.8rem;">${r.note}</td>
+  </tr>`).join('');
+
+  // Brutal promotion table
+  const promoData = [
+    { ranks: 'F-E', role: 'Captain', color: '#2ecc71' },
+    { ranks: 'D-C', role: 'Lieutenant', color: '#3498db' },
+    { ranks: 'B+',  role: 'General', color: '#f39c12' },
+  ];
+  const promoChips = promoData.map(p =>
+    `<div class="clg-chip"><div class="clg-swatch" style="background:${p.color};"></div><strong>${p.ranks}</strong> → ${p.role}</div>`
+  ).join('');
+
+  return `
+    <div class="comp-section">
+      <h2 class="comp-title">📈 Difficulty & Scaling</h2>
+      <p class="comp-text">Every quest in the game has its difficulty determined by three factors: the rank tier, the sub-tier (Easy through Brutal), and whether it's a boss or raid encounter. This guide explains how all of these systems work together.</p>
+
+      <!-- ═══ SUB-TIER SYSTEM ═══ -->
+      <h3 class="comp-subtitle">Sub-Tier System</h3>
+      <p class="comp-text">Every quest slot on the board has a sub-tier that scales enemy stats and rewards. Your quest board always offers a guaranteed mix of all four tiers so you can choose your challenge level.</p>
+      <div class="clg-legend" style="margin-bottom:12px;">
+        ${chip(tierColors.easy, 'Easy — Lower risk, lower reward')}
+        ${chip(tierColors.standard, 'Standard — Baseline difficulty')}
+        ${chip(tierColors.hard, 'Hard — Tougher enemies, better loot')}
+        ${chip(tierColors.brutal, 'Brutal — Wipe risk, max rewards')}
+      </div>
+      <table class="comp-scale-table">
+        <thead><tr><th>Tier</th><th>Enemy HP</th><th>Enemy ATK</th><th>Rewards</th></tr></thead>
+        <tbody>${subTierRows}</tbody>
+      </table>
+      <p class="comp-text">Brutal encounters also feature a <strong>mini-boss promotion</strong> — the last enemy gets upgraded to the next rank bracket's add quality, previewing future difficulty:</p>
+      <div class="clg-legend">${promoChips}</div>
+
+      <!-- ═══ RANK SCALING ═══ -->
+      <h3 class="comp-subtitle">Enemy Stats by Rank</h3>
+      <p class="comp-text">Enemy base HP and ATK grow roughly 1.88× and 1.65× per rank step respectively. These are the Standard-tier baselines — sub-tier multipliers are applied on top.</p>
+      <table class="comp-scale-table">
+        <thead><tr><th>Rank</th><th>Base HP</th><th>Base ATK</th><th>Enemies</th><th>Power Target</th></tr></thead>
+        <tbody>${rankRows}</tbody>
+      </table>
+      <p class="comp-text">The <strong>Power Target</strong> column is the party strength at which a Standard fight sits at a 1.0 difficulty ratio. Your quest card shows how your party compares to this target.</p>
+
+      <!-- ═══ DIFFICULTY BADGES ═══ -->
+      <h3 class="comp-subtitle">Difficulty Badges</h3>
+      <p class="comp-text">Each quest card shows a difficulty badge based on the ratio of quest power to your party strength:</p>
+      <div class="clg-legend">
+        ${chip('rgba(255,255,255,0.1)', '○ Trivial — under 25%')}
+        ${chip('rgba(46,204,113,0.3)', '◐ Easy — 25-50%')}
+        ${chip('rgba(52,152,219,0.3)', '● Moderate — 50-80%')}
+        ${chip('rgba(243,156,18,0.3)', '◆ Hard — 80-115%')}
+        ${chip('rgba(231,76,60,0.3)', '★ Epic — 115-160%')}
+        ${chip('rgba(155,89,182,0.3)', '✦ Legendary — over 160%')}
+      </div>
+
+      <!-- ═══ BOSS ENCOUNTERS ═══ -->
+      <h3 class="comp-subtitle">Boss Encounters</h3>
+      <p class="comp-text">Boss quests feature a powerful boss enemy plus role-typed adds. The total enemy count matches standard encounters — the boss replaces one regular enemy, and the rest are upgraded adds whose quality progresses through ranks.</p>
+      <table class="comp-scale-table">
+        <thead><tr><th>Role</th><th>HP Mult</th><th>ATK Mult</th><th>Appears In</th></tr></thead>
+        <tbody>${roleRows}</tbody>
+      </table>
+
+      <h3 class="comp-subtitle">Boss Compositions by Rank</h3>
+      <p class="comp-text">As you progress through ranks, boss adds get tougher. Early bosses bring minions; late-game bosses are surrounded by generals.</p>
+      <table class="comp-scale-table">
+        <thead><tr><th>Rank</th><th>Total</th><th>Composition</th></tr></thead>
+        <tbody>${bossRows}</tbody>
+      </table>
+
+      <!-- ═══ RAID BOSSES ═══ -->
+      <h3 class="comp-subtitle">Raid Bosses</h3>
+      <p class="comp-text">Raid Bosses are the ultimate challenge, available at S-rank and above. They appear as a wildcard quest on the board (15% chance at high ranks).</p>
+      <div class="clg-principles">
+        <p><strong>Massively stronger.</strong> Raid bosses have ${BOSS_ROLE_MULTS.raidBoss.hpMult}× HP and ${BOSS_ROLE_MULTS.raidBoss.atkMult}× ATK — far beyond normal bosses (${BOSS_ROLE_MULTS.boss.hpMult}×/${BOSS_ROLE_MULTS.boss.atkMult}×).</p>
+        <p><strong>Double RP.</strong> Raid bosses grant 2.0× the normal Rank Points, stacking with sub-tier rewards. A Brutal raid pays 4.0× base RP.</p>
+        <p><strong>Celestial-only loot.</strong> Every drop from a raid boss is guaranteed celestial rarity. Drop rates are massively amplified (up to 45% cap at S++ vs 25% for normal bosses).</p>
+        <p><strong>More guaranteed drops.</strong> Normal bosses drop 4-8 items. Raid bosses guarantee 8-12 drops — the fastest path to completing celestial sets.</p>
+      </div>
+
+      <!-- ═══ TOWER ═══ -->
+      <h3 class="comp-subtitle">Tower Climb Scaling</h3>
+      <p class="comp-text">The Tower is an endless gauntlet unlocked at S-rank. Enemy stats scale +6% per floor above Floor 1, compounding into extreme difficulty at high floors.</p>
+      <table class="comp-scale-table">
+        <thead><tr><th>Floor</th><th>Stat Mult</th><th>Effective HP (S-rank base)</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>1.00×</td><td>${RANK_SCALES.S.baseHp.toLocaleString()}</td><td>S-rank baseline</td></tr>
+          <tr><td>10</td><td>1.54×</td><td>${Math.floor(RANK_SCALES.S.baseHp * 1.54).toLocaleString()}</td><td style="color:var(--gold);">Boss: The Gatekeeper</td></tr>
+          <tr><td>20</td><td>2.14×</td><td>${Math.floor(RANK_SCALES.S.baseHp * 2.14).toLocaleString()}</td><td style="color:var(--gold);">Boss floor</td></tr>
+          <tr><td>30</td><td>2.74×</td><td>${Math.floor(RANK_SCALES.S.baseHp * 2.74).toLocaleString()}</td><td style="color:var(--gold);">Boss floor</td></tr>
+          <tr><td>50</td><td>3.94×</td><td>${Math.floor(RANK_SCALES.S.baseHp * 3.94).toLocaleString()}</td><td style="color:var(--gold);">Boss floor</td></tr>
+          <tr><td>75</td><td>5.44×</td><td>${Math.floor(RANK_SCALES.S.baseHp * 5.44).toLocaleString()}</td><td style="color:var(--gold);">Boss floor</td></tr>
+          <tr><td>100</td><td>6.94×</td><td>${Math.floor(RANK_SCALES.S.baseHp * 6.94).toLocaleString()}</td><td style="color:#e74c3c;font-weight:600;">Final Boss</td></tr>
+        </tbody>
+      </table>
+
+      <h3 class="comp-subtitle">Tower Loot</h3>
+      <p class="comp-text">Tower runs reward gold and XP per floor cleared, plus gem bags at milestone floors. Celestial drops start at Floor 10 (3% chance) and scale +4% per 10 floors, capping at 50%.</p>
+      <table class="comp-scale-table">
+        <thead><tr><th>Floor</th><th>Gem Bag</th><th>Drop Chance</th><th>Celestial %</th></tr></thead>
+        <tbody>
+          <tr><td>10</td><td>Minor Gem Bag</td><td>80%</td><td>3%</td></tr>
+          <tr><td>20</td><td>Minor Gem Bag</td><td>100%</td><td>7%</td></tr>
+          <tr><td>30</td><td>Major Gem Bag</td><td>70%</td><td>11%</td></tr>
+          <tr><td>40</td><td>Major Gem Bag</td><td>100%</td><td>15%</td></tr>
+          <tr><td>50</td><td>Supreme Gem Bag</td><td>60%</td><td>19%</td></tr>
+          <tr><td>75</td><td>Supreme Gem Bag</td><td>100%</td><td>29%</td></tr>
+          <tr><td>100</td><td>Supreme Gem Bag</td><td>100%</td><td>39%</td></tr>
+        </tbody>
+      </table>
+
+      <!-- ═══ QUEST BOARD ═══ -->
+      <h3 class="comp-subtitle">Quest Board Generation</h3>
+      <p class="comp-text">Your quest board has 5 slots. The first four are a guaranteed mix of Easy, Standard, Hard, and Brutal. The 5th slot is a wildcard that can roll a special quest type:</p>
+      <div class="clg-principles">
+        <p><strong>Standard quest</strong> — 50% chance (low rank) / 40% (S+). A normal quest at a random sub-tier.</p>
+        <p><strong>Mine expedition</strong> — 35% / 25%. A resource-gathering quest with gem bag payouts.</p>
+        <p><strong>Boss encounter</strong> — 15% / 20%. A challenging boss fight with better loot and 1.5× RP.</p>
+        <p><strong>Raid boss</strong> — 0% / 15%. S-rank and above only. The ultimate challenge with celestial-only drops and 2.0× RP.</p>
+      </div>
+      <p class="comp-text">When viewing a quest board below your current rank, all slots lock to a lower sub-tier: 1 rank below = all Brutal, 2 below = all Hard, 3 below = all Standard, 4+ below = all Easy. This prevents trivializing lower-rank content.</p>
+
+      <!-- ═══ DESIGN PRINCIPLES ═══ -->
+      <h3 class="comp-subtitle">Design Principles</h3>
+      <div class="clg-principles">
+        <p><strong>Predictable difficulty curve.</strong> Enemy stats come from fixed per-rank tables, not from your party's power. You always know what a rank feels like.</p>
+        <p><strong>Brutal(N) ≈ Easy(N+1).</strong> The hardest fights of one rank overlap with the easiest fights of the next. This smooths the rank-up transition.</p>
+        <p><strong>Boss add quality scales with rank.</strong> F-rank bosses bring weak minions. S++ bosses are surrounded by generals. The boss itself is always the same relative threat — it's the entourage that gets dangerous.</p>
+        <p><strong>Tower is the endgame stress test.</strong> The +6% compounding floor scaling means Floor 50 enemies have nearly 4× the stats of Floor 1. Floor 100 is designed to be a wall that only fully optimized parties can clear.</p>
+      </div>
     </div>
   `;
 }

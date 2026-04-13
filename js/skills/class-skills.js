@@ -26,7 +26,7 @@ export const CLASS_SKILLS = {
     // LIFTED to Hero L8 mastery per §4.2. Still an active skill, granted via mastery track now.
     id: 'RALLY_CRY', name: 'Rally Cry', type: 'active', source: 'mastery',
     classId: 'HERO', unlockLevel: 8,
-    description: 'A rallying shout that heals a wounded ally. Reactive — triggers when an ally drops below 30% HP. 4-round cooldown.',
+    description: 'A rallying shout that heals a wounded ally for 15% of their max HP. Reactive — triggers when an ally drops below 30% HP. 4-round cooldown.',
     icon: '📣', effects: { partyAtkBonus: 0.12, partyDefBonus: 0.08 }, procChance: 0.60,
     narrative: 'lets out a Rally Cry — the party fights with renewed vigor!',
   },
@@ -90,8 +90,8 @@ export const CLASS_SKILLS = {
   LAST_STAND: {
     id: 'LAST_STAND', name: 'Last Stand', type: 'active', source: 'class',
     classId: 'KNIGHT', unlockLevel: 14,
-    description: 'REACTIVE — When the Knight\'s HP falls below 30%, they gain +35% DEF and +20% ATK for 3 rounds. 4-round cooldown.',
-    icon: '⚒', effects: { defBonus: 0.35, atkBonus: 0.20, lastStandThreshold: 0.30, lastStandDuration: 3 }, procChance: 1.0, reactive: true, cooldown: 4,
+    description: 'REACTIVE — When the Knight\'s HP falls below 35%, they gain +40% DEF and +20% ATK for 3 rounds. 4-round cooldown.',
+    icon: '⚒', effects: { defBonus: 0.40, atkBonus: 0.20, lastStandThreshold: 0.35, lastStandDuration: 3 }, procChance: 1.0, reactive: true, cooldown: 4,
     narrative: 'digs in for their Last Stand — unbreakable resolve!',
   },
   UNBREAKABLE: {
@@ -367,8 +367,8 @@ export const CLASS_SKILLS = {
   REGEN_SONG: {
     id: 'REGEN_SONG', name: 'Regen Song', type: 'active', source: 'class',
     classId: 'BARD', unlockLevel: 2,
-    description: 'A sustained restorative melody. 75% proc, applies a persistent Regen HoT to the party (MAG-scaled, ~55% of a Cleric group-heal per tick). Re-casting re-rolls potency and keeps the higher value. Persists for the rest of the fight.',
-    icon: '🎵', effects: { regenHot: true }, procChance: 0.75,
+    description: 'A sustained restorative melody that begins immediately when combat starts. Applies a persistent Regen HoT to the party (MAG-scaled). Re-rolls potency every 4 rounds and keeps the higher value. Persists for the rest of the fight.',
+    icon: '🎵', effects: { regenHot: true }, procChance: 1.0, cooldown: 4,
     narrative: 'plays a Regen Song — vitality flows through the party!',
   },
   DISCORD: {
@@ -469,8 +469,8 @@ export const CLASS_SKILLS = {
   SHADOW_BOLT: {
     id: 'SHADOW_BOLT', name: 'Shadow Bolt', type: 'active', source: 'class',
     classId: 'NECROMANCER', unlockLevel: 6,
-    description: 'A bolt of siphoning shadow. 70% proc, 1.3× MAG-scaled damage. On proc, every living party member heals for 6% of their own max HP as dark energy flows back into the living.',
-    icon: '🌑', effects: { powerMultiplier: 1.3, shadowBoltLeech: true, shadowBoltLeechPct: 0.06 }, procChance: 0.70,
+    description: 'A bolt of siphoning shadow. 70% proc, 1.3× MAG-scaled damage. On proc, every living party member heals for 10% of their own max HP as dark energy flows back into the living.',
+    icon: '🌑', effects: { powerMultiplier: 1.3, shadowBoltLeech: true, shadowBoltLeechPct: 0.10 }, procChance: 0.70,
     narrative: 'hurls a Shadow Bolt — dark energy surges back into the party!',
   },
   BLIGHT: {

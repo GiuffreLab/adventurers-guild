@@ -17,6 +17,8 @@ const TOWER_CONFIG = {
   DIFF_PER_FLOOR: 1.2,      // additive difficulty increase per floor
   DIFF_SCALE_FACTOR: 1.04,  // multiplicative scaling per floor (compounds)
   FLOOR_DURATION: 45,       // seconds per floor combat
+  STAT_SCALE_PER_FLOOR: 0.06, // +6% enemy HP/ATK per floor above 1
+  MAX_FLOOR: 100,             // hard cap — Floor 100 is the final boss
   BOSS_FLOORS: [10, 20, 30, 50, 75, 100], // floors with tower bosses
 
   // Loot thresholds (floors reached → rewards)
@@ -64,13 +66,18 @@ const TOWER_ENEMIES = {
     names: ['Celestial Horror', 'God Fragment', 'World Eater Spawn', 'Infinity Shard'],
     bossName: 'The Hand of Creation',
   },
-  tier6: { // Floors 76+
+  tier6: { // Floors 76-99
     names: ['Concept of Violence', 'Abstraction of Ruin', 'The Inevitable', 'Beyond Understanding'],
     bossName: 'The Tower Itself',
+  },
+  apex: { // Floor 100 — final boss
+    names: ['Echo of Infinity', 'Shard of the Absolute', 'Memory of All Worlds', 'The Last Thought'],
+    bossName: 'The Architect',
   },
 };
 
 function getFloorTier(floor) {
+  if (floor >= TOWER_CONFIG.MAX_FLOOR) return TOWER_ENEMIES.apex;
   if (floor <= 10) return TOWER_ENEMIES.tier1;
   if (floor <= 20) return TOWER_ENEMIES.tier2;
   if (floor <= 30) return TOWER_ENEMIES.tier3;
@@ -90,37 +97,49 @@ function isBossFloor(floor) {
 // ── Floor Quest Generation ─────────────────────────────────────────────
 
 export function generateFloorQuest(floor) {
-  const tier = getFloorTier(floor);
-  const isBoss = isBossFloor(floor);
+  // Cap at MAX_FLOOR — floor 100 is the apex encounter
+  const clampedFloor = Math.min(floor, TOWER_CONFIG.MAX_FLOOR);
+  const tier = getFloorTier(clampedFloor);
+  const isBoss = isBossFloor(clampedFloor);
+  const isApex = clampedFloor >= TOWER_CONFIG.MAX_FLOOR;
 
-  // Difficulty scales both linearly and exponentially
-  const linearDiff = TOWER_CONFIG.BASE_DIFFICULTY + (floor * TOWER_CONFIG.DIFF_PER_FLOOR);
-  const expScale = Math.pow(TOWER_CONFIG.DIFF_SCALE_FACTOR, floor);
+  // Difficulty scales both linearly and exponentially (display / recommended power)
+  const linearDiff = TOWER_CONFIG.BASE_DIFFICULTY + (clampedFloor * TOWER_CONFIG.DIFF_PER_FLOOR);
+  const expScale = Math.pow(TOWER_CONFIG.DIFF_SCALE_FACTOR, clampedFloor);
   const difficulty = Math.round(linearDiff * expScale * 100) / 100;
+
+  // Tower floor multiplier — applied to enemy HP/ATK in combat.
+  // +6% per floor above 1, so Floor 1 = 1.0×, Floor 10 ≈ 1.54×, Floor 50 ≈ 3.94×.
+  const towerFloorMult = 1 + (clampedFloor - 1) * TOWER_CONFIG.STAT_SCALE_PER_FLOOR;
 
   const enemies = isBoss
     ? [...tier.names.slice(0, 2), tier.bossName]
     : tier.names.slice(0, 3);
 
-  const title = isBoss
-    ? `Tower Floor ${floor} — ${tier.bossName}`
-    : `Tower Floor ${floor}`;
+  const title = isApex
+    ? `Tower Apex — ${tier.bossName}`
+    : isBoss
+      ? `Tower Floor ${clampedFloor} — ${tier.bossName}`
+      : `Tower Floor ${clampedFloor}`;
 
-  const environments = [
-    { name: `Floor ${floor} — The Ascent`, icon: '🗼', mood: 'dungeon' },
-    { name: `Floor ${floor} — Spiral Stair`, icon: '🗼', mood: 'dungeon' },
-    { name: `Floor ${floor} — The Vault`, icon: '🗼', mood: 'fortress' },
-    { name: `Floor ${floor} — Shadow Hall`, icon: '🗼', mood: 'haunted' },
-  ];
-  const env = environments[floor % environments.length];
+  const env = isApex
+    ? { name: 'The Apex — Beyond the Sky', icon: '👁', mood: 'cosmic' }
+    : [
+        { name: `Floor ${clampedFloor} — The Ascent`, icon: '🗼', mood: 'dungeon' },
+        { name: `Floor ${clampedFloor} — Spiral Stair`, icon: '🗼', mood: 'dungeon' },
+        { name: `Floor ${clampedFloor} — The Vault`, icon: '🗼', mood: 'fortress' },
+        { name: `Floor ${clampedFloor} — Shadow Hall`, icon: '🗼', mood: 'haunted' },
+      ][clampedFloor % 4];
 
   return {
-    id: `TOWER_F${floor}`,
+    id: `TOWER_F${clampedFloor}`,
     rank: 'S',
     title,
-    description: isBoss
-      ? `The tower's guardian awaits on floor ${floor}. Defeat it to continue the ascent.`
-      : `Floor ${floor} of the Endless Tower. The enemies grow stronger with every step.`,
+    description: isApex
+      ? 'The summit of the Endless Tower. The Architect awaits — the being who built this place, and everything beyond it. This is the hardest fight in the world.'
+      : isBoss
+        ? `The tower's guardian awaits on floor ${clampedFloor}. Defeat it to continue the ascent.`
+        : `Floor ${clampedFloor} of the Endless Tower. The enemies grow stronger with every step.`,
     environment: env,
     enemies,
     duration: TOWER_CONFIG.FLOOR_DURATION,
@@ -132,16 +151,21 @@ export function generateFloorQuest(floor) {
     lootTable: [],  // loot calculated on exit
     requiredGuildRank: 'S',
     isRepeatable: true,
-    rarity: isBoss ? 'legendary' : (floor >= 50 ? 'rare' : 'common'),
+    rarity: isApex ? 'celestial' : isBoss ? 'legendary' : (clampedFloor >= 50 ? 'rare' : 'common'),
     boss: isBoss,
-    raidBoss: false,
+    raidBoss: isApex, // The Architect uses raid-tier multipliers — hardest fight in the game
     bossName: isBoss ? tier.bossName : null,
-    towerFloor: floor,
+    towerFloor: clampedFloor,
+    towerFloorMult,
     narratives: {
-      success: isBoss
-        ? [`The guardian of floor ${floor} falls. The way above opens.`, `Floor ${floor} is cleared. The tower shudders — but stands.`]
-        : [`Floor ${floor} cleared. The stairway spirals upward.`, `The enemies on floor ${floor} lie defeated. Onward and upward.`],
-      failure: [`The tower claims another party. Floor ${floor} proved too much.`, `Defeated on floor ${floor}. The tower is merciless.`],
+      success: isApex
+        ? ['The Architect falls. The tower dissolves into light. You have conquered the unconquerable.', 'At the top of all things, silence. The Architect crumbles — the tower is complete.']
+        : isBoss
+          ? [`The guardian of floor ${clampedFloor} falls. The way above opens.`, `Floor ${clampedFloor} is cleared. The tower shudders — but stands.`]
+          : [`Floor ${clampedFloor} cleared. The stairway spirals upward.`, `The enemies on floor ${clampedFloor} lie defeated. Onward and upward.`],
+      failure: isApex
+        ? ['The Architect simply looks at you, and you cease to be. Perhaps next time.', 'Even at the summit, the tower wins. The Architect endures.']
+        : [`The tower claims another party. Floor ${clampedFloor} proved too much.`, `Defeated on floor ${clampedFloor}. The tower is merciless.`],
     },
   };
 }

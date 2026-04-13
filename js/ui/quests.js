@@ -211,15 +211,16 @@ export function tickUpdateQuests() {
     return;
   }
 
-  // Quest board view — update the refresh timer live
+  // Quest board view — update the refresh timer text without destroying
+  // the refresh button (textContent would wipe child elements).
   const refreshEl = document.getElementById('qb-refresh-timer');
   if (refreshEl) {
-    const refreshMs = Game.questBoardRefreshMs(questRankFilter);
-    if (refreshMs <= 0) {
-      // Board needs refresh — trigger full re-render
-      refreshEl.textContent = 'New quests available!';
-    } else {
-      refreshEl.textContent = `New quests in: ${fmtTime(Math.ceil(refreshMs / 1000))}`;
+    const timerSpan = refreshEl.querySelector('.qb-timer-text');
+    if (timerSpan) {
+      const refreshMs = Game.questBoardRefreshMs(questRankFilter);
+      timerSpan.textContent = refreshMs <= 0
+        ? 'New quests available! '
+        : `New quests in: ${fmtTime(Math.ceil(refreshMs / 1000))} — `;
     }
   }
 }
@@ -290,20 +291,37 @@ function renderActiveQuestView(s) {
   if (snap) {
     enemyList = snap.enemies;
   }
+  // Role-based styling for boss encounter enemies
+  const ROLE_STYLE = {
+    boss:     { icon: '👑', border: '#c41e3a', bg: 'rgba(196,30,58,0.12)', label: 'BOSS' },
+    raidBoss: { icon: '💀', border: '#8b00ff', bg: 'rgba(139,0,255,0.15)', label: 'RAID' },
+    general:  { icon: '⚔',  border: '#ff8c00', bg: 'rgba(255,140,0,0.10)', label: 'GEN' },
+    lt:       { icon: '🗡',  border: '#daa520', bg: 'rgba(218,165,32,0.10)', label: 'LT' },
+    captain:  { icon: '🛡',  border: '#4a90d9', bg: 'rgba(74,144,217,0.10)', label: 'CPT' },
+    raidLt:   { icon: '🗡',  border: '#9b59b6', bg: 'rgba(155,89,182,0.12)', label: 'R-LT' },
+    minion:   { icon: '👹', border: '', bg: '', label: '' },
+    standard: { icon: '👹', border: '', bg: '', label: '' },
+  };
   const enemyCards = enemyList.map(e => {
     const hpPct = Math.round((e.hp / Math.max(1, e.maxHp)) * 100);
     const hpColor = e.hp <= 0 ? 'var(--text-muted)' : hpPct > 50 ? 'var(--red)' : hpPct > 25 ? 'var(--orange)' : 'var(--gold)';
     const dead = e.hp <= 0 || !e.alive;
+    const role = e.role || 'standard';
+    const rs = ROLE_STYLE[role] || ROLE_STYLE.standard;
+    const roleIcon = dead ? '💀' : rs.icon;
+    const roleBorder = rs.border ? `border-left:3px solid ${rs.border};` : '';
+    const roleBg = rs.bg ? `background:${rs.bg};` : '';
+    const roleTag = rs.label ? `<span class="aq-role-tag" style="color:${rs.border};border-color:${rs.border};font-size:0.65em;padding:1px 4px;border:1px solid;border-radius:3px;margin-left:4px;font-weight:700;letter-spacing:0.5px;">${rs.label}</span>` : '';
     // Debuff indicators from snapshot
     const debuffs = (e.debuffs || []);
     const debuffIcons = debuffs.map(d =>
       `<span class="aq-debuff-pip" title="${d.label}: ${d.desc}">${d.icon}<span class="aq-debuff-rounds">${d.rounds || ''}</span></span>`
     ).join('');
     const debuffRow = debuffs.length > 0 ? `<div class="aq-debuff-row">${debuffIcons}</div>` : '';
-    return `<div class="aq-enemy-card${dead ? ' defeated' : ''}${e.isReinforcement ? ' reinforcement' : ''}${debuffs.length > 0 ? ' debuffed' : ''}" data-enemy-id="${e.id}">
-      <div class="aq-enemy-icon">${dead ? '💀' : '👹'}</div>
+    return `<div class="aq-enemy-card${dead ? ' defeated' : ''}${e.isReinforcement ? ' reinforcement' : ''}${debuffs.length > 0 ? ' debuffed' : ''}" data-enemy-id="${e.id}" style="${roleBorder}${roleBg}">
+      <div class="aq-enemy-icon">${roleIcon}</div>
       <div class="aq-enemy-info">
-        <div class="aq-enemy-name">${e.name}${e.isReinforcement ? ' <span class="aq-reinforce-tag">NEW</span>' : ''}${debuffRow}</div>
+        <div class="aq-enemy-name">${e.name}${roleTag}${e.isReinforcement ? ' <span class="aq-reinforce-tag">NEW</span>' : ''}${debuffRow}</div>
         <div class="aq-hp-bar enemy"><div class="aq-hp-fill" style="width:${dead ? 0 : hpPct}%;background:${hpColor}"></div></div>
         <div class="aq-hp-text">${dead ? 'Defeated' : `${e.hp}/${e.maxHp}`}</div>
       </div>
@@ -400,9 +418,8 @@ function renderQuestBoard(s) {
     }
 
     const refreshMs = Game.questBoardRefreshMs(questRankFilter);
-    if (refreshMs > 0) {
-      refreshTimer = `<div class="qb-refresh-timer" id="qb-refresh-timer">New quests in: ${fmtTime(Math.ceil(refreshMs / 1000))}</div>`;
-    }
+    const timerText = refreshMs > 0 ? `New quests in: ${fmtTime(Math.ceil(refreshMs / 1000))} — ` : '';
+    refreshTimer = `<div class="qb-refresh-timer" id="qb-refresh-timer"><span class="qb-timer-text">${timerText}</span><button class="btn btn-sm btn-refresh-board" style="font-size:0.85em;padding:2px 10px;cursor:pointer;">🔄 Refresh Board</button></div>`;
   }
 
   // Party strength display
@@ -475,9 +492,17 @@ function renderQuestCard(s, quest, partyStrength) {
   const completions = Game.completionCount(quest.id);
   const expanded = selectedQuestId === quest.id;
 
-  // Difficulty tier based on party strength
-  const questPower = Math.round(quest.difficulty * 20);
-  const tier = getQuestDifficultyTier(questPower, partyStrength);
+  // Sub-tier badge — authoritative under the §9 rework. Replaces the old
+  // ratio-based classifier which saturated at low party strength and lied
+  // about toughness once intrinsic rank curves took over.
+  const subTier = quest.subTier || 'standard';
+  const SUB_TIER_DISPLAY = {
+    easy:     { label: 'Easy',     color: '#2ecc71', icon: '◐' },
+    standard: { label: 'Standard', color: '#f0c060', icon: '●' },
+    hard:     { label: 'Hard',     color: '#e67e22', icon: '◆' },
+    brutal:   { label: 'Brutal',   color: '#e74c3c', icon: '✦' },
+  };
+  const tier = SUB_TIER_DISPLAY[subTier] || SUB_TIER_DISPLAY.standard;
 
   const isDone = !quest.isRepeatable && completions > 0;
   const isBoss = quest.boss;
@@ -667,9 +692,21 @@ function renderQuestHistory(s) {
         ? `<div class="qh-detail-row"><span class="qh-detail-label">Enemies:</span> <span>${enemies.join(', ')}</span></div>`
         : '';
 
-      // Difficulty tier (reconstruct from stored data)
+      // Difficulty tier — prefer stored subTier (new system), fall back to
+      // ratio-based reconstruction for legacy entries.
       let tierLine = '';
-      if (h.questPower && h.partyPower) {
+      if (h.subTier) {
+        const SUB_TIER_HIST = {
+          easy:     { label: 'Easy',     color: '#2ecc71', icon: '◐' },
+          standard: { label: 'Standard', color: '#f0c060', icon: '●' },
+          hard:     { label: 'Hard',     color: '#e67e22', icon: '◆' },
+          brutal:   { label: 'Brutal',   color: '#e74c3c', icon: '✦' },
+        };
+        const st = SUB_TIER_HIST[h.subTier] || SUB_TIER_HIST.standard;
+        const powerNote = (h.questPower && h.partyPower)
+          ? ` <span class="qh-detail-sub">(Party ${Math.round(h.partyPower)} vs Quest ${Math.round(h.questPower)})</span>` : '';
+        tierLine = `<div class="qh-detail-row"><span class="qh-detail-label">Difficulty:</span> <span style="color:${st.color}">${st.icon} ${st.label}</span>${powerNote}</div>`;
+      } else if (h.questPower && h.partyPower) {
         const tier = getQuestDifficultyTier(h.questPower, h.partyPower);
         tierLine = `<div class="qh-detail-row"><span class="qh-detail-label">Difficulty:</span> <span style="color:${tier.color}">${tier.icon} ${tier.label}</span> <span class="qh-detail-sub">(Party ${Math.round(h.partyPower)} vs Quest ${Math.round(h.questPower)})</span></div>`;
       }
@@ -958,6 +995,17 @@ function bindEvents(el, setTabCallback) {
     stopBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       Game.stopAutoRun();
+      renderQuests(setTabCallback);
+    });
+  }
+
+  // Refresh board button
+  const refreshBoardBtn = el.querySelector('.btn-refresh-board');
+  if (refreshBoardBtn) {
+    refreshBoardBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      Game.refreshQuestBoard(questRankFilter, true);
+      selectedQuestId = null;
       renderQuests(setTabCallback);
     });
   }

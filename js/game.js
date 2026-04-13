@@ -481,7 +481,7 @@ const Game = (() => {
     // ── MAGE (MAG) ──
     MAG_BLIZZARD_FROST: { id: 'MAG_BLIZZARD_FROST', tier: 1, cost: 1, reqLevel: 1, classId: 'MAGE',       label: 'Frostbite',          icon: '❄', desc: 'Blizzard has a 60% chance to chill all enemies — they suffer Frostbite (-15% ATK, 20% fumble) for 2 rounds.' },
     MAG_METEOR_BURN:    { id: 'MAG_METEOR_BURN',    tier: 2, cost: 2, reqLevel: 3, classId: 'MAGE',       label: 'Lingering Flames',   icon: '🔥', desc: 'Meteor Storm leaves a burn DoT (15% MAG per round, 3 rounds) on all targets.' },
-    MAG_ARCANE_REFLECT: { id: 'MAG_ARCANE_REFLECT', tier: 3, cost: 3, reqLevel: 6, classId: 'MAGE',       label: 'Arcane Reflection',  icon: '💜', desc: 'Mages reflect 20% of damage taken back at attackers.' },
+    MAG_ARCANE_REFLECT: { id: 'MAG_ARCANE_REFLECT', tier: 3, cost: 3, reqLevel: 6, classId: 'MAGE',       label: 'Arcane Reflection',  icon: '💜', desc: 'Mages reflect 20% of damage taken back at attackers. Phase Shift grants +25% spell damage for 2 rounds upon returning.' },
 
     // ── ROGUE (ROG) ──
     ROG_POISON:         { id: 'ROG_POISON',           tier: 1, cost: 1, reqLevel: 1, classId: 'ROGUE',      label: 'Venomous Blades',    icon: '🗡', desc: 'Shadow Strike has a 30% chance to poison the target (7% max HP/round, 3 rounds). Poisoned enemies also deal -15% damage.' },
@@ -975,7 +975,7 @@ const Game = (() => {
     }
 
     const partyPower = adjustedPartyPower;
-    const questPower = questDef.difficulty * 25;
+    const questPower = questDef.recommendedPower || 15;
     const ratio = partyPower / Math.max(1, questPower);
 
     // Use the combat simulation's outcome if available (keeps visual narrative in sync)
@@ -1267,7 +1267,7 @@ const Game = (() => {
     }
     const seed = Date.now() + rankIndex(rank) * 10000;
     const strength = getPartyStrength();
-    const quests = generateQuestBoard(rank, strength, seed);
+    const quests = generateQuestBoard(rank, strength, seed, state.guild?.rank);
     state.questBoard.quests[rank] = quests;
     state.questBoard.lastRefreshed[rank] = Date.now();
     state.questBoard.seeds[rank] = seed;
@@ -1474,7 +1474,7 @@ const Game = (() => {
     // Dynamic boss scaling: stronger parties attract more boss encounters.
     // If party power is 2x+ the quest power, add bonus boss chance (up to +40%).
     const partyPow = snapshot.reduce((s, m) => s + m.power, 0);
-    const questPow = questDef.difficulty * 20;
+    const questPow = questDef.recommendedPower || 15;
     if (questPow > 0) {
       const overPowerRatio = partyPow / questPow;
       if (overPowerRatio > 2.0) {
@@ -1487,7 +1487,7 @@ const Game = (() => {
 
     const boss = SECRET_BOSSES[Math.floor(Math.random() * SECRET_BOSSES.length)];
     const bossPartyPower = snapshot.reduce((s, m) => s + m.power, 0);
-    const bossQuestPower = questDef.difficulty * 20 * boss.powerMult;
+    const bossQuestPower = (questDef.recommendedPower || 15) * boss.powerMult;
     const bossRatio = bossPartyPower / Math.max(1, bossQuestPower);
     const bossSuccess = Math.random() < Math.min(0.90, Math.max(0.10, bossRatio * 0.4 + 0.3));
 
@@ -1532,6 +1532,7 @@ const Game = (() => {
       difficulty: questDef.difficulty || 0,
       recommendedPower: questDef.recommendedPower || 0,
       rarity: questDef.rarity || 'common',
+      subTier: questDef.subTier || null,
       success: result.success,
       partyPower: result.partyPower || 0,
       questPower: result.questPower || 0,
@@ -1977,6 +1978,13 @@ const Game = (() => {
 
     // Clear the active quest (floor done)
     state.guild.activeQuest = null;
+
+    // Floor 100 (apex) cleared — tower conquered! End the run as victory.
+    if (tower.floor >= 100) {
+      logEvent('The Architect falls. The tower is conquered!');
+      towerExit(true);
+      return;
+    }
 
     // Check for rest floor
     if (isRestFloor(tower.floor)) {
