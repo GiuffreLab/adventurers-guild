@@ -26,6 +26,7 @@ export {
   getUnlockedClassMasteries,
   getNextClassMastery,
   getEquipmentSkill,
+  getEquipmentSkills,
   getSpecSkills,
   getUnlockedSpecSkills,
   getNextSpecSkill,

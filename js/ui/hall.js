@@ -336,7 +336,7 @@ function renderTalentNode(t, purchased, tp, legacyLevel) {
   const owned = purchased.has(t.id);
   const canBuy = !owned && tp.available >= t.cost && legacyLevel >= t.reqLevel;
   const locked = !owned && legacyLevel < t.reqLevel;
-  const tierLabel = t.tier === 1 ? 'I' : t.tier === 2 ? 'II' : 'III';
+  const tierLabel = t.tier === 1 ? 'I' : t.tier === 2 ? 'II' : t.tier === 3 ? 'III' : 'IV';
 
   let stateClass = 'talent-locked';
   if (owned) stateClass = 'talent-owned';

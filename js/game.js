@@ -5,7 +5,7 @@ import {
 } from './data.js';
 import {
   getSkill, getUnlockedClassSkills, getUnlockedClassMasteries,
-  getEquipmentSkill, getMemberActiveSkills, applyPassiveSkills, rollActiveSkills,
+  getEquipmentSkill, getEquipmentSkills, getMemberActiveSkills, applyPassiveSkills, rollActiveSkills,
   collectPartyAuras, HERO_SPECS, getUnlockedSpecSkills, HERO_SPEC_REPLACED_SKILLS
 } from './skills.js';
 import {
@@ -43,12 +43,12 @@ const Game = (() => {
   // LEGACY_LEVEL_CAP — hard ceiling for Guild Legacy levels. The value equals
   // the total talent point cost of every currently-designed talent so that a
   // completionist player can purchase everything exactly once. Breakdown:
-  //   • Class talents: 10 classes × (1 + 2 + 3) = 60 pts
-  //   • Party-wide:    2 + 2 + 2 + 3 + 3        = 12 pts
-  //   • Total:                                  = 72 pts
+  //   • Class talents: 9 classes × (1 + 2 + 3) = 54 pts
+  //   • Party-wide:    2 + 2 + 2 + 3 + 3 + 4   = 16 pts
+  //   • Total:                                  = 70 pts
   // Once the cap is reached, excess RP is discarded rather than silently
   // accumulating — no new talent points, no unbounded LEGACY_BONUSES growth.
-  const LEGACY_LEVEL_CAP = 72;
+  const LEGACY_LEVEL_CAP = 70;
 
   // ── Party Expansion ───────────────────────────────────────────────────────
   // Active slots (NOT including the Hero/player who is always present)
@@ -317,6 +317,19 @@ const Game = (() => {
       // Migration: add guild legacy if missing
       if (!state.guildLegacy) state.guildLegacy = { overflowRP: 0, level: 0, talents: [] };
       if (!state.guildLegacy.talents) state.guildLegacy.talents = [];
+      // Migration: clamp legacy level to current cap (cap was lowered from 72→70 in v=154)
+      if (state.guildLegacy.level > LEGACY_LEVEL_CAP) {
+        state.guildLegacy.level = LEGACY_LEVEL_CAP;
+        state.guildLegacy.overflowRP = 0;
+      }
+      // Migration: clear stuck active quest whose sim never built.
+      // eventCount starts at 0 and is set by the UI after buildSimulation(),
+      // so we only wipe quests older than 60s with eventCount still at 0 —
+      // that means the sim definitely failed, not that it just hasn't run yet.
+      if (state.guild.activeQuest && !state.guild.activeQuest.eventCount
+          && state.guild.activeQuest.startedAt < Date.now() - 60000) {
+        state.guild.activeQuest = null;
+      }
       // Migration: add tutorial state if missing (mark as dismissed for existing saves)
       if (!state.tutorial) state.tutorial = { step: 0, dismissed: true };
 
@@ -510,15 +523,16 @@ const Game = (() => {
 
     // ── NECROMANCER (NEC) ──
     NEC_GRAVE_HUNGER:   { id: 'NEC_GRAVE_HUNGER',      tier: 1, cost: 1, reqLevel: 1, classId: 'NECROMANCER',label: 'Grave Hunger',       icon: '🩸', desc: 'Shroud of Decay grows stronger as enemies fall. Each kill grants +2% party damage, +1% party crit, and +1% party DEF (max 5 stacks). Combat starts with 1 stack already active.' },
-    NEC_NECRO_CLEAVE:   { id: 'NEC_NECRO_CLEAVE',      tier: 2, cost: 2, reqLevel: 3, classId: 'NECROMANCER',label: 'Necrotic Cleave',    icon: '🪓', desc: 'Raised minions and Army of the Damned unleash a necrotic cleave every 2 rounds, dealing MAG-scaled AoE damage to all enemies.' },
+    NEC_NECRO_CLEAVE:   { id: 'NEC_NECRO_CLEAVE',      tier: 2, cost: 2, reqLevel: 3, classId: 'NECROMANCER',label: 'Undead Guardian',     icon: '🛡', desc: 'Raised thralls gain a 25% chance to intercept attacks aimed at any party member, absorbing the damage. The thrall takes full damage from the intercepted hit.' },
     NEC_SUMMON_SHIELD:  { id: 'NEC_SUMMON_SHIELD',     tier: 3, cost: 3, reqLevel: 6, classId: 'NECROMANCER',label: 'Undead Vanguard',    icon: '🪦', desc: 'Army of the Damned duration is extended by 1 round (3 → 4).' },
 
     // ── PARTY-WIDE ──
     PARTY_CEL_RESONANCE: { id: 'PARTY_CEL_RESONANCE',  tier: 2, cost: 2, reqLevel: 3, classId: null, label: 'Celestial Resonance', icon: '✦', desc: 'Celestial equipment grants +10% to all stats.' },
-    PARTY_CEL_CASCADE:   { id: 'PARTY_CEL_CASCADE',    tier: 2, cost: 2, reqLevel: 3, classId: null, label: 'Celestial Cascade',   icon: '💫', desc: 'Celestial skill procs have a 25% chance to deal AoE damage (50% to all other enemies).' },
+    PARTY_CEL_CASCADE:   { id: 'PARTY_CEL_CASCADE',    tier: 2, cost: 2, reqLevel: 3, classId: null, label: 'Celestial Cascade',   icon: '💫', desc: 'When a celestial weapon deals damage (proc or echo), 25% chance the impact cascades — dealing 50% of the hit as AoE to all other enemies.' },
     PARTY_SIEGE:         { id: 'PARTY_SIEGE',           tier: 2, cost: 2, reqLevel: 3, classId: null, label: 'Siege Breaker',       icon: '🔥', desc: '+25% damage against bosses and raid bosses.' },
     PARTY_SIXTH_SLOT:    { id: 'PARTY_SIXTH_SLOT',      tier: 3, cost: 3, reqLevel: 6, classId: null, label: 'Sixth Party Slot',    icon: '👥', desc: 'Unlock a 6th active party member slot.' },
     PARTY_UNDYING:       { id: 'PARTY_UNDYING',          tier: 3, cost: 3, reqLevel: 6, classId: null, label: 'Undying Oath',        icon: '🔄', desc: 'Once per quest, a KO\'d party member auto-revives at 15% HP.' },
+    PARTY_CEL_ECHO:      { id: 'PARTY_CEL_ECHO',         tier: 4, cost: 4, reqLevel: 10, classId: null, label: 'Celestial Echo',      icon: '🌟', desc: 'When a celestial weapon proc fires, there is a 5% chance all other celestial weapons in the party echo in harmony, triggering their damage effects simultaneously.' },
   };
 
   function getLegacyTalentPoints() {
@@ -806,10 +820,11 @@ const Game = (() => {
 
     // Determine which slot to equip into.
     // Dual-wield: Rogues=daggers, Monks=claws, Rangers=swords — can go in weapon OR offhand.
+    // Bows are mainhand-only (bow: true), quivers are offhand-only (quiver: true).
     const canDualWield =
       (item.dagger && member.class === 'ROGUE') ||
       (item.claw && member.class === 'MONK') ||
-      (item.slot === 'weapon' && !item.twoHanded && !item.dagger && !item.claw &&
+      (item.slot === 'weapon' && !item.twoHanded && !item.dagger && !item.claw && !item.bow &&
        member.class === 'RANGER' && item.classReq && item.classReq.includes('RANGER'));
 
     let slot = item.slot;
@@ -930,10 +945,14 @@ const Game = (() => {
       }
     }
     // Equipment-granted skills (item procs, separate from class skills)
+    // Uses getEquipmentSkills (plural) so items with multiple granted skills
+    // (e.g. CEL_SCEPTER_OF_DAWN with both an active and a passive) all load.
     for (const slot of Object.values(member.equipment || {})) {
       if (slot) {
-        const eqSkill = getEquipmentSkill(slot);
-        if (eqSkill) skills.push(eqSkill.id);
+        const eqSkills = getEquipmentSkills(slot);
+        for (const eqSkill of eqSkills) {
+          if (eqSkill && !skills.includes(eqSkill.id)) skills.push(eqSkill.id);
+        }
       }
     }
     return skills;

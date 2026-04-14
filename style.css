@@ -2649,6 +2649,7 @@ input[type="text"]::placeholder { color: var(--text-muted); }
 .comp-item-proc { text-align: center; }
 .comp-proc-chance { color: var(--cyan); font-weight: 600; }
 .comp-proc-passive { color: var(--text-muted); font-style: italic; font-size: 0.78rem; }
+.comp-aoe-badge { display: inline-block; background: var(--orange, #e8a044); color: #000; font-size: 0.65rem; font-weight: 700; padding: 1px 5px; border-radius: 3px; vertical-align: middle; margin-left: 4px; letter-spacing: 0.03em; }
 .comp-item-effects { color: var(--text-dim); font-size: 0.8rem; }
 .comp-item-duration { color: var(--text-muted); font-size: 0.78rem; }
 

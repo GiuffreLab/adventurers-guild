@@ -376,7 +376,8 @@ const AOE_SKILLS = {
   ARROW_STORM:          { dmgScale: 0.75, templates: T_RANGER_AOE, icon: '🌧', type: 'skill',     triggerCamo: true },
   STORM_VOLLEY:         { dmgScale: 0.65, templates: T_RANGER_AOE, icon: '⚡', type: 'equip',     triggerCamo: true },
   CELESTIAL_VOLLEY:     { dmgScale: 0.70, templates: T_RANGER_AOE, icon: '🌠', type: 'equip',     triggerCamo: true },
-  CEL_STARFIRE_VOLLEY:  { dmgScale: 0.80, templates: T_RANGER_AOE, icon: '🎆', type: 'celestial', triggerCamo: true },
+  CEL_CELESTIAL_BARRAGE:{ dmgScale: 0.80, templates: T_RANGER_AOE, icon: '🌠', type: 'celestial', triggerCamo: true },
+  // CEL_STARFIRE_VOLLEY removed — Constellation Quiver is a passive aura, not a combat AoE.
   // Mage AoE
   // ARCANE_CATACLYSM retired — replaced by Arcane Construct (pet). Legacy saves
   // with the old skill auto-upgrade; the AoE entry is removed.
@@ -385,6 +386,7 @@ const AOE_SKILLS = {
   BLIZZARD:             { dmgScale: 0.55, templates: T_MAGE_AOE, icon: '🌨', type: 'skill',     triggerCamo: false },
   FROSTBITE:            { dmgScale: 0.50, templates: T_MAGE_AOE, icon: '❄',  type: 'skill',     triggerCamo: false },
   METEOR_STORM:         { dmgScale: 0.70, templates: T_MAGE_AOE, icon: '☄',  type: 'skill',     triggerCamo: false },
+  VOID_BURST:            { dmgScale: 0.55, templates: T_MAGE_AOE, icon: '🌀', type: 'equip',     triggerCamo: false },
   ARCANE_CATACLYSM_EQ:  { dmgScale: 0.60, templates: T_MAGE_AOE, icon: '💥', type: 'equip',     triggerCamo: false },
   CEL_ARCANUM_CATACLYSM:{ dmgScale: 0.75, templates: T_MAGE_AOE, icon: '💥', type: 'celestial', triggerCamo: false },
   // Monk AoE (class rework — Hundred Fists L6 class-defining workhorse)
@@ -875,14 +877,51 @@ function buildSimulation(aq, quest) {
   if (talentGraveHunger) dmgBonus += 0.02; // starter stack damage bonus
   // Party-wide
   const talentCelCascade = _ht('PARTY_CEL_CASCADE');
+  const talentCelEcho = _ht('PARTY_CEL_ECHO');
   const talentUndying = _ht('PARTY_UNDYING');
   let undyingUsed = false;
+
+  // ── Celestial Cascade helper ──────────────────────────────────────────
+  // Reusable: called from both normal celestial weapon procs and echo hits.
+  // On a celestial weapon damage hit, 25% chance to splash 50% of the damage
+  // as AoE to all other enemies. isEcho=true uses distinct "Harmonic Cascade"
+  // visual when the cascade was triggered by an Echo hit. Returns true if fired.
+  function tryCelestialCascade(dmgDealt, hitTarget, attackerObj, seed, isEcho = false) {
+    if (!talentCelCascade) return false;
+    if (sRand(seed) >= 0.25) return false;
+    const splashDmg = Math.max(1, Math.floor(dmgDealt * 0.50));
+    let cascadeHits = 0;
+    const currentLiving = enemies.filter(e => e.alive);
+    for (const e of currentLiving) {
+      if (hitTarget && e.id === hitTarget.id) continue;
+      if (e.hp <= 0) continue;
+      e.hp = Math.max(0, e.hp - splashDmg);
+      if (combatStats[attackerObj.id]) combatStats[attackerObj.id].dmgDealt += splashDmg;
+      cascadeHits++;
+      if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); tryRaiseDead(e, seed + cascadeHits); }
+    }
+    if (cascadeHits > 0) {
+      const foeWord = cascadeHits === 1 ? 'foe' : 'foes';
+      const cascadeText = isEcho
+        ? `⚡ <strong>HARMONIC CASCADE!</strong> ${attackerObj.name}'s echo reverberates — energy tears through ${cascadeHits} ${foeWord} for <span class="dmg-num dmg-celestial">${splashDmg}</span> each!`
+        : `💫 <strong>CELESTIAL CASCADE!</strong> Energy arcs from ${attackerObj.name}'s strike to ${cascadeHits} ${foeWord} for <span class="dmg-num dmg-celestial">${splashDmg}</span> each!`;
+      events.push({
+        text: cascadeText,
+        type: 'celestial', icon: isEcho ? '⚡' : '💫', phase: 'battle',
+      });
+      snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+    }
+    return cascadeHits > 0;
+  }
 
   // Talent status trackers
   const defShredTargets = {}; // { enemyId: roundsRemaining } — KNT_DEF_SHRED
   const tauntedEnemies = {}; // { enemyId: roundsRemaining } — KNT_TAUNT_AURA
   const exposedTargets = {}; // { enemyId: roundsRemaining } — ROG Fan of Knives Exposed (+10% dmg taken, 2r)
   const poisonTargets = {}; // { enemyId: { rounds, dmgPerTick, ownerId } } — ROG_POISON
+  const equipPoisonTargets = {}; // { enemyId: { rounds, dmgPerTick, ownerId, atkDebuff } } — Rogue offhand DoT (Envenom/Toxin/Neurotoxin)
+  const chiBurnTargets = {}; // { enemyId: { rounds, dmgPerTick, ownerId, spdDebuff } } — Monk offhand DoT (Spirit Scorch/Inner Fire/Chi Eruption)
+  const deflectBuffs = {}; // { memberId: { rounds, chance, reduction, reflect, atkDebuff, kiShieldPct, ownerId } } — Monk 2H Flowing Defense
   const burnTargets = {}; // { enemyId: { rounds, dmgPerTick, source, ownerId } } — MAG_METEOR_BURN / CLR_SMITE_BURN
   const sacredWarmthRounds = {}; // { memberId: roundsRemaining } — CLR_SHIELD_HOT HoT
   const wrathBuff = {}; // { memberId: roundsRemaining } — CLR_WRATH +30% dmg
@@ -1212,7 +1251,25 @@ function buildSimulation(aq, quest) {
   let armyDmgPerTick = 0;
   let armySource = null;
   let necroticReflectMag = 0; // MAG of necro with Shroud of Decay (0 = no reflect)
-  let minionDmgBonusTotal = 0; // accumulated from Lord of the Dead + Soul Anchor
+  let minionDmgBonusTotal = 0; // accumulated from Lord of the Dead + Soul Anchor + scythe auras
+  let minionHpBonusTotal = 0;  // accumulated from scythe auras (Death's Harvest line)
+  let blightAmpTotal = 0;      // accumulated from scythe auras (Blight tick multiplier)
+  let minionAoe = false;       // celestial scythe: thrall attacks hit ALL enemies
+
+  // Bard Lute (Songweaver) aura bonuses — accumulated from equipment passives
+  let regenAmpTotal = 0;        // multiplier boost to Regen Song potency
+  let partyHealBonusTotal = 0;  // additive boost to global healBonus
+  let regenNeverLower = false;  // celestial lute: regen re-rolls never go lower
+
+  // Bard Drum (Wardrum) aura bonuses — accumulated from equipment passives
+  let discordDotAmpTotal = 0;     // multiplier boost to Discord DoT damage
+  let discordAtkRedBonusTotal = 0; // additive boost to Discord ATK reduction (base 20%)
+  let discordFumbleBonusTotal = 0; // additive boost to Discord fumble chance (base 25%)
+
+  // Cleric celestial persistent regen
+  let clericRegenPerTick = 0;     // per-round regen from CEL_SANCTIFIED_RADIANCE
+  let clericRegenSourceId = null; // cleric who provides the regen
+  let clericRegenSourceName = null;
 
   for (const m of members) {
     const memberSkills = Game.getActiveMemberSkills ? Game.getActiveMemberSkills(m.id) : [];
@@ -1381,14 +1438,50 @@ function buildSimulation(aq, quest) {
         const pMe = partyHp.find(p => p.id === m.id);
         necroticReflectMag = pMe ? pMe.mag : (m.stats?.mag || 10);
       }
-      // Accumulate minionDamageBonus from Lord of the Dead and Soul Anchor
+      // Accumulate minion bonuses from masteries, equipment auras, and celestial items
       const mSkills = memberSkills.map(sid => getSkill(sid)).filter(Boolean);
       for (const sk of mSkills) {
-        if (sk.effects && sk.effects.minionDamageBonus) {
-          minionDmgBonusTotal += sk.effects.minionDamageBonus;
+        if (!sk.effects) continue;
+        if (sk.effects.minionDamageBonus) minionDmgBonusTotal += sk.effects.minionDamageBonus;
+        if (sk.effects.minionHpBonus) minionHpBonusTotal += sk.effects.minionHpBonus;
+        if (sk.effects.blightAmp) blightAmpTotal += sk.effects.blightAmp;
+        if (sk.effects.minionAoe) minionAoe = true;
+      }
+    }
+    // Accumulate Bard equipment aura bonuses (Lute/Drum passives)
+    if (m.class === 'BARD') {
+      const bSkills = memberSkills.map(sid => getSkill(sid)).filter(Boolean);
+      for (const sk of bSkills) {
+        if (!sk.effects) continue;
+        // Lute (Songweaver) path
+        if (sk.effects.regenAmp) regenAmpTotal += sk.effects.regenAmp;
+        if (sk.effects.partyHealBonus) partyHealBonusTotal += sk.effects.partyHealBonus;
+        if (sk.effects.regenNeverLower) regenNeverLower = true;
+        // Drum (Wardrum) path
+        if (sk.effects.discordDotAmp) discordDotAmpTotal += sk.effects.discordDotAmp;
+        if (sk.effects.discordAtkRedBonus) discordAtkRedBonusTotal += sk.effects.discordAtkRedBonus;
+        if (sk.effects.discordFumbleBonus) discordFumbleBonusTotal += sk.effects.discordFumbleBonus;
+      }
+    }
+    // Accumulate Cleric celestial persistent regen (CEL_SANCTIFIED_RADIANCE)
+    if (m.class === 'CLERIC') {
+      const cSkills = memberSkills.map(sid => getSkill(sid)).filter(Boolean);
+      for (const sk of cSkills) {
+        if (!sk.effects) continue;
+        if (sk.effects.clericRegen) {
+          const pMe = partyHp.find(p => p.id === m.id);
+          const clericMag = pMe ? pMe.mag : (m.stats?.mag || 10);
+          clericRegenPerTick = Math.max(1, Math.floor(clericMag * (sk.effects.clericRegenScale || 0.38)));
+          clericRegenSourceId = m.id;
+          clericRegenSourceName = pMe ? pMe.name : esc(m.name);
         }
       }
     }
+  }
+
+  // Apply partyHealBonus from Bard Lute aura to global healBonus
+  if (partyHealBonusTotal > 0) {
+    healBonus += partyHealBonusTotal;
   }
 
   // SKILL_COOLDOWN is centralized in COMBAT_TUNING.SKILL_COOLDOWN_DEFAULT (top of file).
@@ -1489,7 +1582,66 @@ function buildSimulation(aq, quest) {
       else if (category === 'heal') memberHealSkills[m.id].push(sid);
     }
   }
-  
+
+  // ── Celestial Echo — pre-compute celestial weapon proc skills per member ──
+  // Maps memberId → { skillId, skill, item } for the talent PARTY_CEL_ECHO.
+  // Only weapon-slot celestial active skills qualify (not DoT, not buff, not deflect).
+  const celEchoMap = {};
+  if (talentCelEcho) {
+    for (const m of members) {
+      for (const sid of (memberEquipProcSkills[m.id] || [])) {
+        const sk = getSkill(sid);
+        if (!sk || sk.type !== 'active') continue;
+        const boundItem = sk.itemId ? getItem(sk.itemId) : null;
+        if (!boundItem || boundItem.rarity !== 'celestial' || boundItem.slot !== 'weapon') continue;
+        // Must be a weapon damage proc (has powerMultiplier, not DoT, not deflect, not buff-only)
+        const eff = sk.effects || {};
+        if (!eff.powerMultiplier) continue;
+        if (eff.dotAtkScale || eff.isDeflect) continue;
+        celEchoMap[m.id] = { skillId: sid, skill: sk, item: boundItem };
+        break; // one celestial weapon proc per member
+      }
+    }
+  }
+
+  // ── Initialize passive deflect buffs (Monk 2H Flowing Defense) ────────
+  // Scan party equipment for passive deflect skills and set permanent buffs.
+  for (const m of members) {
+    const allSkills = Game.getActiveMemberSkills ? Game.getActiveMemberSkills(m.id) : [];
+    for (const sid of allSkills) {
+      const sk = getSkill(sid);
+      if (!sk || sk.type !== 'passive' || !sk.effects || !sk.effects.isDeflect) continue;
+      const eff = sk.effects;
+      if (eff.partyWide) {
+        // Celestial party-wide deflect — apply to all party members
+        for (const p of members) {
+          const isSelf = p.id === m.id;
+          deflectBuffs[p.id] = {
+            rounds: Infinity,
+            chance: isSelf ? (eff.selfDeflectChance || eff.deflectChance) : eff.deflectChance,
+            reduction: isSelf ? (eff.selfDmgReduction || eff.dmgReduction) : eff.dmgReduction,
+            reflect: isSelf ? (eff.selfReflectPct || eff.reflectPct) : eff.reflectPct,
+            atkDebuff: eff.atkDebuff || 0,
+            kiShieldPct: eff.kiShieldPct || 0,
+            partyDodge: eff.partyDodgeBonus || 0,
+            ownerId: m.id,
+          };
+        }
+      } else {
+        // Self-only passive deflect
+        deflectBuffs[m.id] = {
+          rounds: Infinity,
+          chance: eff.deflectChance,
+          reduction: eff.dmgReduction,
+          reflect: eff.reflectPct,
+          atkDebuff: eff.atkDebuff || 0,
+          kiShieldPct: eff.kiShieldPct || 0,
+          ownerId: m.id,
+        };
+      }
+    }
+  }
+
   // ATB gauges and tracking
   const atbGauges = {};
   const atbLastAction = {};
@@ -1561,7 +1713,7 @@ function buildSimulation(aq, quest) {
     necrosWithForgoDeath, blightRounds: 0, armyRounds: 0,
     necroticReflectMag, darkPactRounds: 0, darkPactSource: null,
     // DoT trackers — passed by reference so snapshot sees live state
-    poisonTargets, burnTargets,
+    poisonTargets, equipPoisonTargets, chiBurnTargets, deflectBuffs, burnTargets,
     // Monk reactives + buffs
     ironStanceBuffs, monksWithFlowingStrike, flowingStrikeCooldowns,
     // Knight Last Stand reactive
@@ -1610,8 +1762,9 @@ function buildSimulation(aq, quest) {
     );
     if (!availableNecro) return false;
     if (sRand(seed) >= 0.70) return false;
-    const minionHp = Math.max(10, Math.floor((corpse.maxHp || 20) * 0.60));
-    const minionDmg = Math.max(2, Math.floor(availableNecro.mag * 1.1));
+    const minionHpRaw = Math.max(10, Math.floor((corpse.maxHp || 20) * 0.40));
+    const minionHp = Math.max(10, Math.floor(minionHpRaw * (1 + minionHpBonusTotal)));
+    const minionDmg = Math.max(2, Math.floor(availableNecro.mag * 0.7));
     const minionDef = Math.max(1, Math.floor(availableNecro.mag * 0.25));
     necroMinions.push({
       id: `minion_${corpse.id}`, name: `${corpse.name} Thrall`,
@@ -1657,6 +1810,7 @@ function buildSimulation(aq, quest) {
 
   for (let i = 0; i < MAX_BATTLE_EVENTS; i++) {
     _bufState.regenPerTick = regenPerTick;
+    _bufState.clericRegenPerTick = clericRegenPerTick;
     _bufState.divineShieldRounds = divineShieldRounds;
     _bufState.discordRounds = discordRounds;
     _bufState.crescendoActive = crescendoActive;
@@ -1691,7 +1845,9 @@ function buildSimulation(aq, quest) {
       atbGauges[m.id].heal += spdFill + (m.mag || 1) * 2;
     }
     for (const e of livingEnemies) {
-      atbGauges[e.id].attack += 25 + e.atk * 1.5; // base 25 + 1.5×ATK → enemies act every 2-3 ticks
+      // Chi Burn SPD debuff — Monk offhand DoTs slow enemy ATB fill
+      const chiBurnSlow = (chiBurnTargets[e.id] && chiBurnTargets[e.id].rounds > 0) ? (1.0 - chiBurnTargets[e.id].spdDebuff) : 1.0;
+      atbGauges[e.id].attack += Math.floor((25 + e.atk * 1.5) * chiBurnSlow); // base 25 + 1.5×ATK → enemies act every 2-3 ticks
     }
   
     // Collect actors this tick
@@ -1850,28 +2006,8 @@ function buildSimulation(aq, quest) {
             // HRO_CHAIN_STRIKE tightened — now fires on HEROIC_STRIKE skill proc
             // only (see §7.7 audit). Hook moved to the skill attack path below.
   
-            // Celestial Cascade
-            if (talentCelCascade && isCrit && sRand(es + 103) < 0.25) {
-              const splashDmg = Math.max(1, Math.floor(dmg * 0.50));
-              let cascadeHits = 0;
-              for (const e of livingEnemies) {
-                if (e.id !== target.id && e.hp > 0) {
-                  e.hp = Math.max(0, e.hp - splashDmg);
-                  if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += splashDmg;
-                  cascadeHits++;
-                  if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); tryRaiseDead(e, es + 1581); }
-                }
-              }
-              if (cascadeHits > 0) {
-                // Push the crit text first, then the cascade as a follow-up
-                const _classId2 = attacker.class || 'HERO';
-                const critText = getAttackTemplate(_classId2, es)(attacker.name, target.name, `${dmg} CRIT`);
-                events.push({ text: critText.replace(/dmg-(phys|mag)/, 'dmg-crit'), type: 'crit', icon: '💥', phase: 'battle' });
-                snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-                text = `Celestial cascade! Energy arcs to ${cascadeHits} ${cascadeHits === 1 ? 'foe' : 'foes'} for <span class="dmg-num dmg-mag">${splashDmg}</span> each!`;
-                icon = '✦'; type = 'celestial';
-              }
-            }
+            // Celestial Cascade — removed from class skill path (v=153).
+            // Now fires exclusively on celestial weapon damage procs and echoes.
 
             // Prime the base attack text up-front so modifier stacks below
             // push the correct line (not a fresh re-computed template).
@@ -2670,11 +2806,12 @@ function buildSimulation(aq, quest) {
           }
 
           if (targetIsMinion) {
-            const discordAtkMult = (discordRounds > 0 ? 0.80 : 1.0) * (frostbiteRounds > 0 ? 0.85 : 1.0);
+            const discordAtkMult = (discordRounds > 0 ? (1.0 - 0.20 - discordAtkRedBonusTotal) : 1.0) * (frostbiteRounds > 0 ? 0.85 : 1.0);
             const rawDmg = Math.max(1, Math.floor(attacker.atk * discordAtkMult * (COMBAT_TUNING.ENEMY_DMG_MIN_MULT + sRand(es + 303) * COMBAT_TUNING.ENEMY_DMG_SPREAD)));
             const minionAfterDef = Math.max(1, Math.floor(rawDmg * (1 - target.def / (target.def + COMBAT_TUNING.DEF_SOFTCAP))));
             target.hp = Math.max(0, target.hp - minionAfterDef);
-            text = sPick(T_ENEMY_ATK, es + 304)(attacker.name, target.name, minionAfterDef);
+            const minionHpStatus = target.hp > 0 ? ` (${target.hp}/${target.maxHp} HP)` : '';
+            text = `${attacker.name} slams into <span class="sk-buff">${target.name}</span> — <span class="dmg-num">${minionAfterDef}</span>!${minionHpStatus}`;
             icon = '💀'; type = 'enemy';
   
             if (necroticReflectMag > 0) {
@@ -2710,16 +2847,17 @@ function buildSimulation(aq, quest) {
 
           // Arcane Construct intercept — takes the hit instead of the Mage
           if (targetIsConstruct) {
-            const discordAtkMult = (discordRounds > 0 ? 0.80 : 1.0) * (frostbiteRounds > 0 ? 0.85 : 1.0);
+            const discordAtkMult = (discordRounds > 0 ? (1.0 - 0.20 - discordAtkRedBonusTotal) : 1.0) * (frostbiteRounds > 0 ? 0.85 : 1.0);
             const rawDmg = Math.max(1, Math.floor(attacker.atk * discordAtkMult * (COMBAT_TUNING.ENEMY_DMG_MIN_MULT + sRand(es + 309) * COMBAT_TUNING.ENEMY_DMG_SPREAD)));
             const cAfterDef = Math.max(1, Math.floor(rawDmg * (1 - target.def / (target.def + COMBAT_TUNING.DEF_SOFTCAP))));
             target.hp = Math.max(0, target.hp - cAfterDef);
-            text = sPick(T_ENEMY_ATK, es + 310)(attacker.name, target.name, cAfterDef);
+            const constructHpStatus = target.hp > 0 ? ` (${target.hp}/${target.maxHp} HP)` : '';
+            text = `${attacker.name} strikes <span class="sk-magic">${target.name}</span> for <span class="dmg-num">${cAfterDef}</span> damage!${constructHpStatus}`;
             icon = '🔮'; type = 'enemy';
 
-            // Arcane Reflection — construct reflects 20% of damage back to attacker
+            // Arcane Reflection — construct reflects 20% of raw (pre-DEF) damage back to attacker
             if (talentArcaneReflect && cAfterDef > 0 && attacker.alive) {
-              const reflDmg = Math.max(1, Math.floor(cAfterDef * 0.20));
+              const reflDmg = Math.max(1, Math.floor(rawDmg * 0.20));
               attacker.hp = Math.max(0, attacker.hp - reflDmg);
               if (combatStats[target.ownerId]) combatStats[target.ownerId].dmgReflected = (combatStats[target.ownerId].dmgReflected || 0) + reflDmg;
               events.push({ text, type, icon, phase: 'battle' });
@@ -2744,8 +2882,8 @@ function buildSimulation(aq, quest) {
             continue;
           }
 
-          // Discord fumble
-          if (discordRounds > 0 && sRand(es + 310) < 0.25) {
+          // Discord fumble (base 25% + drum aura bonus)
+          if (discordRounds > 0 && sRand(es + 310) < (0.25 + discordFumbleBonusTotal)) {
             text = `${attacker.name} staggers from the Discord — the attack goes wide!`;
             icon = '🎸'; type = 'dodge';
             events.push({ text, type, icon, phase: 'battle' });
@@ -2770,13 +2908,15 @@ function buildSimulation(aq, quest) {
           // The 0.40 camouflage dodge bonus is similarly Rogue/Ranger class-specific.
           const ironStanceDodge = (target.class === 'MONK' && ironStanceBuffs[target.id] > 0) ? 0.15 : 0;
           const smokeDodge = smokeBombRounds > 0 ? 0.30 : 0;
-          const totalDodge = dodgeChance(target) + (camoRounds[target.id] > 0 ? 0.40 : 0) + ironStanceDodge + smokeDodge;
+          // Cosmic Reflection party-wide dodge bonus from Monk 2H Celestial staff
+          const cosmicDodge = (deflectBuffs[target.id] && deflectBuffs[target.id].rounds > 0 && deflectBuffs[target.id].partyDodge) ? deflectBuffs[target.id].partyDodge : 0;
+          const totalDodge = dodgeChance(target) + (camoRounds[target.id] > 0 ? 0.40 : 0) + ironStanceDodge + smokeDodge + cosmicDodge;
           if (sRand(es + 311) < totalDodge) {
             const dodgeReason = smokeBombRounds > 0 ? 'vanishes in smoke' : camoRounds[target.id] > 0 ? 'is camouflaged' : 'deftly sidesteps';
             text = `${target.name} ${dodgeReason} — the attack misses!`;
             icon = camoRounds[target.id] > 0 ? '🍃' : '💨';
             type = 'dodge';
-            const estRaw = Math.max(1, Math.floor(attacker.atk * (discordRounds > 0 ? 0.80 : 1.0) * 0.85));
+            const estRaw = Math.max(1, Math.floor(attacker.atk * (discordRounds > 0 ? (1.0 - 0.20 - discordAtkRedBonusTotal) : 1.0) * 0.85));
             const estDodged = applyDef(estRaw, target);
             if (combatStats[target.id]) combatStats[target.id].dmgDodged += estDodged;
             events.push({ text, type, icon, phase: 'battle' });
@@ -2815,14 +2955,16 @@ function buildSimulation(aq, quest) {
           }
   
           // Damage calculation
-          const discordAtkMult = (discordRounds > 0 ? 0.80 : 1.0) * (frostbiteRounds > 0 ? 0.85 : 1.0);
+          const discordAtkMult = (discordRounds > 0 ? (1.0 - 0.20 - discordAtkRedBonusTotal) : 1.0) * (frostbiteRounds > 0 ? 0.85 : 1.0);
           // Pressure Point debuff — enemies with the debuff deal -20% damage (translated from "ATB fill" design)
           const pressurePointAtkMult = (pressurePointDebuffs[attacker.id] > 0) ? 0.80 : 1.0;
           // ROG_POISON "Venomous Blades" — when the talent is active, poisoned enemies
           // also deal -15% ATK for the duration of the poison. Piggybacks on the
           // existing poisonTargets tracker so expiry is automatic.
           const venomAtkMult = (talentPoison && poisonTargets[attacker.id] && poisonTargets[attacker.id].rounds > 0) ? 0.85 : 1.0;
-          const rawDmg = Math.max(1, Math.floor(attacker.atk * discordAtkMult * pressurePointAtkMult * venomAtkMult * (COMBAT_TUNING.ENEMY_DMG_MIN_MULT + sRand(es + 312) * COMBAT_TUNING.ENEMY_DMG_SPREAD)));
+          // Equipment poison ATK debuff (Rogue offhand DoTs)
+          const equipPoisonMult = (equipPoisonTargets[attacker.id] && equipPoisonTargets[attacker.id].rounds > 0) ? (1.0 - equipPoisonTargets[attacker.id].atkDebuff) : 1.0;
+          const rawDmg = Math.max(1, Math.floor(attacker.atk * discordAtkMult * pressurePointAtkMult * venomAtkMult * equipPoisonMult * (COMBAT_TUNING.ENEMY_DMG_MIN_MULT + sRand(es + 312) * COMBAT_TUNING.ENEMY_DMG_SPREAD)));
           const shieldReduction = divineShieldRounds > 0 ? 0.15 : 0;
           const consecrationReduction = consecrationRounds > 0 ? 0.10 : 0;
           // Iron Stance — Monks in stance gain +20% DEF (extra flat reduction before other mitigations).
@@ -2830,7 +2972,19 @@ function buildSimulation(aq, quest) {
           const ironStanceRed = (target.class === 'MONK' && ironStanceBuffs[target.id] > 0) ? 0.20 : 0;
           // Knight Last Stand — +40% DEF while active (class-signature, INLINED BY DESIGN)
           const lastStandRed = (target.class === 'KNIGHT' && lastStandBuffRounds[target.id] > 0) ? 0.40 : 0;
-          const afterDef = Math.max(1, Math.floor(applyDef(rawDmg, target) * (1 - ironStanceRed) * (1 - lastStandRed) * (1 - graveHungerDefBonus)));
+          // Flowing Defense deflect check — Monk 2H staff deflect buffs.
+          // Roll chance; if deflect fires, reduce damage AND queue reflect for Phase 5.
+          let deflectFired = false;
+          let deflectReflectDmg = 0;
+          let deflectReduction = 0;
+          const dBuf = deflectBuffs[target.id];
+          if (dBuf && dBuf.rounds > 0 && sRand(es + 350) < dBuf.chance) {
+            deflectFired = true;
+            deflectReduction = dBuf.reduction;
+            // Reflect is based on pre-mitigation rawDmg so it scales with enemy power
+            deflectReflectDmg = Math.max(1, Math.floor(rawDmg * dBuf.reflect));
+          }
+          const afterDef = Math.max(1, Math.floor(applyDef(rawDmg, target) * (1 - ironStanceRed) * (1 - lastStandRed) * (1 - deflectReduction) * (1 - graveHungerDefBonus)));
           const baseDmg = Math.max(1, Math.floor(afterDef * (1 - dmgReduction) * (1 - shieldReduction) * (1 - consecrationReduction)));
           const isSkill = sRand(es + 313) < COMBAT_TUNING.ENEMY_SKILL_PROC_CHANCE;
   
@@ -2952,6 +3106,30 @@ function buildSimulation(aq, quest) {
                 text = sPick(T_PARTY_KO, es + 325)(knight.name, attacker.name);
                 icon = '💀'; type = 'ko';
               }
+            }
+          }
+
+          // ─── Undead Guardian (NEC_NECRO_CLEAVE talent) — thrall intercept ──
+          // Living thrall has 25% chance to body-block a hit aimed at any ally.
+          // Thrall takes full damage; if it dies, the hit is still absorbed.
+          if (actualDmg > 0 && talentNecroticCleave && necroMinions.length > 0) {
+            const guardian = necroMinions.find(mn => mn.hp > 0);
+            if (guardian && sRand(es + 328) < 0.25) {
+              const interceptedDmg = dmgTaken;
+              if (combatStats[target.id]) combatStats[target.id].dmgTaken -= dmgTaken;
+              target.hp = Math.min(target.hp + dmgTaken, target.maxHp);
+              guardian.hp = Math.max(0, guardian.hp - dmgTaken);
+              dmgTaken = 0;
+              actualDmg = 0;
+              events.push({ text, type, icon, phase: 'battle' });
+              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+              if (guardian.hp <= 0) {
+                text = `🧟 <span class="sk-buff">${guardian.name}</span> hurls itself in front of ${target.name}, absorbing <span class="dmg-num">${interceptedDmg}</span> damage — and crumbles to dust!`;
+              } else {
+                text = `🧟 <span class="sk-buff">${guardian.name}</span> hurls itself in front of ${target.name}, absorbing <span class="dmg-num">${interceptedDmg}</span> damage! (${guardian.hp}/${guardian.maxHp} HP)`;
+              }
+              icon = '🛡'; type = 'cover';
+              _logReactive('Undead Guardian', guardian.name, target.name, `absorbed ${interceptedDmg} dmg`);
             }
           }
 
@@ -3261,6 +3439,40 @@ function buildSimulation(aq, quest) {
             }
           }
 
+          // Flowing Defense reflect — Monk 2H deflect. Fires when deflectFired
+          // was set in the pre-damage check. Deals reflect damage, applies ATK
+          // debuff, and grants Ki Shield (T5+).
+          if (deflectFired && attacker.alive && deflectReflectDmg > 0) {
+            attacker.hp = Math.max(0, attacker.hp - deflectReflectDmg);
+            if (combatStats[target.id]) {
+              combatStats[target.id].dmgDealt += deflectReflectDmg;
+              combatStats[target.id].dmgReflected = (combatStats[target.id].dmgReflected || 0) + deflectReflectDmg;
+            }
+            const fatal = attacker.hp <= 0;
+            if (fatal) { attacker.alive = false; fallenEnemies.push(attacker.name); tryRaiseDead(attacker, es + 2750); }
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            text = `${target.name} deflects with the staff — <span class="sk-react">Flowing Defense</span> reflects <span class="dmg-num dmg-phys">${deflectReflectDmg}</span> back at ${attacker.name}!`;
+            icon = '🪨'; type = 'skill';
+            _logReactive('Flowing Defense', target.name, attacker.name, `reflected ${deflectReflectDmg} dmg`);
+            // ATK debuff from deflect (T4+)
+            if (dBuf.atkDebuff > 0 && attacker.alive) {
+              // Piggyback on equipPoisonTargets for ATK debuff — 1-round duration
+              if (!equipPoisonTargets[attacker.id] || equipPoisonTargets[attacker.id].rounds <= 0) {
+                equipPoisonTargets[attacker.id] = { rounds: 1, dmgPerTick: 0, ownerId: dBuf.ownerId, atkDebuff: dBuf.atkDebuff };
+              }
+            }
+            // Ki Shield from deflect (T5 Monkey King's Reflection)
+            if (dBuf.kiShieldPct > 0 && target.hp > 0) {
+              const shieldAmt = Math.max(1, Math.floor(target.maxHp * dBuf.kiShieldPct));
+              kiShieldHP[target.id] = Math.max(kiShieldHP[target.id] || 0, shieldAmt);
+              events.push({ text, type, icon, phase: 'battle' });
+              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+              text = `Ki hardens around ${target.name} — <span class="sk-buff">+${shieldAmt} Ki Shield</span> from the deflection!`;
+              icon = '🔵'; type = 'buff';
+            }
+          }
+
           // Dark Pact siphon — Necromancer buff converts party hits into
           // life drain. Gated on actualDmg > 0 so negated hits don't siphon.
           if (actualDmg > 0 && darkPactRounds > 0 && darkPactSource && target.hp > 0 && attacker.alive) {
@@ -3446,7 +3658,7 @@ function buildSimulation(aq, quest) {
               icon = '☠';
             } else if (skillId === 'ARMY_OF_THE_DAMNED') {
               const armyCount = Math.max(1, fallenEnemies.length);
-              const armyBaseDmg = Math.max(2, Math.floor(buffMember.mag * 1.1));
+              const armyBaseDmg = Math.max(2, Math.floor(buffMember.mag * 0.7));
               armyDmgPerTick = armyCount * Math.floor(armyBaseDmg * (1 + minionDmgBonusTotal) * 2.5);
               armyRounds = talentUndeadVanguard ? 4 : 3;
               armySource = buffMember;
@@ -3459,10 +3671,11 @@ function buildSimulation(aq, quest) {
               // between re-rolls. The song is always playing; re-casts only
               // re-roll potency (keeps the higher value). MAG-scaled at
               // ~55% of a Cleric group-heal per tick per member.
-              const baseRoll = Math.max(1, Math.floor((buffMember.mag || 10) * (0.45 + sRand(es + 418) * 0.20)));
+              const baseRoll = Math.max(1, Math.floor((buffMember.mag || 10) * (0.45 + sRand(es + 418) * 0.20) * (1 + regenAmpTotal)));
               const newRegen = Math.max(1, Math.floor(baseRoll * healBonus));
               const previous = regenPerTick;
-              if (newRegen > regenPerTick) regenPerTick = newRegen;
+              // regenNeverLower (celestial lute): re-rolls never reduce the regen value
+              if (regenNeverLower ? (newRegen >= regenPerTick) : (newRegen > regenPerTick)) regenPerTick = newRegen;
               regenSource = buffMember.name;
               regenSourceId = buffMember.id;
               // 4-round cooldown before next re-roll attempt
@@ -3742,24 +3955,62 @@ function buildSimulation(aq, quest) {
         snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
       }
     }
-  
-    // Necro minion attacks — each living minion deals dmgPerTick to a random enemy
+
+    // Cleric celestial persistent regen (Sanctified Radiance) — independent of Bard regen
+    if (clericRegenPerTick > 0) {
+      let anyClericHealed = false;
+      let totalClericRegenHealed = 0;
+      for (const p of livingParty) {
+        if (p.hp <= 0) continue;
+        const before = p.hp;
+        p.hp = Math.min(p.maxHp, p.hp + clericRegenPerTick);
+        const actual = p.hp - before;
+        if (actual > 0) {
+          anyClericHealed = true;
+          totalClericRegenHealed += actual;
+          if (combatStats[p.id]) combatStats[p.id].healingReceived += actual;
+        }
+      }
+      if (totalClericRegenHealed > 0 && clericRegenSourceId && combatStats[clericRegenSourceId]) {
+        combatStats[clericRegenSourceId].healingDone += totalClericRegenHealed;
+      }
+      if (anyClericHealed && roundCount % 3 === 0) {
+        events.push({ text: `Sanctified Radiance pulses — the party heals for <span class="dmg-num dmg-heal">+${clericRegenPerTick}</span> HP!`, type: 'heal', icon: '✨', phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+      }
+    }
+
+    // Necro minion attacks — each living minion deals dmgPerTick to enemy(ies)
+    // With celestial scythe (minionAoe), thrall attacks ALL enemies instead of one.
     for (const minion of necroMinions) {
       if (minion.hp <= 0 || livingEnemies.length === 0) continue;
-      const target = sPick(livingEnemies, es + 550 + necroMinions.indexOf(minion));
       const mDmg = Math.max(1, Math.floor(minion.dmgPerTick * (1 + minionDmgBonusTotal)));
-      target.hp = Math.max(0, target.hp - mDmg);
-      if (minion.ownerId && combatStats[minion.ownerId]) combatStats[minion.ownerId].dmgDealt += mDmg;
-      const mText = sPick(T_MINION_ATTACK, es + 551)(minion.name, target.name, mDmg);
-      events.push({ text: mText, type: 'magic', icon: '🧟', phase: 'battle' });
+      const mTargets = minionAoe ? livingEnemies : [sPick(livingEnemies, es + 550 + necroMinions.indexOf(minion))];
+      let totalMinionDmg = 0;
+      for (const target of mTargets) {
+        target.hp = Math.max(0, target.hp - mDmg);
+        totalMinionDmg += mDmg;
+        if (target.hp <= 0) {
+          target.alive = false;
+          fallenEnemies.push(target.name);
+          tryRaiseDead(target, es + 3160);
+        }
+      }
+      if (minion.ownerId && combatStats[minion.ownerId]) combatStats[minion.ownerId].dmgDealt += totalMinionDmg;
+      if (minionAoe && mTargets.length > 1) {
+        const mText = `🧟 <span class="sk-magic">${minion.name}</span> sweeps through all enemies — <strong>${mDmg}</strong> damage each! (${mTargets.length} hit)`;
+        events.push({ text: mText, type: 'magic', icon: '🧟', phase: 'battle' });
+      } else {
+        const mText = sPick(T_MINION_ATTACK, es + 551)(minion.name, mTargets[0].name, mDmg);
+        events.push({ text: mText, type: 'magic', icon: '🧟', phase: 'battle' });
+      }
       snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-      if (target.hp <= 0) {
-        target.alive = false;
-        fallenEnemies.push(target.name);
-        tryRaiseDead(target, es + 3160);
-        const defeatText = sPick(T_ENEMY_DEFEAT, es + 552)(target.name, minion.name);
-        events.push({ text: defeatText, type: 'defeat', icon: '💥', phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+      for (const target of mTargets) {
+        if (target.hp <= 0 && !target.alive) {
+          const defeatText = sPick(T_ENEMY_DEFEAT, es + 552)(target.name, minion.name);
+          events.push({ text: defeatText, type: 'defeat', icon: '💥', phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        }
       }
     }
 
@@ -3829,31 +4080,9 @@ function buildSimulation(aq, quest) {
       snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
     }
 
-    // Necrotic Cleave — raised minions OR Army of the Damned unleash AoE every
-    // 2 rounds (NEC_NECRO_CLEAVE). Scales at 25% of Necromancer's MAG per enemy.
-    // Living minions boost the per-hit damage; Army presence alone is enough to
-    // trigger the cleave at base (1×) scaling.
-    const _cleaveMinions = necroMinions.filter(m => m.hp > 0).length;
-    const _cleaveArmyActive = armyRounds > 0;
-    if (talentNecroticCleave && (_cleaveMinions > 0 || _cleaveArmyActive) && roundCount > 0 && roundCount % 2 === 0) {
-      const cleaveScale = Math.max(1, _cleaveMinions) + (_cleaveArmyActive ? 1 : 0);
-      const necro = partyHp.find(p => p.class === 'NECROMANCER' && p.hp > 0);
-      if (necro && livingEnemies.length > 0) {
-        const cleaveDmgPer = Math.max(2, Math.floor((necro.mag || 10) * 0.25 * cleaveScale));
-        let totalCleaveDmg = 0;
-        for (const e of livingEnemies) {
-          e.hp = Math.max(0, e.hp - cleaveDmgPer);
-          totalCleaveDmg += cleaveDmgPer;
-          if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); tryRaiseDead(e, es + 3170); }
-        }
-        if (totalCleaveDmg > 0) {
-          if (combatStats[necro.id]) combatStats[necro.id].dmgDealt += totalCleaveDmg;
-          const cleaveLabel = _cleaveMinions > 0 && _cleaveArmyActive ? 'The undead horde' : _cleaveMinions > 0 ? 'The raised dead' : 'The spectral army';
-          events.push({ text: `${cleaveLabel} unleashes a necrotic cleave — <span class="dmg-num dmg-mag">${cleaveDmgPer}</span> damage rips through ${livingEnemies.length} ${livingEnemies.length === 1 ? 'foe' : 'foes'}!`, type: 'magic', icon: '💀', phase: 'battle' });
-          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-        }
-      }
-    }
+    // Undead Guardian — thrall intercept is handled reactively during enemy attacks
+    // (see Phase 1 Intercept in the enemy attack path above). The old Necrotic
+    // Cleave end-of-round AoE was replaced by this reactive mechanic.
 
     // Blight DoT — 40% MAG per enemy per tick, 3 rounds
     // As the Necromancer's signature L10 AoE DoT this needs to actually
@@ -3866,7 +4095,7 @@ function buildSimulation(aq, quest) {
       const blightTargets = livingEnemies;
       let totalBlightDmg = 0;
       for (const e of blightTargets) {
-        const blightDmg = Math.max(3, Math.floor((blightSource.mag || 10) * 0.40));
+        const blightDmg = Math.max(3, Math.floor((blightSource.mag || 10) * 0.40 * (1 + blightAmpTotal)));
         e.hp = Math.max(0, e.hp - blightDmg);
         totalBlightDmg += blightDmg;
         if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); tryRaiseDead(e, es + 3176); }
@@ -3907,7 +4136,7 @@ function buildSimulation(aq, quest) {
       const discordTargets = livingEnemies;
       let totalDiscordDmg = 0;
       for (const e of discordTargets) {
-        const discordDmg = Math.max(3, Math.floor((discordSource?.mag || 10) * 0.32));
+        const discordDmg = Math.max(3, Math.floor((discordSource?.mag || 10) * 0.32 * (1 + discordDotAmpTotal)));
         e.hp = Math.max(0, e.hp - discordDmg);
         totalDiscordDmg += discordDmg;
         if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); tryRaiseDead(e, es + 3211); }
@@ -4082,7 +4311,59 @@ function buildSimulation(aq, quest) {
         }
       }
     }
-  
+
+    // ── Rogue Equipment Poison DoT tick (Envenom / Deadly Toxin / Neurotoxin) ──
+    {
+      const epIds = Object.keys(equipPoisonTargets);
+      if (epIds.length > 0) {
+        let totalDmg = 0;
+        let hits = 0;
+        for (const eid of epIds) {
+          const e = enemies.find(en => en.id === eid);
+          if (!e || !e.alive || e.hp <= 0) { delete equipPoisonTargets[eid]; continue; }
+          const p = equipPoisonTargets[eid];
+          e.hp = Math.max(0, e.hp - p.dmgPerTick);
+          totalDmg += p.dmgPerTick;
+          hits++;
+          if (p.ownerId && combatStats[p.ownerId]) combatStats[p.ownerId].dmgDealt += p.dmgPerTick;
+          if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); tryRaiseDead(e, es + 3520); }
+          p.rounds--;
+          if (p.rounds <= 0) delete equipPoisonTargets[eid];
+        }
+        if (hits > 0) {
+          const avg = Math.floor(totalDmg / hits);
+          events.push({ text: `Poison corrodes <span class="dmg-num dmg-phys">${hits}</span> ${_f(hits)} for <span class="dmg-num dmg-phys">${avg}</span>${_ea(hits)}!`, type: 'debuff', icon: '🐍', phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        }
+      }
+    }
+
+    // ── Monk Chi Burn DoT tick (Spirit Scorch / Inner Fire / Chi Eruption) ──
+    {
+      const cbIds = Object.keys(chiBurnTargets);
+      if (cbIds.length > 0) {
+        let totalDmg = 0;
+        let hits = 0;
+        for (const eid of cbIds) {
+          const e = enemies.find(en => en.id === eid);
+          if (!e || !e.alive || e.hp <= 0) { delete chiBurnTargets[eid]; continue; }
+          const cb = chiBurnTargets[eid];
+          e.hp = Math.max(0, e.hp - cb.dmgPerTick);
+          totalDmg += cb.dmgPerTick;
+          hits++;
+          if (cb.ownerId && combatStats[cb.ownerId]) combatStats[cb.ownerId].dmgDealt += cb.dmgPerTick;
+          if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); tryRaiseDead(e, es + 3530); }
+          cb.rounds--;
+          if (cb.rounds <= 0) delete chiBurnTargets[eid];
+        }
+        if (hits > 0) {
+          const avg = Math.floor(totalDmg / hits);
+          events.push({ text: `Chi flames burn <span class="dmg-num dmg-phys">${hits}</span> ${_f(hits)} for <span class="dmg-num dmg-phys">${avg}</span>${_ea(hits)}!`, type: 'debuff', icon: '🔥', phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        }
+      }
+    }
+
     // ── Executioner's Mark reactive fire ────────────────────────────────
     // Champion-spec Hero trigger: when any enemy falls below 30% HP, a
     // Champion off cooldown marks them (+10% party dmg for 2 rounds) and
@@ -4164,6 +4445,54 @@ function buildSimulation(aq, quest) {
       const isWeaponProc = boundItem && boundItem.slot === 'weapon' && !eqSkill.pendingBuff;
       const isCelestial = boundItem && boundItem.rarity === 'celestial';
 
+      // ── Deflect proc (Monk 2H Flowing Defense) → set deflect buff ────
+      const skillEff = eqSkill.effects || {};
+      if (skillEff.isDeflect && eqSkill.type !== 'passive') {
+        const dr = skillEff.deflectRounds || 2;
+        deflectBuffs[m.id] = {
+          rounds: dr,
+          chance: skillEff.deflectChance || 0.25,
+          reduction: skillEff.dmgReduction || 0.30,
+          reflect: skillEff.reflectPct || 0.25,
+          atkDebuff: skillEff.atkDebuff || 0,
+          kiShieldPct: skillEff.kiShieldPct || 0,
+          ownerId: m.id,
+        };
+        const narrativeText = eqSkill.narrative ? `${m.name} ${eqSkill.narrative}` : `${m.name} activates ${eqSkill.name}!`;
+        const deflIcon = eqSkill.icon || '🪨';
+        const deflType = isCelestial ? 'celestial' : 'equip';
+        events.push({ text: `${narrativeText} <span class="sk-buff">Deflect active for ${dr} rounds!</span>`, type: deflType, icon: deflIcon, phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        equipProcCooldowns[m.id] = isCelestial ? CELESTIAL_PROC_COOLDOWN : 2;
+        skillCooldowns[m.id][pickedSid] = SKILL_COOLDOWN;
+        continue;
+      }
+
+      // ── Offhand DoT proc → apply DoT to target ──────────────────────
+      const dotEff = eqSkill.effects || {};
+      if (dotEff.dotAtkScale) {
+        const tgt = sPick(livingEnemies, es + 819);
+        if (!tgt) continue;
+        const dotDmg = Math.max(2, Math.floor(m.atk * dotEff.dotAtkScale));
+        const dotRounds = dotEff.dotRounds || 3;
+        const dotIcon = eqSkill.icon || '🧪';
+        const dotType = isCelestial ? 'celestial' : 'equip';
+
+        if (dotEff.atkDebuff) {
+          // Rogue poison DoT
+          equipPoisonTargets[tgt.id] = { rounds: dotRounds, dmgPerTick: dotDmg, ownerId: m.id, atkDebuff: dotEff.atkDebuff };
+        } else if (dotEff.spdDebuff) {
+          // Monk chi burn DoT
+          chiBurnTargets[tgt.id] = { rounds: dotRounds, dmgPerTick: dotDmg, ownerId: m.id, spdDebuff: dotEff.spdDebuff };
+        }
+        const narrativeText = eqSkill.narrative ? `${m.name} ${eqSkill.narrative}` : `${m.name} applies ${eqSkill.name} to ${tgt.name}!`;
+        events.push({ text: `${narrativeText} <span class="dmg-num dmg-phys">${dotDmg}</span>/round for ${dotRounds} rounds!`, type: dotType, icon: dotIcon, phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        equipProcCooldowns[m.id] = isCelestial ? CELESTIAL_PROC_COOLDOWN : 2;
+        skillCooldowns[m.id][pickedSid] = SKILL_COOLDOWN;
+        continue;
+      }
+
       if (!isWeaponProc) {
         // ── Non-weapon proc → empower next action ─────────────────────
         // Drop a pending buff on this member. calcPartyDmg consumes it on
@@ -4211,6 +4540,8 @@ function buildSimulation(aq, quest) {
       const aoeInfo = AOE_SKILLS[pickedSid];
       let equipText;
 
+      let procHitTarget = null; // track single-target hit for DEF shred
+      let procDmgDealt = 0;    // track damage dealt for Celestial Cascade
       if (aoeInfo) {
         // AoE fire — baseDmg already reflects powerMultiplier; scale by aoe.dmgScale
         const currentLiving = enemies.filter(e => e.alive);
@@ -4227,17 +4558,20 @@ function buildSimulation(aq, quest) {
           if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); tryRaiseDead(e, es + 3456); }
         }
         if (combatStats[m.id]) combatStats[m.id].dmgDealt += totalDmg;
+        procDmgDealt = totalDmg;
         const tmpl = isCelestial ? T_CELESTIAL_SKILL : T_EQUIP_SKILL;
         equipText = sPick(tmpl, es + 814)(m.name, eqSkill.name, `${currentLiving.length} ${_f(currentLiving.length)}`, totalDmg);
       } else {
         // Single-target fire
         const tgt = sPick(livingEnemies, es + 815);
         if (!tgt) continue;
+        procHitTarget = tgt;
         if (markedEnemies[tgt.id]) baseDmg = Math.floor(baseDmg * 1.20);
         if (executeMarkRounds[tgt.id] > 0) baseDmg = Math.floor(baseDmg * 1.10);
         const applied = eff.defPierce ? baseDmg : applyDef(baseDmg, tgt.def || 0);
         tgt.hp = Math.max(0, tgt.hp - applied);
         if (combatStats[m.id]) combatStats[m.id].dmgDealt += applied;
+        procDmgDealt = applied;
         const tmpl = isCelestial ? T_CELESTIAL_SKILL : T_EQUIP_SKILL;
         equipText = sPick(tmpl, es + 816)(m.name, eqSkill.name, tgt.name, applied);
         if (tgt.hp <= 0) {
@@ -4247,10 +4581,95 @@ function buildSimulation(aq, quest) {
         }
       }
 
+      // Apply DEF shred from scythe procs (Soul Reap, Abyssal Reap)
+      if (eff.defShred && eff.defShredRounds && procHitTarget && procHitTarget.alive) {
+        defShredTargets[procHitTarget.id] = Math.max(defShredTargets[procHitTarget.id] || 0, eff.defShredRounds);
+      }
+
       const procIcon = eqSkill.icon || (isCelestial ? '✦' : '•');
       const procType = isCelestial ? 'celestial' : 'equip';
       events.push({ text: equipText, type: procType, icon: procIcon, phase: 'battle' });
       snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+
+      // ── Celestial Cascade on weapon proc ──────────────────────────
+      if (isCelestial && procDmgDealt > 0) {
+        tryCelestialCascade(procDmgDealt, procHitTarget, m, es + 8800 + round);
+      }
+
+      // ── Celestial Echo (PARTY_CEL_ECHO talent) ────────────────────
+      // When a celestial weapon damage proc fires, 5% chance all OTHER
+      // party members' celestial weapons echo in harmony.
+      // Only triggers on weapon damage procs (not DoT, not buff, not deflect).
+      // Echo hits cannot re-trigger further echoes (no cascading).
+      if (talentCelEcho && isCelestial && isWeaponProc && eff.powerMultiplier) {
+        const echoRoll = sRand(es + 9900 + round);
+        if (echoRoll < 0.05) {
+          events.push({
+            text: `<strong>🌟 CELESTIAL ECHO!</strong> The party's celestial weapons resonate in harmony!`,
+            type: 'celestial', icon: '🌟', phase: 'battle',
+          });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+          let echoSeed = es + 9910 + round * 7;
+          for (const echoM of livingParty) {
+            if (echoM.id === m.id || echoM.hp <= 0) continue;
+            const echoData = celEchoMap[echoM.id];
+            if (!echoData) continue;
+            const eSk = echoData.skill;
+            const eEff = eSk.effects || {};
+            const ePower = eEff.powerMultiplier || 1.0;
+            const eBonus = 1.0 + (eEff.atkBonus || 0) + (eEff.magBonus || 0);
+            const eItem = echoData.item;
+            const eScalar = WEAPON_PROC_SCALAR[eItem.rarity] || WEAPON_PROC_SCALAR.common;
+            let eRaw = calcPartyDmg(echoM, echoSeed, dmgBonus);
+            if (eEff.defScaling && echoM.def) {
+              const eDefMult = COMBAT_TUNING.PARTY_DMG_MIN_MULT + sRand(echoSeed + 1) * COMBAT_TUNING.PARTY_DMG_SPREAD;
+              eRaw += Math.floor(echoM.def * eEff.defScaling * eDefMult);
+            }
+            let echoDmg = Math.max(3, Math.floor(eRaw * ePower * eBonus * eScalar));
+            // Echo crit check
+            const echoCrit = sRand(echoSeed + 2) < Math.min(COMBAT_TUNING.CRIT_CAP, critChance(echoM) + (eEff.critChance || 0) + graveHungerCritBonus);
+            if (echoCrit) echoDmg = Math.floor(echoDmg * COMBAT_TUNING.PARTY_BASE_CRIT_MULT);
+            // AoE echo
+            const eAoe = AOE_SKILLS[echoData.skillId];
+            if (eAoe) {
+              const eLiving = enemies.filter(e => e.alive);
+              if (eLiving.length === 0) { echoSeed += 10; continue; }
+              const ePer = Math.max(1, Math.floor(echoDmg * eAoe.dmgScale));
+              let eTot = 0;
+              for (const e of eLiving) {
+                const eApplied = eEff.defPierce ? ePer : applyDef(ePer, e.def || 0);
+                e.hp = Math.max(0, e.hp - eApplied);
+                eTot += eApplied;
+                if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); tryRaiseDead(e, echoSeed + 5); }
+              }
+              if (combatStats[echoM.id]) combatStats[echoM.id].dmgDealt += eTot;
+              events.push({
+                text: `${echoM.name}'s <strong>${eSk.name}</strong> echoes — <span class="dmg-num dmg-celestial">${eTot}</span> to ${eLiving.length} ${_f(eLiving.length)}!`,
+                type: 'celestial', icon: eSk.icon || '✦', phase: 'battle',
+              });
+              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+              // Cascade can trigger on echo AoE hits too — uses Harmonic Cascade visual
+              tryCelestialCascade(eTot, null, echoM, echoSeed + 7, true);
+            } else {
+              // Single-target echo — pick random living enemy
+              const eTgt = sPick(enemies.filter(e => e.alive), echoSeed + 3);
+              if (!eTgt) { echoSeed += 10; continue; }
+              const eApplied = eEff.defPierce ? echoDmg : applyDef(echoDmg, eTgt.def || 0);
+              eTgt.hp = Math.max(0, eTgt.hp - eApplied);
+              if (combatStats[echoM.id]) combatStats[echoM.id].dmgDealt += eApplied;
+              events.push({
+                text: `${echoM.name}'s <strong>${eSk.name}</strong> echoes — <span class="dmg-num dmg-celestial">${eApplied}</span> to ${eTgt.name}!`,
+                type: 'celestial', icon: eSk.icon || '✦', phase: 'battle',
+              });
+              if (eTgt.hp <= 0) { eTgt.alive = false; fallenEnemies.push(eTgt.name); tryRaiseDead(eTgt, echoSeed + 6); }
+              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+              // Cascade can trigger on echo ST hits too — uses Harmonic Cascade visual
+              tryCelestialCascade(eApplied, eTgt, echoM, echoSeed + 8, true);
+            }
+            echoSeed += 10;
+          }
+        }
+      }
 
       equipProcCooldowns[m.id] = isCelestial ? CELESTIAL_PROC_COOLDOWN : 2;
       skillCooldowns[m.id][pickedSid] = SKILL_COOLDOWN;
@@ -4291,6 +4710,9 @@ function buildSimulation(aq, quest) {
       // Monk class rework countdowns
       if (flowingStrikeCooldowns[m.id] > 0) flowingStrikeCooldowns[m.id]--;
       if (ironStanceBuffs[m.id] > 0) ironStanceBuffs[m.id]--;
+      // Flowing Defense deflect buff countdown (active procs only — passive has Infinity rounds)
+      if (deflectBuffs[m.id] && deflectBuffs[m.id].rounds !== Infinity && deflectBuffs[m.id].rounds > 0) deflectBuffs[m.id].rounds--;
+      if (deflectBuffs[m.id] && deflectBuffs[m.id].rounds <= 0 && deflectBuffs[m.id].rounds !== Infinity) delete deflectBuffs[m.id];
       // Ranger Hunter's Mark cooldown
       if (huntersMarkCooldowns[m.id] > 0) huntersMarkCooldowns[m.id]--;
       // Knight Last Stand buff/cooldown
@@ -4435,6 +4857,7 @@ function makeSnapshot(party, enemies, buffs) {
       const pBuffs = [];
       // Bard regen
       if (b.regenPerTick > 0) pBuffs.push({ id: 'regen', icon: '🎵', label: 'Regen', desc: `+${b.regenPerTick} HP/rd` });
+      if (b.clericRegenPerTick > 0) pBuffs.push({ id: 'cleric-regen', icon: '✨', label: 'Sanctified', desc: `+${b.clericRegenPerTick} HP/rd` });
       // Knight Bulwark cooldown
       if (b.coverCooldowns && b.coverCooldowns[p.id] !== undefined) {
         const cd = b.coverCooldowns[p.id];
@@ -4609,6 +5032,12 @@ function makeSnapshot(party, enemies, buffs) {
       if (b.ironStanceBuffs && b.ironStanceBuffs[p.id] > 0) {
         pBuffs.push({ id: 'iron_stance', icon: '🪨', label: 'Iron Stance', desc: `${b.ironStanceBuffs[p.id]}rd — +30% DEF, +20% dodge` });
       }
+      // Monk Flowing Defense deflect buff
+      if (b.deflectBuffs && b.deflectBuffs[p.id] && b.deflectBuffs[p.id].rounds > 0) {
+        const db = b.deflectBuffs[p.id];
+        const durStr = db.rounds === Infinity ? 'Passive' : `${db.rounds}rd`;
+        pBuffs.push({ id: 'deflect', icon: '🛡', label: 'Deflect', desc: `${durStr} — ${Math.round(db.chance * 100)}% chance, -${Math.round(db.reduction * 100)}% dmg, ${Math.round(db.reflect * 100)}% reflect` });
+      }
       // Monk Flowing Strike reactive — ready / cooldown
       if (b.flowingStrikeCooldowns && b.flowingStrikeCooldowns[p.id] !== undefined) {
         const cd = b.flowingStrikeCooldowns[p.id];
@@ -4692,7 +5121,7 @@ function makeSnapshot(party, enemies, buffs) {
       }
       // Discord debuff on enemies
       if (b.discordRounds > 0) {
-        eDebuffs.push({ id: 'discord', icon: '🎸', label: 'Discord', desc: `${b.discordRounds}rd — -20% ATK, fumble, DoT` });
+        eDebuffs.push({ id: 'discord', icon: '🎸', label: 'Discord', desc: `${b.discordRounds}rd — -${Math.round((0.20 + discordAtkRedBonusTotal) * 100)}% ATK, ${Math.round((0.25 + discordFumbleBonusTotal) * 100)}% fumble, DoT` });
       }
       // Blight debuff on enemies
       if (b.blightRounds > 0) {
@@ -4748,8 +5177,17 @@ function ensureSim() {
   if (!quest) return null;
 
   if (_simQuestId !== aq.questId) {
-    _sim = buildSimulation(aq, quest);
-    _simQuestId = aq.questId;
+    try {
+      _sim = buildSimulation(aq, quest);
+      _simQuestId = aq.questId;
+    } catch (err) {
+      console.error('[CombatSim] buildSimulation crashed — clearing stuck quest:', err);
+      _sim = null;
+      _simQuestId = null;
+      // Prevent the quest from being permanently stuck
+      Game.state.guild.activeQuest = null;
+      return null;
+    }
   }
   return _sim;
 }
@@ -4834,6 +5272,9 @@ export function getCombatDebug() {
   const sim = ensureSim();
   return sim ? sim.combatDebug : null;
 }
+
+/** Set of skill IDs that are AoE (used by compendium to badge procs). */
+export const AOE_SKILL_IDS = new Set(Object.keys(AOE_SKILLS));
 
 // Get all simulation events (call before resetCombatLog to capture for export)
 export function getSimEvents() {

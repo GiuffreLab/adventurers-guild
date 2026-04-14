@@ -378,7 +378,7 @@ function renderEquipmentPanel(m, s) {
         if (slot === 'offhand' && it.slot === 'weapon' && !it.twoHanded) {
           if (isRogue && it.dagger) return true;
           if (isMonk && it.claw) return true;
-          if (isRanger && !it.dagger && !it.claw && it.classReq && it.classReq.includes('RANGER') && !it.twoHanded) return true;
+          if (isRanger && !it.dagger && !it.claw && !it.bow && it.classReq && it.classReq.includes('RANGER') && !it.twoHanded) return true;
         }
         return false;
       });

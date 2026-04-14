@@ -79,11 +79,11 @@ export const EQUIPMENT_SKILLS = {
     narrative: 'channels draconic ki and unleashes a Dragon Fist!',
   },
   HEAVENLY_PALM: {
-    id: 'HEAVENLY_PALM', name: 'Heavenly Palm', type: 'active', source: 'equipment',
+    id: 'HEAVENLY_PALM', name: 'Retribution Stance', type: 'active', source: 'equipment',
     itemId: 'CELESTIAL_BO', unlockLevel: null,
-    description: 'Celestial Bo channels heavenly force into a thunderous palm strike.',
-    icon: '✨', effects: { powerMultiplier: 1.4, atkBonus: 0.85, spdBonus: 0.20, defBonus: 0.15 }, procChance: 0.50,
-    narrative: 'channels the heavens and strikes with a Heavenly Palm!',
+    description: 'The Celestial Bo hums with divine energy. For 2 rounds, attacks are deflected back at the attacker, weakening their assault.',
+    icon: '✨', effects: { isDeflect: true, deflectChance: 0.25, dmgReduction: 0.30, reflectPct: 0.25, atkDebuff: 0.10, deflectRounds: 2 }, procChance: 0.50,
+    narrative: 'raises the Celestial Bo — divine energy forms a barrier of retribution!',
   },
   DIVINE_GRACE_EQ: {
     id: 'DIVINE_GRACE_EQ', name: 'Staff of Grace', type: 'active', source: 'equipment',
@@ -135,18 +135,33 @@ export const EQUIPMENT_SKILLS = {
     narrative: 'draws arrows with blinding speed from the Windrunner Quiver!',
   },
   SHADOW_SHOT: {
-    id: 'SHADOW_SHOT', name: 'Shadow Shot', type: 'active', source: 'equipment',
+    id: 'SHADOW_SHOT', name: 'Shadow Quiver', type: 'active', source: 'equipment',
     itemId: 'SHADOWSTRIKE_QUIVER', unlockLevel: null,
-    description: 'Fires a shadow-infused arrow that strikes before the enemy can react.',
-    icon: '🌑', effects: { atkBonus: 0.40, critChance: 0.25, spdBonus: 0.15 }, procChance: 0.45,
-    narrative: 'fires a shadow-infused arrow from the Shadowstrike Quiver!',
+    description: 'The Shadowstrike Quiver cloaks the archer in shadow, boosting speed and precision.',
+    icon: '🌑', effects: { spdBonus: 0.25, critChance: 0.20, dodgeChance: 0.15 }, procChance: 0.45,
+    narrative: 'draws from the Shadowstrike Quiver — shadows swirl and sharpen every sense!',
   },
   GALE_BARRAGE: {
-    id: 'GALE_BARRAGE', name: 'Gale Barrage', type: 'active', source: 'equipment',
+    id: 'GALE_BARRAGE', name: 'Gale Winds', type: 'passive', source: 'equipment',
     itemId: 'GALE_QUIVER', unlockLevel: null,
-    description: 'Unleashes a storm-charged volley of arrows that tears through the enemy ranks.',
-    icon: '🌪', effects: { atkBonus: 0.55, spdBonus: 0.25, critChance: 0.20, defPierce: 0.15 }, procChance: 0.50,
-    narrative: 'unleashes a Gale Barrage — arrows scream through the air like a storm!',
+    description: 'The Gale Quiver radiates storm energy, empowering the entire party with speed and force.',
+    icon: '🌪', effects: { partySpdBonus: 0.15, partyAtkBonus: 0.10, critBonus: 0.08 }, procChance: 1.0,
+    narrative: null,
+  },
+  // ── Bard Lute Auras (Songweaver identity) ──
+  SONGWEAVER: {
+    id: 'SONGWEAVER', name: 'Songweaver', type: 'passive', source: 'equipment',
+    itemId: 'ENCHANTED_LUTE', unlockLevel: null,
+    description: 'The enchanted lute deepens the Regen Song. Regen Song potency +20%, party healing received +8%.',
+    icon: '🎶', effects: { regenAmp: 0.20, partyHealBonus: 0.08 }, procChance: 1.0,
+    narrative: null,
+  },
+  SONGWEAVER_II: {
+    id: 'SONGWEAVER_II', name: 'Songweaver II', type: 'passive', source: 'equipment',
+    itemId: 'SIREN_HARP', unlockLevel: null,
+    description: 'The siren harp amplifies restorative melodies. Regen Song potency +25%, party healing received +12%.',
+    icon: '🎶', effects: { regenAmp: 0.25, partyHealBonus: 0.12 }, procChance: 1.0,
+    narrative: null,
   },
   SIREN_SONG: {
     id: 'SIREN_SONG', name: 'Siren Song', type: 'active', source: 'equipment',
@@ -154,6 +169,21 @@ export const EQUIPMENT_SKILLS = {
     description: 'Plays a mesmerizing Siren Song that enchants and heals.',
     icon: '🎵', effects: { powerMultiplier: 1.4, magBonus: 0.55, healBonus: 0.15, critBonus: 0.06, dodgeBonus: 0.09 }, procChance: 0.50,
     narrative: 'plays a mesmerizing Siren Song!',
+  },
+  // ── Bard Drum Auras (Wardrum identity) ──
+  WARDRUM: {
+    id: 'WARDRUM', name: 'Wardrum', type: 'passive', source: 'equipment',
+    itemId: 'WAR_DRUM', unlockLevel: null,
+    description: 'The war drum intensifies Discord. Discord DoT +25%, Discord ATK reduction +5%.',
+    icon: '🥁', effects: { discordDotAmp: 0.25, discordAtkRedBonus: 0.05 }, procChance: 1.0,
+    narrative: null,
+  },
+  WARDRUM_II: {
+    id: 'WARDRUM_II', name: 'Wardrum II', type: 'passive', source: 'equipment',
+    itemId: 'THUNDERDRUM', unlockLevel: null,
+    description: 'The thunderdrum shakes enemies to their core. Discord DoT +35%, ATK reduction +8%, fumble chance +5%.',
+    icon: '🥁', effects: { discordDotAmp: 0.35, discordAtkRedBonus: 0.08, discordFumbleBonus: 0.05 }, procChance: 1.0,
+    narrative: null,
   },
   BATTLE_MARCH: {
     id: 'BATTLE_MARCH', name: 'Battle March', type: 'active', source: 'equipment',
@@ -209,10 +239,17 @@ export const EQUIPMENT_SKILLS = {
   },
   VOID_BURST: {
     id: 'VOID_BURST', name: 'Void Burst', type: 'active', source: 'equipment',
+    itemId: 'ARCHMAGE_STAFF', unlockLevel: null,
+    description: 'The Archmage Staff tears open a void rift, unleashing unstable magic across all enemies.',
+    icon: '🌀', effects: { powerMultiplier: 1.4, magBonus: 0.65, critChance: 0.15 }, procChance: 0.50,
+    narrative: 'tears open a void rift — unstable magic detonates across the enemy ranks!',
+  },
+  VOID_ATTUNEMENT: {
+    id: 'VOID_ATTUNEMENT', name: 'Void Attunement', type: 'active', source: 'equipment',
     itemId: 'VOID_ORB', unlockLevel: null,
-    description: 'Unleashes a Void Burst of unstable magic.',
-    icon: '🌀', effects: { magBonus: 0.40, critChance: 0.20 }, procChance: 0.45,
-    narrative: 'unleashes a Void Burst!',
+    description: 'The Void Orb resonates with dark energy, amplifying the wielder\'s magic and reflexes.',
+    icon: '🌀', effects: { magBonus: 0.30, critChance: 0.15, dodgeBonus: 0.10 }, procChance: 0.45,
+    narrative: 'attunes to the Void Orb — dark energy sharpens every spell!',
   },
   SANCTUARY: {
     id: 'SANCTUARY', name: 'Holy Sanctuary', type: 'passive', source: 'equipment',
@@ -270,12 +307,76 @@ export const EQUIPMENT_SKILLS = {
     icon: '👹', effects: { powerMultiplier: 1.6, atkBonus: 0.90, spdBonus: 0.30, critChance: 0.30 }, procChance: 0.55,
     narrative: 'enters Asura Fury — a storm of devastating blows!',
   },
+
+  // ── Monk 2H Staff Flowing Defense Procs ─────────────────────────────
+  DEFLECTING_GUARD: {
+    id: 'DEFLECTING_GUARD', name: 'Deflecting Guard', type: 'passive', source: 'equipment',
+    itemId: 'HARDWOOD_BO', unlockLevel: null,
+    description: 'The dense hardwood bo creates a natural defensive rhythm. A chance to deflect incoming blows, reflecting a portion back.',
+    icon: '🪵', effects: { isDeflect: true, deflectChance: 0.15, dmgReduction: 0.25, reflectPct: 0.15 }, procChance: 1.0,
+    narrative: null,
+  },
+  // HEAVENLY_PALM (Retribution Stance, T4) and MONKEY_KING (Monkey King's Reflection, T5) defined above.
+  CEL_COSMIC_REFLECTION: {
+    id: 'CEL_COSMIC_REFLECTION', name: 'Cosmic Reflection', type: 'passive', source: 'equipment',
+    itemId: 'CEL_STAFF_OF_THE_COSMOS', unlockLevel: null,
+    description: 'The Staff of the Cosmos bends reality around the entire party. Attacks fold back on themselves, and allies move with cosmic grace.',
+    icon: '🌌', effects: { isDeflect: true, deflectChance: 0.20, dmgReduction: 0.25, reflectPct: 0.20, partyWide: true, partyDodgeBonus: 0.08, selfDeflectChance: 0.30, selfDmgReduction: 0.30, selfReflectPct: 0.30 }, procChance: 1.0,
+    narrative: null,
+  },
+
+  // ── Rogue Offhand DoT Procs (Poison) ──────────────────────────────────
+  ENVENOM: {
+    id: 'ENVENOM', name: 'Envenom', type: 'active', source: 'equipment',
+    itemId: 'SERPENT_FANG', unlockLevel: null,
+    description: 'The Serpent Fang injects venom that eats at the target over time, weakening their attacks.',
+    icon: '🐍', effects: { dotAtkScale: 0.25, dotRounds: 2, atkDebuff: 0.10 }, procChance: 0.50,
+    narrative: 'drives the Serpent Fang deep — venom courses through the wound!',
+  },
+  DEADLY_TOXIN: {
+    id: 'DEADLY_TOXIN', name: 'Deadly Toxin', type: 'active', source: 'equipment',
+    itemId: 'SCORPION_STILETTO', unlockLevel: null,
+    description: 'The Scorpion Stiletto delivers a potent toxin that ravages the target and saps their strength.',
+    icon: '🦂', effects: { dotAtkScale: 0.30, dotRounds: 3, atkDebuff: 0.15 }, procChance: 0.50,
+    narrative: 'buries the Scorpion Stiletto — deadly toxin floods the wound!',
+  },
+  NEUROTOXIN: {
+    id: 'NEUROTOXIN', name: 'Neurotoxin', type: 'active', source: 'equipment',
+    itemId: 'BASILISK_KISS', unlockLevel: null,
+    description: "The Basilisk's Kiss delivers a neurotoxin that paralyzes and corrodes from within.",
+    icon: '☠', effects: { dotAtkScale: 0.35, dotRounds: 3, atkDebuff: 0.20 }, procChance: 0.55,
+    narrative: "lands the Basilisk's Kiss — neurotoxin seizes the target's body!",
+  },
+
+  // ── Monk Offhand DoT Procs (Spirit/Chi Burn) ─────────────────────────
+  SPIRIT_SCORCH: {
+    id: 'SPIRIT_SCORCH', name: 'Spirit Scorch', type: 'active', source: 'equipment',
+    itemId: 'SPIRIT_WRAPS', unlockLevel: null,
+    description: 'The Spirit Wraps ignite chi energy that scorches the target from within, slowing their movements.',
+    icon: '🔥', effects: { dotAtkScale: 0.25, dotRounds: 2, spdDebuff: 0.10 }, procChance: 0.50,
+    narrative: 'channels chi through the Spirit Wraps — spiritual flame scorches the target!',
+  },
+  INNER_FIRE: {
+    id: 'INNER_FIRE', name: 'Inner Fire', type: 'active', source: 'equipment',
+    itemId: 'DEMON_PALM', unlockLevel: null,
+    description: "The Demon's Palm ignites the target's chi meridians, burning from within and disrupting their flow.",
+    icon: '👹', effects: { dotAtkScale: 0.30, dotRounds: 3, spdDebuff: 0.15 }, procChance: 0.50,
+    narrative: "strikes with the Demon's Palm — inner fire erupts along the target's meridians!",
+  },
+  CHI_ERUPTION: {
+    id: 'CHI_ERUPTION', name: 'Chi Eruption', type: 'active', source: 'equipment',
+    itemId: 'ASTRAL_GAUNTLET', unlockLevel: null,
+    description: 'The Astral Gauntlet ruptures the target\'s life force, causing devastating chi burns and sluggish movements.',
+    icon: '💫', effects: { dotAtkScale: 0.35, dotRounds: 3, spdDebuff: 0.20 }, procChance: 0.55,
+    narrative: 'unleashes the Astral Gauntlet — chi erupts from within the target!',
+  },
+
   MONKEY_KING: {
-    id: 'MONKEY_KING', name: 'Monkey King', type: 'active', source: 'equipment',
+    id: 'MONKEY_KING', name: "Monkey King's Reflection", type: 'active', source: 'equipment',
     itemId: 'RUYI_JINGU', unlockLevel: null,
-    description: 'Channels the Monkey King\'s legendary power.',
-    icon: '🐵', effects: { powerMultiplier: 1.6, atkBonus: 0.95, spdBonus: 0.25, defBonus: 0.20 }, procChance: 0.55,
-    narrative: 'channels the Monkey King\'s legendary power!',
+    description: "The Ruyi Jingu Bang spins a barrier of legendary force. Deflected blows are reflected with devastating power, and the wielder's ki hardens into a shield.",
+    icon: '🐵', effects: { isDeflect: true, deflectChance: 0.30, dmgReduction: 0.35, reflectPct: 0.35, atkDebuff: 0.15, kiShieldPct: 0.05, deflectRounds: 2 }, procChance: 0.55,
+    narrative: "spins the Ruyi Jingu Bang — the Monkey King's barrier manifests!",
   },
   CELESTIAL_VOLLEY: {
     id: 'CELESTIAL_VOLLEY', name: 'Celestial Volley', type: 'active', source: 'equipment',
@@ -298,12 +399,26 @@ export const EQUIPMENT_SKILLS = {
     icon: '✧', effects: { powerMultiplier: 1.6, magBonus: 0.55, healBonus: 0.40, defBonus: 0.20 }, procChance: 0.60,
     narrative: 'channels the World Blessing — divine power flows!',
   },
+  SONGWEAVER_III: {
+    id: 'SONGWEAVER_III', name: 'Songweaver III', type: 'passive', source: 'equipment',
+    itemId: 'ORPHEUS_LYRE', unlockLevel: null,
+    description: 'The legendary lyre sings with divine resonance. Regen Song potency +35%, party healing received +15%.',
+    icon: '🎶', effects: { regenAmp: 0.35, partyHealBonus: 0.15 }, procChance: 1.0,
+    narrative: null,
+  },
   ORPHIC_HYMN: {
     id: 'ORPHIC_HYMN', name: 'Orphic Hymn', type: 'active', source: 'equipment',
     itemId: 'ORPHEUS_LYRE', unlockLevel: null,
     description: 'Performs the legendary Orphic Hymn with divine power.',
     icon: '🎼', effects: { powerMultiplier: 1.6, magBonus: 0.75, healBonus: 0.30, critBonus: 0.10, dodgeBonus: 0.15 }, procChance: 0.60,
     narrative: 'performs the legendary Orphic Hymn!',
+  },
+  WARDRUM_III: {
+    id: 'WARDRUM_III', name: 'Wardrum III', type: 'passive', source: 'equipment',
+    itemId: 'DRUMS_OF_ETERNITY', unlockLevel: null,
+    description: 'The eternal drums devastate all who oppose. Discord DoT +50%, ATK reduction +10%, fumble chance +10%.',
+    icon: '🥁', effects: { discordDotAmp: 0.50, discordAtkRedBonus: 0.10, discordFumbleBonus: 0.10 }, procChance: 1.0,
+    narrative: null,
   },
   ETERNAL_RHYTHM: {
     id: 'ETERNAL_RHYTHM', name: 'Eternal Rhythm', type: 'active', source: 'equipment',
@@ -390,11 +505,11 @@ export const EQUIPMENT_SKILLS = {
     narrative: 'creates a Genesis Ward of primordial power!',
   },
   ETERNITY_PULSE: {
-    id: 'ETERNITY_PULSE', name: 'Eternity Pulse', type: 'active', source: 'equipment',
+    id: 'ETERNITY_PULSE', name: 'Eternity Pulse', type: 'passive', source: 'equipment',
     itemId: 'ORB_OF_ETERNITY', unlockLevel: null,
-    description: 'Pulses with the power of eternity.',
-    icon: '💫', effects: { magBonus: 0.45, critChance: 0.20, spdBonus: 0.10 }, procChance: 0.55,
-    narrative: 'pulses with the power of eternity!',
+    description: 'The Orb of Eternity radiates infinite magical potential, permanently empowering the wielder.',
+    icon: '💫', effects: { magBonus: 0.20, spdBonus: 0.15, critChance: 0.10 }, procChance: 1.0,
+    narrative: null,
   },
   BATTLE_FURY: {
     id: 'BATTLE_FURY', name: 'Battle Fury', type: 'active', source: 'equipment',
@@ -431,18 +546,40 @@ export const EQUIPMENT_SKILLS = {
     icon: '📯', effects: { magBonus: 0.50, powerMultiplier: 1.3 }, procChance: 0.45,
     narrative: 'slams the Deathrattle Staff — a piercing death scream echoes across the battlefield!',
   },
+  // ── Necromancer Scythe Auras (Death Lord identity) ──
+  DEATHS_HARVEST: {
+    id: 'DEATHS_HARVEST', name: "Death's Harvest", type: 'passive', source: 'equipment',
+    itemId: 'GRAVE_REAPER', unlockLevel: null,
+    description: 'The scythe empowers raised thralls. Minion damage +25%, minion HP +20%.',
+    icon: '🪦', effects: { minionDamageBonus: 0.25, minionHpBonus: 0.20 }, procChance: 1.0,
+    narrative: null,
+  },
+  DEATHS_HARVEST_II: {
+    id: 'DEATHS_HARVEST_II', name: "Death's Harvest II", type: 'passive', source: 'equipment',
+    itemId: 'SOUL_HARVESTER', unlockLevel: null,
+    description: 'The scythe feeds harvested souls to the thrall. Minion damage +35%, minion HP +30%. Active: reaps a soul for MAG damage and shreds enemy DEF.',
+    icon: '👤', effects: { minionDamageBonus: 0.35, minionHpBonus: 0.30 }, procChance: 1.0,
+    narrative: null,
+  },
   SOUL_REAP: {
     id: 'SOUL_REAP', name: 'Soul Reap', type: 'active', source: 'equipment',
     itemId: 'SOUL_HARVESTER', unlockLevel: null,
-    description: 'Soul Harvester reaps a sliver of the target\'s soul for devastating damage.',
-    icon: '👤', effects: { powerMultiplier: 1.4, magBonus: 0.55, critChance: 0.20 }, procChance: 0.45,
+    description: 'Soul Harvester reaps a soul shard, dealing MAG damage and shredding 15% enemy DEF for 2 rounds.',
+    icon: '👤', effects: { powerMultiplier: 1.4, magBonus: 0.40, defShred: 0.15, defShredRounds: 2 }, procChance: 0.45,
     narrative: 'reaps with the Soul Harvester — a ghostly echo tears free from the target!',
   },
-  ABYSSAL_HARVEST: {
-    id: 'ABYSSAL_HARVEST', name: 'Abyssal Harvest', type: 'active', source: 'equipment',
+  DEATHS_HARVEST_III: {
+    id: 'DEATHS_HARVEST_III', name: "Death's Harvest III", type: 'passive', source: 'equipment',
     itemId: 'ABYSSAL_SCYTHE', unlockLevel: null,
-    description: 'Abyssal Scythe tears open a rift, dealing massive damage and draining life.',
-    icon: '🌀', effects: { magBonus: 0.60, lifesteal: 0.35, powerMultiplier: 1.4 }, procChance: 0.45,
+    description: 'The abyssal scythe channels death itself into the thrall. Minion damage +50%, minion HP +40%, Blight tick damage +25%.',
+    icon: '🌀', effects: { minionDamageBonus: 0.50, minionHpBonus: 0.40, blightAmp: 0.25 }, procChance: 1.0,
+    narrative: null,
+  },
+  ABYSSAL_REAP: {
+    id: 'ABYSSAL_REAP', name: 'Abyssal Reap', type: 'active', source: 'equipment',
+    itemId: 'ABYSSAL_SCYTHE', unlockLevel: null,
+    description: 'Abyssal Scythe tears open a rift, dealing massive MAG damage and shredding 20% enemy DEF for 2 rounds.',
+    icon: '🌀', effects: { powerMultiplier: 1.5, magBonus: 0.50, defShred: 0.20, defShredRounds: 2 }, procChance: 0.50,
     narrative: 'sweeps the Abyssal Scythe — reality tears open and devours the target!',
   },
   SKULL_WHISPER: {
@@ -585,6 +722,13 @@ export const EQUIPMENT_SKILLS = {
     icon: '🌑', effects: { partySpdBonus: 0.20, partyCritBonus: 0.09, partyDodgeBonus: 0.06 }, procChance: 1.0,
     narrative: null,
   },
+  CEL_VOIDVENOM: {
+    id: 'CEL_VOIDVENOM', name: 'Voidvenom', type: 'active', source: 'equipment',
+    itemId: 'CEL_NULLBLADE', unlockLevel: null,
+    description: 'The Nullblade secretes venom distilled from the void between worlds. It dissolves not just flesh, but the target\'s will to fight.',
+    icon: '☠', effects: { dotAtkScale: 0.42, dotRounds: 3, atkDebuff: 0.25 }, procChance: 0.60,
+    narrative: 'drives the Nullblade deep — void-venom floods the wound, dissolving flesh and will alike!',
+  },
   CEL_SHADOW_DIMENSION: {
     id: 'CEL_SHADOW_DIMENSION', name: 'Shadow Dimension', type: 'passive', source: 'equipment',
     itemId: 'CEL_ECLIPSE_PENDANT', unlockLevel: null,
@@ -598,6 +742,13 @@ export const EQUIPMENT_SKILLS = {
     description: 'The Scepter of Dawn channels the wrath of the heavens, passing judgement upon the unworthy.',
     icon: '⚡', effects: { magBonus: 0.35, atkBonus: 0.20, powerMultiplier: 1.7 }, procChance: 0.55,
     narrative: "calls down Dawn's Judgement — the Scepter of Dawn sears evil with holy radiance!",
+  },
+  CEL_SANCTIFIED_RADIANCE: {
+    id: 'CEL_SANCTIFIED_RADIANCE', name: 'Sanctified Radiance', type: 'passive', source: 'equipment',
+    itemId: 'CEL_SCEPTER_OF_DAWN', unlockLevel: null,
+    description: 'The Scepter of Dawn bathes the party in sanctified light. Persistent HoT: ~38% of Cleric MAG per round to all allies.',
+    icon: '☀', effects: { clericRegen: true, clericRegenScale: 0.38 }, procChance: 1.0,
+    narrative: null,
   },
   CEL_DIVINE_SHIELD: {
     id: 'CEL_DIVINE_SHIELD', name: 'Radiant Aegis', type: 'passive', source: 'equipment',
@@ -669,11 +820,11 @@ export const EQUIPMENT_SKILLS = {
     icon: '🥁', effects: { partyAtkBonus: 0.18, partyDefBonus: 0.18, partyMagBonus: 0.18, partySpdBonus: 0.18, powerMultiplier: 1.5 }, procChance: 0.50,
     narrative: 'strikes the Rhythm of Worlds — the heartbeat of infinite worlds empowers every ally!',
   },
-  CEL_ETERNAL_CADENCE: {
-    id: 'CEL_ETERNAL_CADENCE', name: 'Eternal Cadence', type: 'passive', source: 'equipment',
+  CEL_WARDRUM: {
+    id: 'CEL_WARDRUM', name: 'Eternal Wardrum', type: 'passive', source: 'equipment',
     itemId: 'CEL_DRUM_OF_ETERNITY', unlockLevel: null,
-    description: 'The Drum of Eternity resonates with an unbreakable cadence. Its rhythm steadies every heartbeat, mending wounds and hardening resolve.',
-    icon: '💫', effects: { magBonus: 0.15, defBonus: 0.18, healBonus: 0.15, maxHpBonus: 0.10, partyDefBonus: 0.06, partyMaxHpBonus: 0.05 }, procChance: 1.0,
+    description: 'The Drum of Eternity crushes the spirit of all who oppose. Discord DoT +60%, ATK reduction +15%, fumble chance +15%, party SPD +8%.',
+    icon: '💫', effects: { discordDotAmp: 0.60, discordAtkRedBonus: 0.15, discordFumbleBonus: 0.15, partySpdBonus: 0.08 }, procChance: 1.0,
     narrative: null,
   },
   CEL_SYMPHONY_AURA: {
@@ -683,11 +834,11 @@ export const EQUIPMENT_SKILLS = {
     icon: '🎶', effects: { magBonus: 0.18, critBonus: 0.09, dodgeBonus: 0.13, spdBonus: 0.18, atkBonus: 0.10, defBonus: 0.10, partyCritBonus: 0.05, partyDodgeBonus: 0.07 }, procChance: 1.0,
     narrative: null,
   },
-  CEL_MUSES_INSPIRATION: {
-    id: 'CEL_MUSES_INSPIRATION', name: "Muse's Inspiration", type: 'passive', source: 'equipment',
+  CEL_SONGWEAVER: {
+    id: 'CEL_SONGWEAVER', name: "Muse's Songweaver", type: 'passive', source: 'equipment',
     itemId: 'CEL_LYRE_OF_CREATION', unlockLevel: null,
-    description: 'The Lyre of Creation hums with the voice of the First Muse. Songs heal deeper, chords strike truer, and the music never falters.',
-    icon: '✨', effects: { magBonus: 0.18, healBonus: 0.20, spdBonus: 0.15, dodgeBonus: 0.12, critBonus: 0.08 }, procChance: 1.0,
+    description: 'The Lyre of Creation hums with the voice of the First Muse. Regen Song potency +40%, party healing received +20%. Regen Song never rolls lower.',
+    icon: '✨', effects: { regenAmp: 0.40, partyHealBonus: 0.20, regenNeverLower: true }, procChance: 1.0,
     narrative: null,
   },
   CEL_TRANSCENDENT_STRIKE: {
@@ -711,6 +862,13 @@ export const EQUIPMENT_SKILLS = {
     icon: '🤲', effects: { partySpdBonus: 0.20, partyAtkBonus: 0.15, partyDefBonus: 0.10 }, procChance: 1.0,
     narrative: null,
   },
+  CEL_ASTRAL_IGNITION: {
+    id: 'CEL_ASTRAL_IGNITION', name: 'Astral Ignition', type: 'active', source: 'equipment',
+    itemId: 'CEL_PALM_OF_THE_INFINITE', unlockLevel: null,
+    description: 'The Palm of the Infinite ignites the target\'s astral body. Their very soul burns, and their movements slow to a crawl.',
+    icon: '💫', effects: { dotAtkScale: 0.42, dotRounds: 3, spdDebuff: 0.25 }, procChance: 0.60,
+    narrative: 'strikes with the Palm of the Infinite — astral fire erupts from the target\'s core, burning their very essence!',
+  },
   CEL_NIRVANA_AURA: {
     id: 'CEL_NIRVANA_AURA', name: 'Nirvana', type: 'passive', source: 'equipment',
     itemId: 'CEL_CHAKRA_OF_ENLIGHTENMENT', unlockLevel: null,
@@ -725,18 +883,11 @@ export const EQUIPMENT_SKILLS = {
     icon: '🩸', effects: { magBonus: 0.35, lifesteal: 0.50, powerMultiplier: 1.5 }, procChance: 0.55,
     narrative: 'channels the Soulweaver — threads of stolen life surge from the enemy into the caster!',
   },
-  CEL_DEATHS_DOMINION: {
-    id: 'CEL_DEATHS_DOMINION', name: "Death's Dominion", type: 'active', source: 'equipment',
+  CEL_DEATHS_HARVEST: {
+    id: 'CEL_DEATHS_HARVEST', name: "Death's Dominion", type: 'passive', source: 'equipment',
     itemId: 'CEL_MORTALITYS_END', unlockLevel: null,
-    description: "Mortality's End scythes through the boundary between life and death, dealing catastrophic necrotic damage to all enemies.",
-    icon: '💀', effects: { magBonus: 0.50, powerMultiplier: 2.0, critChance: 0.25 }, procChance: 0.50,
-    narrative: "sweeps Mortality's End through the veil — Death's Dominion claims the battlefield!",
-  },
-  CEL_REAPERS_PRESENCE: {
-    id: 'CEL_REAPERS_PRESENCE', name: "Reaper's Presence", type: 'passive', source: 'equipment',
-    itemId: 'CEL_MORTALITYS_END', unlockLevel: null,
-    description: "The scythe's mere presence weakens the boundary between life and death. MAG +25%, CRIT +15%, party MAG +8%.",
-    icon: '⚰', effects: { magBonus: 0.25, critChance: 0.15, partyMagBonus: 0.08 }, procChance: 1.0,
+    description: "Mortality's End transforms the thrall into a lord of death. Minion damage +60%, minion HP +50%, thrall attacks hit ALL enemies, Blight tick damage +30%, party MAG +8%.",
+    icon: '💀', effects: { minionDamageBonus: 0.60, minionHpBonus: 0.50, minionAoe: true, blightAmp: 0.30, partyMagBonus: 0.08 }, procChance: 1.0,
     narrative: null,
   },
   CEL_LICHBORNE: {

@@ -20,6 +20,8 @@ export const ITEM_RARITIES = {
 //   twoHanded: true — blocks offhand slot when equipped
 //   dagger: true — Rogues can dual-wield in weapon + offhand
 //   claw: true — Monks can dual-wield in weapon + offhand
+//   bow: true — mainhand only (cannot go in offhand)
+//   quiver: true — offhand only (cannot go in mainhand)
 //
 // Armor classes:    Plate → Hero, Knight  |  Chain → Ranger, Rogue  |  Leather → Monk  |  Robes → Mage, Cleric, Bard
 // Weapon loadouts:  Hero → 1h sword+shield or 2h sword  |  Knight → 1h sword+shield
@@ -566,7 +568,8 @@ export const EQUIPMENT = {
     buyPrice: 260,
     shopMinRank: 'D',
     twoHanded: true,
-    desc: 'A dense hardwood bo staff with excellent balance.'
+    grantedSkill: 'DEFLECTING_GUARD',
+    desc: 'A dense hardwood bo staff with excellent balance. Its weight creates a natural deflecting rhythm.'
   },
   CELESTIAL_BO: {
     id: 'CELESTIAL_BO',
@@ -581,7 +584,7 @@ export const EQUIPMENT = {
     shopMinRank: 'C',
     twoHanded: true,
     grantedSkill: 'HEAVENLY_PALM',
-    desc: 'A staff blessed by the heavens with celestial energy.'
+    desc: 'A staff blessed by the heavens. Divine energy flows through it, turning the wielder into an untouchable wall of retribution.'
   },
   RUYI_JINGU: {
     id: 'RUYI_JINGU',
@@ -596,7 +599,7 @@ export const EQUIPMENT = {
     shopMinRank: 'B',
     twoHanded: true,
     grantedSkill: 'MONKEY_KING',
-    desc: 'The legendary staff of the Monkey King, weightless yet devastating.'
+    desc: 'The legendary staff of the Monkey King. It spins an impenetrable barrier — every blow returned with interest.'
   },
 
   // === BOWS ===
@@ -607,6 +610,7 @@ export const EQUIPMENT = {
     tier: 1,
     rarity: 'common',
     classReq: ['RANGER'],
+    bow: true,
     statBonus: { atk: 4, spd: 2, crit: 1 },
     sellPrice: 6,
     buyPrice: 20,
@@ -620,6 +624,7 @@ export const EQUIPMENT = {
     tier: 2,
     rarity: 'magic',
     classReq: ['RANGER'],
+    bow: true,
     statBonus: { atk: 11, spd: 4, crit: 2, def: 1 },
     sellPrice: 32,
     buyPrice: 80,
@@ -633,6 +638,7 @@ export const EQUIPMENT = {
     tier: 3,
     rarity: 'rare',
     classReq: ['RANGER'],
+    bow: true,
     statBonus: { atk: 18, spd: 7, crit: 3, def: 2 },
     sellPrice: 100,
     buyPrice: 250,
@@ -646,6 +652,7 @@ export const EQUIPMENT = {
     tier: 4,
     rarity: 'epic',
     classReq: ['RANGER'],
+    bow: true,
     statBonus: { atk: 32, spd: 12, crit: 11, maxHp: 10 },
     sellPrice: 250,
     buyPrice: 620,
@@ -660,6 +667,7 @@ export const EQUIPMENT = {
     tier: 5,
     rarity: 'legendary',
     classReq: ['RANGER'],
+    bow: true,
     statBonus: { atk: 48, spd: 18, crit: 24, maxHp: 20 },
     sellPrice: 875,
     buyPrice: 2190,
@@ -719,8 +727,7 @@ export const EQUIPMENT = {
     sellPrice: 260,
     buyPrice: 650,
     shopMinRank: 'C',
-    // No granted skill — Arcane Cataclysm is owned by STAFF_OF_AGES (legendary).
-    // Archmage Staff needs its own unique proc; left null for now.
+    grantedSkill: 'VOID_BURST',
     desc: 'A staff of immense power, crackling with raw mana.'
   },
   STAFF_OF_AGES: {
@@ -773,7 +780,7 @@ export const EQUIPMENT = {
     tier: 4,
     rarity: 'epic',
     classReq: ['CLERIC'],
-    statBonus: { mag: 28, def: 7, maxHp: 30, crit: 5 },
+    statBonus: { mag: 28, def: 7, maxHp: 30, crit: 5, spd: 4 },
     sellPrice: 245,
     buyPrice: 610,
     shopMinRank: 'C',
@@ -787,7 +794,7 @@ export const EQUIPMENT = {
     tier: 5,
     rarity: 'legendary',
     classReq: ['CLERIC'],
-    statBonus: { mag: 42, def: 14, maxHp: 50, crit: 10 },
+    statBonus: { mag: 42, def: 14, maxHp: 50, crit: 10, spd: 6 },
     sellPrice: 860,
     buyPrice: 2150,
     shopMinRank: 'B',
@@ -836,7 +843,8 @@ export const EQUIPMENT = {
     buyPrice: 250,
     shopMinRank: 'D',
     twoHanded: true,
-    desc: 'A lute enchanted with powerful bardic magic.'
+    grantedSkill: 'SONGWEAVER',
+    desc: 'A lute enchanted with powerful bardic magic. Its melodies deepen the Regen Song.'
   },
   SIREN_HARP: {
     id: 'SIREN_HARP',
@@ -850,8 +858,8 @@ export const EQUIPMENT = {
     buyPrice: 620,
     shopMinRank: 'C',
     twoHanded: true,
-    grantedSkill: 'SIREN_SONG',
-    desc: 'A harp that captivates with siren-like melodies.'
+    grantedSkills: ['SONGWEAVER_II', 'SIREN_SONG'],
+    desc: 'A harp whose siren melodies amplify restorative song and captivate the senses.'
   },
   ORPHEUS_LYRE: {
     id: 'ORPHEUS_LYRE',
@@ -865,8 +873,8 @@ export const EQUIPMENT = {
     buyPrice: 2200,
     shopMinRank: 'B',
     twoHanded: true,
-    grantedSkill: 'ORPHIC_HYMN',
-    desc: 'The legendary lyre of Orpheus, compelling as death itself.'
+    grantedSkills: ['SONGWEAVER_III', 'ORPHIC_HYMN'],
+    desc: 'The legendary lyre of Orpheus. Its divine resonance turns Regen Song into a wall of sustain.'
   },
 
   // === DRUMS ===
@@ -910,7 +918,8 @@ export const EQUIPMENT = {
     buyPrice: 245,
     shopMinRank: 'D',
     twoHanded: true,
-    desc: 'A war drum that rallies allies to battle.'
+    grantedSkill: 'WARDRUM',
+    desc: 'A war drum that intensifies Discord, weakening all who hear its beat.'
   },
   THUNDERDRUM: {
     id: 'THUNDERDRUM',
@@ -924,8 +933,8 @@ export const EQUIPMENT = {
     buyPrice: 630,
     shopMinRank: 'C',
     twoHanded: true,
-    grantedSkill: 'BATTLE_MARCH',
-    desc: 'A drum that rumbles like thunder when struck.'
+    grantedSkills: ['WARDRUM_II', 'BATTLE_MARCH'],
+    desc: 'A drum that rumbles like thunder. Discord shakes enemies to their core.'
   },
   DRUMS_OF_ETERNITY: {
     id: 'DRUMS_OF_ETERNITY',
@@ -939,8 +948,8 @@ export const EQUIPMENT = {
     buyPrice: 2190,
     shopMinRank: 'B',
     twoHanded: true,
-    grantedSkill: 'ETERNAL_RHYTHM',
-    desc: 'Drums that have beaten since the world began.'
+    grantedSkills: ['WARDRUM_III', 'ETERNAL_RHYTHM'],
+    desc: 'Drums that have beaten since the world began. Discord becomes devastating under their rhythm.'
   },
 
   // === PLATE ARMOR ===
@@ -1944,7 +1953,7 @@ export const EQUIPMENT = {
     sellPrice: 255,
     buyPrice: 630,
     shopMinRank: 'C',
-    grantedSkill: 'VOID_BURST',
+    grantedSkill: 'VOID_ATTUNEMENT',
     desc: 'An orb of pure darkness that amplifies destructive magic.'
   },
   ORB_OF_ETERNITY: {
@@ -1984,6 +1993,7 @@ export const EQUIPMENT = {
     tier: 1,
     rarity: 'common',
     classReq: ['RANGER'],
+    quiver: true,
     statBonus: { atk: 2, spd: 1 },
     sellPrice: 4,
     buyPrice: 14,
@@ -1997,6 +2007,7 @@ export const EQUIPMENT = {
     tier: 2,
     rarity: 'magic',
     classReq: ['RANGER'],
+    quiver: true,
     statBonus: { atk: 6, spd: 3, crit: 2 },
     sellPrice: 30,
     buyPrice: 75,
@@ -2010,6 +2021,7 @@ export const EQUIPMENT = {
     tier: 3,
     rarity: 'rare',
     classReq: ['RANGER'],
+    quiver: true,
     statBonus: { atk: 12, spd: 6, crit: 5, dodge: 2 },
     sellPrice: 100,
     buyPrice: 250,
@@ -2024,6 +2036,7 @@ export const EQUIPMENT = {
     tier: 4,
     rarity: 'epic',
     classReq: ['RANGER'],
+    quiver: true,
     statBonus: { atk: 18, spd: 10, crit: 8, dodge: 4 },
     sellPrice: 250,
     buyPrice: 620,
@@ -2038,12 +2051,161 @@ export const EQUIPMENT = {
     tier: 5,
     rarity: 'legendary',
     classReq: ['RANGER'],
+    quiver: true,
     statBonus: { atk: 30, spd: 16, crit: 18, dodge: 6 },
     sellPrice: 880,
     buyPrice: 2200,
     shopMinRank: 'B',
     grantedSkill: 'GALE_BARRAGE',
     desc: 'Forged from a captured storm. Every arrow loosed carries the force of a gale behind it.'
+  },
+
+  // ── Rogue Offhand Daggers ───────────────────────────────────────────────
+  THROWING_KNIVES: {
+    id: 'THROWING_KNIVES',
+    name: 'Throwing Knives',
+    slot: 'offhand',
+    tier: 1,
+    rarity: 'common',
+    classReq: ['ROGUE'],
+    statBonus: { atk: 2, spd: 1 },
+    sellPrice: 4,
+    buyPrice: 14,
+    shopMinRank: 'F',
+    desc: 'A bandolier of cheap throwing knives. Better than nothing in the off hand.'
+  },
+  PARRYING_DAGGER: {
+    id: 'PARRYING_DAGGER',
+    name: 'Parrying Dagger',
+    slot: 'offhand',
+    tier: 2,
+    rarity: 'magic',
+    classReq: ['ROGUE'],
+    statBonus: { atk: 5, spd: 3, dodge: 2 },
+    sellPrice: 30,
+    buyPrice: 75,
+    shopMinRank: 'E',
+    desc: 'A slender off-hand blade designed for deflecting strikes and creating openings.'
+  },
+  SERPENT_FANG: {
+    id: 'SERPENT_FANG',
+    name: 'Serpent Fang',
+    slot: 'offhand',
+    tier: 3,
+    rarity: 'rare',
+    classReq: ['ROGUE'],
+    statBonus: { atk: 10, spd: 5, crit: 4, dodge: 2 },
+    sellPrice: 100,
+    buyPrice: 250,
+    shopMinRank: 'D',
+    dagger: true,
+    grantedSkill: 'ENVENOM',
+    desc: 'Hollow fangs carved from a giant serpent\'s tooth. The channels still weep with venom.'
+  },
+  SCORPION_STILETTO: {
+    id: 'SCORPION_STILETTO',
+    name: 'Scorpion Stiletto',
+    slot: 'offhand',
+    tier: 4,
+    rarity: 'epic',
+    classReq: ['ROGUE'],
+    statBonus: { atk: 16, spd: 8, crit: 7, dodge: 4 },
+    sellPrice: 250,
+    buyPrice: 620,
+    shopMinRank: 'C',
+    dagger: true,
+    grantedSkill: 'DEADLY_TOXIN',
+    desc: 'A stiletto tipped with scorpion venom. One scratch is enough — the poison does the rest.'
+  },
+  BASILISK_KISS: {
+    id: 'BASILISK_KISS',
+    name: "Basilisk's Kiss",
+    slot: 'offhand',
+    tier: 5,
+    rarity: 'legendary',
+    classReq: ['ROGUE'],
+    statBonus: { atk: 26, spd: 14, crit: 16, dodge: 8 },
+    sellPrice: 880,
+    buyPrice: 2200,
+    shopMinRank: 'B',
+    dagger: true,
+    grantedSkill: 'NEUROTOXIN',
+    desc: 'Forged from a basilisk\'s petrifying gaze given steel form. Its venom dissolves will and flesh alike.'
+  },
+
+  // ── Monk Offhand Claws ──────────────────────────────────────────────────
+  TRAINING_WRAPS: {
+    id: 'TRAINING_WRAPS',
+    name: 'Training Wraps',
+    slot: 'offhand',
+    tier: 1,
+    rarity: 'common',
+    classReq: ['MONK'],
+    statBonus: { atk: 1, spd: 1, def: 1 },
+    sellPrice: 4,
+    buyPrice: 14,
+    shopMinRank: 'F',
+    claw: true,
+    desc: 'Simple cotton wraps for the off hand. Every journey begins with a single punch.'
+  },
+  IRON_KNUCKLES: {
+    id: 'IRON_KNUCKLES',
+    name: 'Iron Knuckles',
+    slot: 'offhand',
+    tier: 2,
+    rarity: 'magic',
+    classReq: ['MONK'],
+    statBonus: { atk: 5, spd: 2, def: 3 },
+    sellPrice: 30,
+    buyPrice: 75,
+    shopMinRank: 'E',
+    claw: true,
+    desc: 'Weighted iron rings that channel strikes with devastating focus.'
+  },
+  SPIRIT_WRAPS: {
+    id: 'SPIRIT_WRAPS',
+    name: 'Spirit Wraps',
+    slot: 'offhand',
+    tier: 3,
+    rarity: 'rare',
+    classReq: ['MONK'],
+    statBonus: { atk: 9, spd: 5, def: 3, crit: 2 },
+    sellPrice: 100,
+    buyPrice: 250,
+    shopMinRank: 'D',
+    claw: true,
+    grantedSkill: 'SPIRIT_SCORCH',
+    desc: 'Wraps imbued with chi energy. Each strike leaves a lingering burn on the target\'s spirit.'
+  },
+  DEMON_PALM: {
+    id: 'DEMON_PALM',
+    name: "Demon's Palm",
+    slot: 'offhand',
+    tier: 4,
+    rarity: 'epic',
+    classReq: ['MONK'],
+    statBonus: { atk: 15, spd: 8, def: 5, crit: 4 },
+    sellPrice: 250,
+    buyPrice: 620,
+    shopMinRank: 'C',
+    claw: true,
+    grantedSkill: 'INNER_FIRE',
+    desc: 'A demonic relic reshaped by monastic discipline. Its strikes ignite the target\'s chi meridians.'
+  },
+  ASTRAL_GAUNTLET: {
+    id: 'ASTRAL_GAUNTLET',
+    name: 'Astral Gauntlet',
+    slot: 'offhand',
+    tier: 5,
+    rarity: 'legendary',
+    classReq: ['MONK'],
+    statBonus: { atk: 24, spd: 13, def: 8, crit: 10, maxHp: 15 },
+    sellPrice: 880,
+    buyPrice: 2200,
+    shopMinRank: 'B',
+    claw: true,
+    grantedSkill: 'CHI_ERUPTION',
+    desc: 'Woven from astral threads by an ascended master. Each blow disrupts the target\'s life force from within.'
   },
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -2184,9 +2346,9 @@ export const EQUIPMENT = {
     rarity: 'celestial', classReq: ['ROGUE'],
     dagger: true,
     statBonus: { atk: 40, spd: 25, crit: 25, dodge: 15 },
-    grantedSkill: 'CEL_VOID_ECHO',
+    grantedSkills: ['CEL_VOID_ECHO', 'CEL_VOIDVENOM'],
     sellPrice: 80000, buyPrice: 0, shopMinRank: null,
-    desc: 'The twin of Voidfang. Where one cuts flesh, the other cuts fate. Together, they sever destiny itself.'
+    desc: 'The twin of Voidfang. Where one cuts flesh, the other cuts fate. Its edge weeps void-venom that dissolves will and flesh alike.'
   },
   CEL_ECLIPSE_PENDANT: {
     id: 'CEL_ECLIPSE_PENDANT', name: 'Eclipse Pendant', slot: 'accessory', tier: 6,
@@ -2202,9 +2364,9 @@ export const EQUIPMENT = {
     id: 'CEL_SCEPTER_OF_DAWN', name: 'Scepter of Dawn', slot: 'weapon', tier: 6,
     rarity: 'celestial', classReq: ['CLERIC'],
     statBonus: { mag: 52, atk: 20, def: 10, crit: 8, dodge: 4 },
-    grantedSkill: 'CEL_DIVINE_JUDGEMENT',
+    grantedSkills: ['CEL_DIVINE_JUDGEMENT', 'CEL_SANCTIFIED_RADIANCE'],
     sellPrice: 80000, buyPrice: 0, shopMinRank: null,
-    desc: 'The first light that ever shone is trapped within this scepter. Its radiance purges all darkness.'
+    desc: 'The first light that ever shone is trapped within this scepter. Its radiance purges darkness and bathes the party in a persistent sanctified glow.'
   },
   CEL_VESTMENTS_OF_GRACE: {
     id: 'CEL_VESTMENTS_OF_GRACE', name: 'Vestments of Grace', slot: 'armor', tier: 6,
@@ -2235,6 +2397,7 @@ export const EQUIPMENT = {
   CEL_STARFALL_BOW: {
     id: 'CEL_STARFALL_BOW', name: 'Starfall Bow', slot: 'weapon', tier: 6,
     rarity: 'celestial', classReq: ['RANGER'],
+    bow: true,
     statBonus: { atk: 58, spd: 25, crit: 33 },
     grantedSkill: 'CEL_CELESTIAL_BARRAGE',
     sellPrice: 80000, buyPrice: 0, shopMinRank: null,
@@ -2251,6 +2414,7 @@ export const EQUIPMENT = {
   CEL_CONSTELLATION_QUIVER: {
     id: 'CEL_CONSTELLATION_QUIVER', name: 'Constellation Quiver', slot: 'offhand', tier: 6,
     rarity: 'celestial', classReq: ['RANGER'],
+    quiver: true,
     statBonus: { atk: 30, spd: 20, crit: 30 },
     grantedSkill: 'CEL_STARFIRE_VOLLEY',
     sellPrice: 80000, buyPrice: 0, shopMinRank: null,
@@ -2270,7 +2434,7 @@ export const EQUIPMENT = {
     id: 'CEL_LYRE_OF_CREATION', name: 'Lyre of Creation', slot: 'weapon', tier: 6,
     rarity: 'celestial', classReq: ['BARD'],
     statBonus: { mag: 90, spd: 38, crit: 32, dodge: 46, def: 16, maxHp: 38 },
-    grantedSkills: ['CEL_SONG_OF_CREATION', 'CEL_MUSES_INSPIRATION'],
+    grantedSkills: ['CEL_SONG_OF_CREATION', 'CEL_SONGWEAVER'],
     sellPrice: 80000, buyPrice: 0, shopMinRank: null,
     twoHanded: true,
     desc: 'The instrument that played the melody of creation. Each note reshapes reality. Each chord rewrites the laws of physics.'
@@ -2287,7 +2451,7 @@ export const EQUIPMENT = {
     id: 'CEL_DRUM_OF_ETERNITY', name: 'Drum of Eternity', slot: 'weapon', tier: 6,
     rarity: 'celestial', classReq: ['BARD'],
     statBonus: { mag: 82, def: 30, spd: 32, crit: 24, dodge: 28, maxHp: 52 },
-    grantedSkills: ['CEL_RHYTHM_OF_WORLDS', 'CEL_ETERNAL_CADENCE'],
+    grantedSkills: ['CEL_RHYTHM_OF_WORLDS', 'CEL_WARDRUM'],
     sellPrice: 80000, buyPrice: 0, shopMinRank: null,
     twoHanded: true,
     desc: 'The drum beats with the heartbeat of the universe. Each strike synchronizes the rhythm of every living thing nearby.'
@@ -2311,6 +2475,15 @@ export const EQUIPMENT = {
     sellPrice: 80000, buyPrice: 0, shopMinRank: null,
     desc: 'Gauntlets forged from condensed enlightenment. Each strike carries the weight of ten thousand years of meditation.'
   },
+  CEL_STAFF_OF_THE_COSMOS: {
+    id: 'CEL_STAFF_OF_THE_COSMOS', name: 'Staff of the Cosmos', slot: 'weapon', tier: 6,
+    rarity: 'celestial', classReq: ['MONK'],
+    twoHanded: true,
+    statBonus: { atk: 65, def: 40, spd: 35, dodge: 20, maxHp: 80 },
+    grantedSkill: 'CEL_COSMIC_REFLECTION',
+    sellPrice: 80000, buyPrice: 0, shopMinRank: null,
+    desc: 'A staff carved from the axis of the universe. Reality bends around its wielder — attacks fold back on themselves, and allies move with cosmic grace.'
+  },
   CEL_GI_OF_THE_ABSOLUTE: {
     id: 'CEL_GI_OF_THE_ABSOLUTE', name: 'Gi of the Absolute', slot: 'armor', tier: 6,
     rarity: 'celestial', classReq: ['MONK'],
@@ -2324,9 +2497,9 @@ export const EQUIPMENT = {
     rarity: 'celestial', classReq: ['MONK'],
     claw: true,
     statBonus: { atk: 42, spd: 28, def: 12, dodge: 12 },
-    grantedSkill: 'CEL_INFINITE_PALM',
+    grantedSkills: ['CEL_INFINITE_PALM', 'CEL_ASTRAL_IGNITION'],
     sellPrice: 80000, buyPrice: 0, shopMinRank: null,
-    desc: 'The open palm that caught a god\'s fist. Its chi resonance strengthens everyone within a hundred paces.'
+    desc: 'The open palm that caught a god\'s fist. Its chi resonance strengthens allies, and its strikes ignite the astral body.'
   },
   CEL_CHAKRA_OF_ENLIGHTENMENT: {
     id: 'CEL_CHAKRA_OF_ENLIGHTENMENT', name: 'Chakra of Enlightenment', slot: 'accessory', tier: 6,
@@ -2447,7 +2620,8 @@ export const EQUIPMENT = {
     buyPrice: 250,
     shopMinRank: 'D',
     twoHanded: true,
-    desc: 'The blade glows faintly in the presence of the dying. It knows its purpose.'
+    grantedSkill: 'DEATHS_HARVEST',
+    desc: 'The blade glows faintly in the presence of the dying. Raised thralls fight harder in its shadow.'
   },
   SOUL_HARVESTER: {
     id: 'SOUL_HARVESTER',
@@ -2461,8 +2635,8 @@ export const EQUIPMENT = {
     buyPrice: 660,
     shopMinRank: 'C',
     twoHanded: true,
-    grantedSkill: 'SOUL_REAP',
-    desc: 'Every swing harvests a sliver of the target\'s soul. The wielder grows stronger with each kill.'
+    grantedSkills: ['DEATHS_HARVEST_II', 'SOUL_REAP'],
+    desc: 'Every swing harvests a sliver of the target\'s soul, feeding it directly to the thrall. The dead grow stronger with each kill.'
   },
   ABYSSAL_SCYTHE: {
     id: 'ABYSSAL_SCYTHE',
@@ -2476,8 +2650,8 @@ export const EQUIPMENT = {
     buyPrice: 2280,
     shopMinRank: 'B',
     twoHanded: true,
-    grantedSkill: 'ABYSSAL_HARVEST',
-    desc: 'A scythe forged in the abyss between life and death. Reality bends around its edge.'
+    grantedSkills: ['DEATHS_HARVEST_III', 'ABYSSAL_REAP'],
+    desc: 'A scythe forged in the abyss between life and death. The thrall becomes an avatar of the abyss itself.'
   },
 
   // === SKULLS & GRIMOIRES (Necromancer offhand) ===
@@ -2563,10 +2737,10 @@ export const EQUIPMENT = {
     id: 'CEL_MORTALITYS_END', name: "Mortality's End", slot: 'weapon', tier: 6,
     rarity: 'celestial', classReq: ['NECROMANCER'],
     statBonus: { mag: 88, atk: 18, spd: 26, crit: 34, def: 16, maxHp: 55 },
-    grantedSkills: ['CEL_DEATHS_DOMINION', 'CEL_REAPERS_PRESENCE'],
+    grantedSkill: 'CEL_DEATHS_HARVEST',
     sellPrice: 80000, buyPrice: 0, shopMinRank: null,
     twoHanded: true,
-    desc: "The final scythe. Its blade exists in both the living world and the realm of the dead simultaneously. What it cuts in one world, dies in both."
+    desc: "The final scythe. Its blade exists in both the living world and the realm of the dead simultaneously. The thrall becomes a lord of death — striking all enemies at once."
   },
   CEL_SHROUD_OF_THE_LICH: {
     id: 'CEL_SHROUD_OF_THE_LICH', name: 'Shroud of the Lich', slot: 'armor', tier: 6,

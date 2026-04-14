@@ -102,6 +102,11 @@ export function getEquipmentSkill(itemId) {
   return Object.values(SKILLS).find(s => s.source === 'equipment' && s.itemId === itemId) || null;
 }
 
+/** Return ALL equipment skills for an item (handles items with multiple granted skills). */
+export function getEquipmentSkills(itemId) {
+  return Object.values(SKILLS).filter(s => s.source === 'equipment' && s.itemId === itemId);
+}
+
 // ── Specialization Skills ──
 
 export function getSpecSkills(specTrack) {
