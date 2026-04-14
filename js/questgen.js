@@ -895,12 +895,32 @@ export function generateQuestInstance(rank, templateIndex, seed, partyStrength) 
       lootPool = [...(RANK_LOOT_POOLS[rank] || [])];
     }
 
-    const rarityLootBonus = rarity === 'legendary' ? 3 : rarity === 'rare' ? 2 : rarity === 'uncommon' ? 1 : 0;
-    // Bosses get more loot entries (larger table = more chances)
-    const bossLootBonus = isBoss ? 2 : 0;
-    const lootCountMin = 2 + Math.floor(rarityLootBonus / 2) + bossLootBonus;
-    const lootCountMax = Math.min(4 + rarityLootBonus + bossLootBonus, lootPool.length);
+    // ── §10 Rank-tiered loot table sizing ─────────────────────────────
+    // Initial table size uses generous upper bounds. Sub-tier and boss/raid
+    // scaling extend the table further in applySubTierRewards() after the
+    // sub-difficulty is assigned. The resolution-time guarantee (game.js)
+    // pulls from failed entries to meet the per-rank minimum.
+    //
+    // Base drops at Easy:  F-E: 2,  D-C: 3,  B-A: 4,  S/S+/S++: 5
+    // Sub-difficulty adds up to +3, bosses need up to 9, raids need 10.
+    // We build a generous base table here; applySubTierRewards extends it.
+    const RANK_BASE_TABLE = { F: 4, E: 4, D: 5, C: 5, B: 6, A: 6, S: 8, 'S+': 8, 'S++': 8 };
+    const baseTable = RANK_BASE_TABLE[rank] || 4;
+    const rarityLootBonus = rarity === 'legendary' ? 1 : rarity === 'rare' ? 1 : 0;
+    const bossTableBonus = isBoss ? 4 : 0;
+    const lootCountMin = baseTable + rarityLootBonus + bossTableBonus;
+    const lootCountMax = Math.min(lootCountMin + 2, lootPool.length);
     const lootCount = seededRandInt(lootCountMin, Math.max(lootCountMin, lootCountMax), seed + 9);
+    // ── §10 Quality-aware loot table with rank + rarity + boss scaling ──
+    // Higher rank tiers get better base equipment drop chances.
+    // Quest rarity (uncommon/rare/legendary) boosts drop rates.
+    // Bosses and raids scale celestial rates by S-rank tier.
+    const RANK_EQUIP_BASE = {
+      F: [0.06, 0.10], E: [0.07, 0.12],
+      D: [0.08, 0.14], C: [0.09, 0.16],
+      B: [0.10, 0.18], A: [0.12, 0.20],
+      S: [0.14, 0.22], 'S+': [0.16, 0.25], 'S++': [0.18, 0.28],
+    };
     const shuffled = [...lootPool].sort((a, b) => seededRand(seed + 10 + lootPool.indexOf(a)) - seededRand(seed + 10 + lootPool.indexOf(b)));
     lootTable = shuffled.slice(0, lootCount).map((itemId, i) => {
       const isEquip = !!EQUIPMENT[itemId];
@@ -925,9 +945,10 @@ export function generateQuestInstance(rank, templateIndex, seed, partyStrength) 
         // Raid bosses: celestial items only — suppress non-celestial equipment
         baseChance = 0;
       } else if (isEquip) {
-        // Boss quests give a slight boost to all equipment drop rates
+        // Rank-tiered base equipment chance (higher ranks = better gear odds)
+        const [eqLo, eqHi] = RANK_EQUIP_BASE[rank] || [0.08, 0.15];
         const bossEquipMult = isBoss ? 1.3 : 1.0;
-        baseChance = (0.08 + seededRand(seed + 20 + i) * 0.15) * rarityDropMult * bossEquipMult;
+        baseChance = (eqLo + seededRand(seed + 20 + i) * (eqHi - eqLo)) * rarityDropMult * bossEquipMult;
       } else {
         baseChance = 0.30 + seededRand(seed + 30 + i) * 0.50;
       }

@@ -378,10 +378,10 @@ const AOE_SKILLS = {
   CELESTIAL_VOLLEY:     { dmgScale: 0.70, templates: T_RANGER_AOE, icon: '🌠', type: 'equip',     triggerCamo: true },
   CEL_STARFIRE_VOLLEY:  { dmgScale: 0.80, templates: T_RANGER_AOE, icon: '🎆', type: 'celestial', triggerCamo: true },
   // Mage AoE
-  ARCANE_CATACLYSM:     { dmgScale: 0.55, templates: T_MAGE_AOE, icon: '💥', type: 'skill',     triggerCamo: false },
-  // BLIZZARD — new L6 MAG-scaled AoE (§3.3 Mage rework), replaces the Frostbite
-  // role while the old Frostbite lives on as legacy. Scales slightly lower
-  // since it unlocks 8 levels earlier than the old Frostbite.
+  // ARCANE_CATACLYSM retired — replaced by Arcane Construct (pet). Legacy saves
+  // with the old skill auto-upgrade; the AoE entry is removed.
+  // BLIZZARD — L10 MAG-scaled AoE (§3.3 Mage rework, swapped from L6 with
+  // Arcane Construct to boost early Mage survivability).
   BLIZZARD:             { dmgScale: 0.55, templates: T_MAGE_AOE, icon: '🌨', type: 'skill',     triggerCamo: false },
   FROSTBITE:            { dmgScale: 0.50, templates: T_MAGE_AOE, icon: '❄',  type: 'skill',     triggerCamo: false },
   METEOR_STORM:         { dmgScale: 0.70, templates: T_MAGE_AOE, icon: '☄',  type: 'skill',     triggerCamo: false },
@@ -391,6 +391,10 @@ const AOE_SKILLS = {
   HUNDRED_FISTS:        { dmgScale: 0.55, templates: T_MONK_AOE, icon: '👊', type: 'skill',     triggerCamo: false },
   // Knight AoE (class rework — Sweeping Blow L10 capstone damage)
   SWEEPING_BLOW:        { dmgScale: 0.55, templates: T_KNIGHT_AOE, icon: '⚔', type: 'skill',   triggerCamo: false },
+  // Knight epic/legendary weapon procs reverted to ST (v=126). Only Celestial is AoE.
+  // HOLY_SMITE, GUARDIAN_AURA, DIVINE_JUDGEMENT, SANCTUM_BARRIER — now ST weapon procs
+  // (handled by the standard weapon proc path with defScaling).
+  CEL_BASTION_SMITE:    { dmgScale: 0.65, templates: T_KNIGHT_AOE, icon: '⚔', type: 'celestial', triggerCamo: false },
   // Rogue AoE (class rework — Fan of Knives L6 class-defining AoE)
   FAN_OF_KNIVES:        { dmgScale: 0.50, templates: T_ROGUE_AOE, icon: '🗡', type: 'skill',    triggerCamo: false },
   // Cleric AoE (class rework — Consecration L10 AoE + party buff, Righteous Burn L18 EPIC)
@@ -401,6 +405,22 @@ const AOE_SKILLS = {
   // Hero AoE legacy (retired — kept for save compatibility / talent hook)
   WHIRLWIND_DANCE:      { dmgScale: 0.55, templates: T_HERO_AOE, icon: '🌀', type: 'skill',    triggerCamo: false },
 };
+// ── Mage Arcane Construct templates ─────────────────────────────────
+const T_CONSTRUCT_SUMMON = [
+  (name) => `${name} conjures an <span class="sk-magic">Arcane Construct</span> — crystallized magic takes form as a guardian!`,
+  (name) => `An <span class="sk-magic">Arcane Construct</span> materializes at ${name}'s side — pure arcane energy given shape!`,
+];
+const T_CONSTRUCT_PULSE = [
+  (dmg, count) => `The Arcane Construct unleashes an <span class="sk-magic">Arcane Pulse</span> — <span class="dmg-num dmg-mag">${dmg}</span> damage rips through ${count} ${count === 1 ? 'foe' : 'foes'}!`,
+  (dmg, count) => `Arcane energy erupts from the Construct — <span class="dmg-num dmg-mag">${dmg}</span> damage sweeps across ${count} ${count === 1 ? 'enemy' : 'enemies'}!`,
+];
+const T_CONSTRUCT_DEATH = [
+  () => `The Arcane Construct shatters into motes of light — its magic spent.`,
+];
+const T_CONSTRUCT_RESUMMON = [
+  (name) => `${name} reweaves the shattered magic — the <span class="sk-magic">Arcane Construct</span> reforms!`,
+];
+
 // ── Necromancer templates ───────────────────────────────────────────
 const T_RAISE_DEAD = [
   (name, minion) => `${name} tears a fallen ${minion} from death's embrace — <span class="sk-magic">it rises as a thrall!</span>`,
@@ -845,7 +865,7 @@ function buildSimulation(aq, quest) {
   const talentGraveHunger = _ht('NEC_GRAVE_HUNGER') && partyHasNecromancer;
   const talentNecroticCleave = _ht('NEC_NECRO_CLEAVE');
   const talentUndeadVanguard = _ht('NEC_SUMMON_SHIELD');
-  let necroticCleaveTimer = 0; // counts rounds for minion AoE cleave
+  // necroticCleaveTimer removed — uses roundCount % 3 directly
   // Grave Hunger (reworked, §7.7 final): enhances Shroud of Decay per enemy kill.
   // Per-stack: +2% party damage (covers ATK+MAG via calcPartyDmg's bonus),
   // +1% party crit, +1% party DEF. Starts at 1 stack when talent active, max 5. No decay.
@@ -1081,6 +1101,12 @@ function buildSimulation(aq, quest) {
   const phaseShiftCooldowns = {}; // { memberId: roundsRemaining } — 4-round CD
   const phaseShiftDmgBoost = {}; // { memberId: true } — Arcane Reflection talent: +25% dmg on return
 
+  // Mage Arcane Construct — permanent pet that bodyguards the Mage
+  const magesWithConstruct = new Set();
+  const arcaneConstructs = []; // { id, name, hp, maxHp, def, ownerId, mageRef }
+  const constructCooldowns = {}; // { mageId: roundsRemaining } — 2-round CD after death
+  const constructPulseReady = {}; // { mageId: roundsRemaining } — fires every 2 rounds
+
   // Mage Arcane Aftershock (formerly Spell Echo) — damage amp REACTIVE primed
   // when any ally lands a killing blow. Set name kept for minimal-diff reasons;
   // it tracks mages with the L14 class skill SPELL_ECHO / "Arcane Aftershock".
@@ -1231,6 +1257,32 @@ function buildSimulation(aq, quest) {
       phaseShiftRounds[m.id] = 0;
       phaseShiftCooldowns[m.id] = 0;
     }
+    if (m.class === 'MAGE' && (memberSkills.includes('ARCANE_CONSTRUCT') || memberSkills.includes('ARCANE_CATACLYSM'))) {
+      // ARCANE_CATACLYSM legacy saves auto-upgrade to Arcane Construct
+      magesWithConstruct.add(m.id);
+      constructCooldowns[m.id] = 0;
+      constructPulseReady[m.id] = 2; // first pulse at round 2
+      // Summon construct at combat start — 150% of Mage's MAG for HP and DEF.
+      // Should survive 3-4 direct hits; if it falls, Phase Shift buys time
+      // until the 2-round respawn cooldown expires.
+      // Single-target dmg matches thrall output (110% of owner's MAG).
+      const pMe = partyHp.find(p => p.id === m.id);
+      if (pMe) {
+        const cHp = Math.max(50, Math.floor((pMe.mag || 10) * 1.50));
+        const cDef = Math.max(10, Math.floor((pMe.mag || 10) * 1.50));
+        const cDmg = Math.max(2, Math.floor((pMe.mag || 10) * 1.1));
+        arcaneConstructs.push({
+          id: `construct_${m.id}`,
+          name: `${pMe.name}'s Construct`,
+          hp: cHp, maxHp: cHp,
+          def: cDef,
+          dmgPerTick: cDmg,
+          ownerId: m.id,
+          mageRef: pMe,
+        });
+        // Summon event deferred to after _bufState init (see "Arcane Construct opening event" below)
+      }
+    }
     if (m.class === 'MAGE' && memberSkills.includes('SPELL_ECHO')) {
       // SPELL_ECHO is the Mage L14 "Arcane Aftershock" reactive (class rework §3.3).
       magesWithSpellEcho.add(m.id);
@@ -1360,6 +1412,8 @@ function buildSimulation(aq, quest) {
   // Reactive-only skills — excluded from all ATB lanes, triggered by conditions only
   const REACTIVE_SKILLS = new Set([
     'RAISE_DEAD',        // triggers on enemy death
+    'ARCANE_CONSTRUCT',  // auto-summon at combat start, re-summon on cooldown
+    'ARCANE_CATACLYSM',  // legacy id → treated as Arcane Construct
     'BULWARK',           // triggers on ally hit
     'DIVINE_INTERVENTION', // triggers on ally lethal
     'LAST_STAND',        // Knight — triggers on self HP < 30%
@@ -1490,6 +1544,7 @@ function buildSimulation(aq, quest) {
     rallyCooldowns, heroesWithRally, markedEnemies,
     roguesWithMark, monksWithKiBarrier,
     magesWithPhaseShift, phaseShiftRounds, phaseShiftCooldowns, phaseShiftDmgBoost,
+    magesWithConstruct, arcaneConstructs, constructCooldowns,
     magesWithSpellEcho, spellEchoRounds, aftershockCooldowns,
     camoRounds, rangersWithVolley, smokeBombRounds: 0, swiftPalmRounds: 0,
     divineShieldRounds: 0, clericsWithDivineShield, divineShieldSource: null,
@@ -1521,6 +1576,15 @@ function buildSimulation(aq, quest) {
     tauntedEnemies, defShredTargets, exposedTargets,
     sacredWarmthRounds, wrathBuff, stormMarkRounds,
   };
+
+  // Arcane Construct opening event — deferred from member init loop because
+  // _bufState wasn't available yet. Emit the summon narration now.
+  for (const c of arcaneConstructs) {
+    if (c.hp > 0 && c.mageRef) {
+      events.push({ text: sPick(T_CONSTRUCT_SUMMON, seed + 77)(c.mageRef.name), type: 'magic', icon: '🔮', phase: 'battle' });
+      snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+    }
+  }
 
   // ── Reactive: Raise Dead ─────────────────────────────────────────────────
   // Fires as a reaction to an enemy death, regardless of which death path
@@ -1709,7 +1773,9 @@ function buildSimulation(aq, quest) {
         if (actor.isParty) {
           const attacker = partyHp.find(p => p.id === actor.memberId);
           if (!attacker || livingEnemies.length === 0) continue;
-  
+          // Symphony Leech (10%) — snapshot dmgDealt before this turn for lifesteal calc
+          const _dmgBefore = symphonyLeechActive && combatStats[attacker.id] ? combatStats[attacker.id].dmgDealt : 0;
+
           const targetCount = livingEnemies.length;
           let skillPool = memberAttackSkills[attacker.id].filter(sid => !skillCooldowns[attacker.id][sid]);
   
@@ -1721,7 +1787,13 @@ function buildSimulation(aq, quest) {
             }
             const target = sPick(livingEnemies, es + 100);
             let baseDmg = calcPartyDmg(attacker, es + 101, dmgBonus);
-  
+            // Knight basic attacks blend a small amount of DEF so they don't
+            // feel completely weightless between skill procs.
+            if (attacker.class === 'KNIGHT' && attacker.def) {
+              const _baDef = COMBAT_TUNING.PARTY_DMG_MIN_MULT + sRand(es + 821) * COMBAT_TUNING.PARTY_DMG_SPREAD;
+              baseDmg += Math.floor(attacker.def * 0.08 * _baDef);
+            }
+
             if (wrathBuff[attacker.id] > 0) baseDmg = Math.floor(baseDmg * 1.30);
             if (bloodlustActive[attacker.id]) {
               baseDmg = Math.floor(baseDmg * 1.5);
@@ -1781,12 +1853,23 @@ function buildSimulation(aq, quest) {
             // Celestial Cascade
             if (talentCelCascade && isCrit && sRand(es + 103) < 0.25) {
               const splashDmg = Math.max(1, Math.floor(dmg * 0.50));
+              let cascadeHits = 0;
               for (const e of livingEnemies) {
                 if (e.id !== target.id && e.hp > 0) {
                   e.hp = Math.max(0, e.hp - splashDmg);
                   if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += splashDmg;
+                  cascadeHits++;
                   if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); tryRaiseDead(e, es + 1581); }
                 }
+              }
+              if (cascadeHits > 0) {
+                // Push the crit text first, then the cascade as a follow-up
+                const _classId2 = attacker.class || 'HERO';
+                const critText = getAttackTemplate(_classId2, es)(attacker.name, target.name, `${dmg} CRIT`);
+                events.push({ text: critText.replace(/dmg-(phys|mag)/, 'dmg-crit'), type: 'crit', icon: '💥', phase: 'battle' });
+                snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                text = `Celestial cascade! Energy arcs to ${cascadeHits} ${cascadeHits === 1 ? 'foe' : 'foes'} for <span class="dmg-num dmg-mag">${splashDmg}</span> each!`;
+                icon = '✦'; type = 'celestial';
               }
             }
 
@@ -1821,6 +1904,12 @@ function buildSimulation(aq, quest) {
                 text = sPick(T_CRESCENDO, es + 108)(bard.name);
                 icon = '🎶'; type = 'buff';
                 _logReactive('Crescendo', bard.name, attacker.name, 'next-attack 2.5× crit buff');
+                if (talentCrescendoAlly) {
+                  events.push({ text, type, icon, phase: 'battle' });
+                  snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                  text = `The Crescendo echoes — next 2 ally attacks will crit!`;
+                  icon = '🎵'; type = 'buff';
+                }
                 break;
               }
             }
@@ -1871,6 +1960,10 @@ function buildSimulation(aq, quest) {
                 dmgBonus += 0.02; // +2% party damage per stack (§7.7)
                 graveHungerCritBonus += 0.01; // +1% party crit per stack
                 graveHungerDefBonus += 0.01;  // +1% party DEF per stack
+                events.push({ text, type, icon, phase: 'battle' });
+                snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                text = `The grave hungers — <span class="sk-buff">stack ${graveHungerStacks}/5</span>! (+${graveHungerStacks * 2}% dmg, +${graveHungerStacks}% crit, +${graveHungerStacks}% DEF)`;
+                icon = '🩸'; type = 'buff';
               }
 
               // Hunter's Mark — Ranger killing blow primes next Ranger arrow for auto-crit
@@ -1909,6 +2002,15 @@ function buildSimulation(aq, quest) {
                 _combatDebug.atb.laneActions[attacker.id].attack.fires++;
                 _combatDebug.atb.laneActions[attacker.id].attack.skillFires++;
               }
+              // Knight class skills scale partly off DEF so the whole kit does
+              // respectable damage despite low ATK. Values are intentionally modest
+              // to keep Knight below CLR/BRD damage output — weapon procs close the gap.
+              const CLASS_SKILL_DEF_SCALING = {
+                SHIELD_BASH: 0.10,     // L1 opener — lightest scaling
+                SHIELD_CHARGE: 0.15,   // L2 main ST skill
+                SWEEPING_BLOW: 0.15,   // L10 AoE capstone
+                UNBREAKABLE: 0.20,     // L18 EPIC — heaviest class skill scaling
+              };
               const aoeInfo = AOE_SKILLS[skillId];
               if (aoeInfo) {
                 // AoE SKILL
@@ -1921,7 +2023,13 @@ function buildSimulation(aq, quest) {
                   actionPerformed = true;
                   continue;
                 }
-                const perTargetDmg = Math.max(2, Math.floor(calcPartyDmg(attacker, es + 202, dmgBonus) * aoeInfo.dmgScale));
+                let aoeRawBase = calcPartyDmg(attacker, es + 202, dmgBonus);
+                const classDefScale = CLASS_SKILL_DEF_SCALING[skillId];
+                if (classDefScale && attacker.def) {
+                  const defMult = COMBAT_TUNING.PARTY_DMG_MIN_MULT + sRand(es + 819) * COMBAT_TUNING.PARTY_DMG_SPREAD;
+                  aoeRawBase += Math.floor(attacker.def * classDefScale * defMult);
+                }
+                const perTargetDmg = Math.max(2, Math.floor(aoeRawBase * aoeInfo.dmgScale));
                 let echoDmg = spellEchoRounds[attacker.id] > 0 ? Math.floor(perTargetDmg * 1.50) : perTargetDmg;
                 if (phaseShiftDmgBoost[attacker.id] > 0) echoDmg = Math.floor(echoDmg * 1.25);
                 const currentLiving = preLiving;
@@ -1962,7 +2070,13 @@ function buildSimulation(aq, quest) {
                   icon = '🍃'; type = 'buff';
                   if (talentSharedCamo) {
                     const lowestAlly = livingParty.filter(p => p.id !== attacker.id).sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp))[0];
-                    if (lowestAlly) camoRounds[lowestAlly.id] = 2;
+                    if (lowestAlly) {
+                      camoRounds[lowestAlly.id] = 2;
+                      events.push({ text, type, icon, phase: 'battle' });
+                      snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                      text = `${lowestAlly.name} is pulled into the shadows — <span class="sk-buff">+20% dodge</span> for 2 rounds!`;
+                      icon = '🌿'; type = 'buff';
+                    }
                   }
                 }
   
@@ -1971,12 +2085,23 @@ function buildSimulation(aq, quest) {
                   for (const e of currentLiving) {
                     if (e.alive) e.atk = Math.max(1, Math.floor(e.atk * 0.80));
                   }
+                  events.push({ text, type, icon, phase: 'battle' });
+                  snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                  text = `Suppressing fire weakens all foes — <span class="sk-debuff">-20% ATK</span> for 1 round!`;
+                  icon = '🎯'; type = 'debuff';
                 }
   
                 // Storm Mark
                 if (talentStormMark && (skillId === 'ARROW_STORM' || skillId === 'STORM_VOLLEY')) {
+                  let markCount = 0;
                   for (const e of currentLiving) {
-                    if (e.alive) stormMarkRounds[e.id] = 2;
+                    if (e.alive) { stormMarkRounds[e.id] = 2; markCount++; }
+                  }
+                  if (markCount > 0) {
+                    events.push({ text, type, icon, phase: 'battle' });
+                    snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                    text = `Storm arrows mark ${markCount} ${markCount === 1 ? 'foe' : 'foes'} — <span class="sk-debuff">+15% damage taken</span> for 2 rounds!`;
+                    icon = '🌧'; type = 'debuff';
                   }
                 }
   
@@ -1985,8 +2110,15 @@ function buildSimulation(aq, quest) {
                 // contributes meaningful damage on the Mage's flagship AoE.
                 if (talentMeteorBurn && (skillId === 'METEOR_STORM')) {
                   const burnDmg = Math.max(2, Math.floor((attacker.mag || 10) * 0.15));
+                  let burnCount = 0;
                   for (const e of currentLiving) {
-                    if (e.alive) burnTargets[e.id] = { rounds: 3, dmgPerTick: burnDmg, source: 'MAG' };
+                    if (e.alive) { burnTargets[e.id] = { rounds: 3, dmgPerTick: burnDmg, source: 'MAG' }; burnCount++; }
+                  }
+                  if (burnCount > 0) {
+                    events.push({ text, type, icon, phase: 'battle' });
+                    snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                    text = `Lingering flames engulf ${burnCount} ${burnCount === 1 ? 'foe' : 'foes'} — <span class="dmg-num dmg-mag">${burnDmg}</span>/round burn for 3 rounds!`;
+                    icon = '🔥'; type = 'debuff';
                   }
                 }
 
@@ -2027,10 +2159,10 @@ function buildSimulation(aq, quest) {
                   }
                 }
 
-                // Righteous Burn — always applies burn DoT to struck enemies (30% MAG/r, 3r)
-                // Bumped from 12% to sit slightly below Blight (40% MAG).
+                // Righteous Burn — always applies burn DoT to struck enemies (40% MAG/r, 3r)
+                // Bumped from 12% → 30% → 40% to match Blight (40% MAG).
                 if (skillId === 'RIGHTEOUS_BURN') {
-                  const burnDmg = Math.max(2, Math.floor((attacker.mag || 10) * 0.30));
+                  const burnDmg = Math.max(2, Math.floor((attacker.mag || 10) * 0.40));
                   for (const e of currentLiving) {
                     if (!e.alive) continue;
                     burnTargets[e.id] = { rounds: 3, dmgPerTick: burnDmg, source: 'CLR' };
@@ -2038,14 +2170,14 @@ function buildSimulation(aq, quest) {
                 }
 
                 // HRO_WHIRLWIND_HEAL "Whirlwind Heal" — Whirlwind Dance heals the
-                // party for 4% max HP per enemy struck.
+                // party for 6% max HP per enemy struck.
                 if (talentWhirlwindHeal && skillId === 'WHIRLWIND_DANCE') {
                   const struck = currentLiving.filter(e => e.alive).length;
                   if (struck > 0) {
                     let totalHealed = 0;
                     for (const p of livingParty) {
                       if (p.hp <= 0) continue;
-                      const healAmt = Math.max(1, Math.floor(p.maxHp * 0.04 * struck));
+                      const healAmt = Math.max(1, Math.floor(p.maxHp * 0.06 * struck));
                       const before = p.hp;
                       p.hp = Math.min(p.maxHp, p.hp + healAmt);
                       const actual = p.hp - before;
@@ -2234,7 +2366,16 @@ function buildSimulation(aq, quest) {
                 const _skEff = skill && skill.effects ? skill.effects : {};
                 const _skPower = _skEff.powerMultiplier || 1.25;
                 const _skBonus = 1.0 + (_skEff.atkBonus || 0) + (_skEff.magBonus || 0);
-                let baseDmg = Math.max(3, Math.floor(calcPartyDmg(attacker, es + 210, dmgBonus) * _skPower * _skBonus));
+                // Knight ST class-skill DEF blending: Shield Bash, Shield Charge,
+                // Unbreakable scale partly off DEF so the whole kit does respectable
+                // damage. Without this, Knight ST skills deal ~117-ATK-scaled damage.
+                let _skRawBase = calcPartyDmg(attacker, es + 210, dmgBonus);
+                const _skDefScale = CLASS_SKILL_DEF_SCALING[skillId];
+                if (_skDefScale && attacker.def) {
+                  const _skDefMult = COMBAT_TUNING.PARTY_DMG_MIN_MULT + sRand(es + 820) * COMBAT_TUNING.PARTY_DMG_SPREAD;
+                  _skRawBase += Math.floor(attacker.def * _skDefScale * _skDefMult);
+                }
+                let baseDmg = Math.max(3, Math.floor(_skRawBase * _skPower * _skBonus));
                 if (bloodlustActive[attacker.id]) {
                   baseDmg = Math.floor(baseDmg * 1.5);
                   delete bloodlustActive[attacker.id];
@@ -2253,16 +2394,42 @@ function buildSimulation(aq, quest) {
                 target.hp = Math.max(0, target.hp - baseDmg);
                 if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += baseDmg;
 
+                // Prime skill text BEFORE any follow-up handlers that push-then-reassign.
+                // Without this, talent follow-ups (Poison, Smite Burn) would push an empty
+                // text string because the skill text hadn't been assigned yet.
+                {
+                  const isCelestial = skillId.startsWith('CEL_');
+                  const isEquipProc = !isCelestial && skill.source === 'equipment';
+                  if (isCelestial) {
+                    text = sPick(T_CELESTIAL_SKILL, es + 212)(attacker.name, skill.name, target.name, baseDmg);
+                    icon = skill.icon || '✦'; type = 'celestial';
+                  } else if (isEquipProc) {
+                    text = sPick(T_EQUIP_SKILL, es + 212)(attacker.name, skill.name, target.name, baseDmg);
+                    icon = skill.icon || '•'; type = 'equip';
+                  } else {
+                    text = sPick(T_SKILL, es + 212)(attacker.name, skill.name, target.name, baseDmg);
+                    icon = skill.icon || '•'; type = 'skill';
+                  }
+                }
+
                 // Rogue Venomous Blades — Shadow Strike has a 30% chance to poison
                 if (talentPoison && skillId === 'SHADOW_STRIKE' && target.alive !== false && target.hp > 0 && sRand(es + 215) < 0.30) {
                   const pDmg = Math.max(2, Math.floor(target.maxHp * 0.07));
                   poisonTargets[target.id] = { rounds: 3, dmgPerTick: pDmg };
+                  events.push({ text, type, icon, phase: 'battle' });
+                  snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                  text = `${attacker.name}'s venomous blade poisons ${target.name} — <span class="dmg-num dmg-phys">${pDmg}</span>/round for 3 rounds!`;
+                  icon = '🧪'; type = 'debuff';
                 }
 
-                // CLR_SMITE_BURN "Righteous Burn" — Smite applies a burn DoT (30% MAG/r)
+                // CLR_SMITE_BURN "Righteous Burn" — Smite applies a burn DoT (40% MAG/r)
                 if (talentSmiteBurn && skillId === 'SMITE' && target.hp > 0) {
-                  const burnDmg = Math.max(2, Math.floor((attacker.mag || 10) * 0.30));
+                  const burnDmg = Math.max(2, Math.floor((attacker.mag || 10) * 0.40));
                   burnTargets[target.id] = { rounds: 3, dmgPerTick: burnDmg, source: 'CLR' };
+                  events.push({ text, type, icon, phase: 'battle' });
+                  snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                  text = `${attacker.name}'s Smite ignites ${target.name} — sacred fire burns for <span class="dmg-num dmg-mag">${burnDmg}</span>/round!`;
+                  icon = '☀'; type = 'debuff';
                 }
 
                 // MNK_FURY_PLUS "Infinite Fists" — Fists of Fury lands a bonus
@@ -2286,6 +2453,10 @@ function buildSimulation(aq, quest) {
                 // shred is mechanically a +15% damage-taken debuff via defShredTargets.
                 if (talentDefShred && skillId === 'SHIELD_CHARGE' && target.hp > 0) {
                   defShredTargets[target.id] = 2;
+                  events.push({ text, type, icon, phase: 'battle' });
+                  snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                  text = `${attacker.name}'s charge rends ${target.name}'s armor — +15% damage taken for 2 rounds!`;
+                  icon = '🔨'; type = 'debuff';
                 }
 
                 // HRO_CHAIN_STRIKE — Heroic Strike chains to a 2nd target at 50%
@@ -2297,22 +2468,15 @@ function buildSimulation(aq, quest) {
                     chainTarget.hp = Math.max(0, chainTarget.hp - chainDmg);
                     if (combatStats[attacker.id]) combatStats[attacker.id].dmgDealt += chainDmg;
                     if (chainTarget.hp <= 0) { chainTarget.alive = false; fallenEnemies.push(chainTarget.name); tryRaiseDead(chainTarget, es + 2080); }
+                    events.push({ text, type, icon, phase: 'battle' });
+                    snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                    text = `${attacker.name}'s strike chains — ${chainTarget.name} takes <span class="dmg-num dmg-phys">${chainDmg}</span> damage!`;
+                    icon = '⚔'; type = 'skill';
                   }
                 }
 
-                const isCelestial = skillId.startsWith('CEL_');
-                const isEquipProc = !isCelestial && skill.source === 'equipment';
-                if (isCelestial) {
-                  text = sPick(T_CELESTIAL_SKILL, es + 212)(attacker.name, skill.name, target.name, baseDmg);
-                  icon = skill.icon || '✦'; type = 'celestial';
-                } else if (isEquipProc) {
-                  text = sPick(T_EQUIP_SKILL, es + 212)(attacker.name, skill.name, target.name, baseDmg);
-                  icon = skill.icon || '•'; type = 'equip';
-                } else {
-                  text = sPick(T_SKILL, es + 212)(attacker.name, skill.name, target.name, baseDmg);
-                  icon = skill.icon || '•'; type = 'skill';
-                }
-  
+                // (Skill text already primed above, before talent follow-up handlers.)
+
                 // Monk Ki Barrier lifesteal on skill
                 if (monksWithKiBarrier.has(attacker.id) && attacker.hp > 0) {
                   const kiRate2 = talentDeepKi ? 0.40 : 0.25;
@@ -2337,13 +2501,24 @@ function buildSimulation(aq, quest) {
                 if (skillId === 'SMOKE_BOMB') smokeBombRounds = 2;
                 // Smoke Bomb heal (talent) — skip KO'd members; smoke cannot revive.
                 if (talentSmokeHeal && skillId === 'SMOKE_BOMB') {
+                  let smokeHealTotal = 0;
                   for (const p of livingParty) {
                     if (p.hp <= 0) continue;
-                    const smokHeal = Math.max(1, Math.floor(p.maxHp * 0.05));
+                    const smokHeal = Math.max(1, Math.floor(p.maxHp * 0.08));
                     const bef = p.hp;
                     p.hp = Math.min(p.maxHp, p.hp + smokHeal);
                     const act = p.hp - bef;
-                    if (act > 0 && combatStats[p.id]) combatStats[p.id].healingReceived += act;
+                    if (act > 0) {
+                      smokeHealTotal += act;
+                      if (combatStats[p.id]) combatStats[p.id].healingReceived += act;
+                    }
+                  }
+                  if (smokeHealTotal > 0) {
+                    if (combatStats[attacker.id]) combatStats[attacker.id].healingDone += smokeHealTotal;
+                    events.push({ text, type, icon, phase: 'battle' });
+                    snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                    text = `Healing smoke mends the party — <span class="dmg-num dmg-heal">+${smokeHealTotal}</span> HP restored!`;
+                    icon = '💚'; type = 'heal';
                   }
                 }
   
@@ -2416,11 +2591,35 @@ function buildSimulation(aq, quest) {
                   text = sPick(T_CRESCENDO, es + 258)(bard.name);
                   icon = '🎶'; type = 'buff';
                   _logReactive('Crescendo', bard.name, attacker.name, 'next-attack 2.5× crit buff');
+                  if (talentCrescendoAlly) {
+                    events.push({ text, type, icon, phase: 'battle' });
+                    snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                    text = `The Crescendo echoes — next 2 ally attacks will crit!`;
+                    icon = '🎵'; type = 'buff';
+                  }
                   break;
                 }
               }
 
               actionPerformed = true;
+            }
+          }
+
+          // Symphony Leech — 10% lifesteal on all damage this attacker dealt this turn
+          if (symphonyLeechActive && combatStats[attacker.id] && attacker.hp > 0) {
+            const turnDmg = combatStats[attacker.id].dmgDealt - _dmgBefore;
+            if (turnDmg > 0) {
+              const leechAmt = Math.max(1, Math.floor(turnDmg * 0.10));
+              const before = attacker.hp;
+              attacker.hp = Math.min(attacker.maxHp, attacker.hp + leechAmt);
+              const actual = attacker.hp - before;
+              if (actual > 0) {
+                if (combatStats[attacker.id]) combatStats[attacker.id].healingReceived += actual;
+                const bard = partyHp.find(p => p.class === 'BARD' && p.hp > 0);
+                if (bard && combatStats[bard.id]) combatStats[bard.id].healingDone += actual;
+                events.push({ text: `The symphony's melody drains life — ${attacker.name} recovers <span class="dmg-num dmg-heal">+${actual}</span> HP!`, type: 'heal', icon: '🎵', phase: 'battle' });
+                snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+              }
             }
           }
 
@@ -2431,8 +2630,10 @@ function buildSimulation(aq, quest) {
           if (!attacker || livingParty.length === 0) continue;
   
           const livingMinions = necroMinions.filter(m => m.hp > 0);
+          const livingConstructs = arcaneConstructs.filter(c => c.hp > 0);
           let target;
           let targetIsMinion = false;
+          let targetIsConstruct = false;
           if (livingMinions.length > 0 && sRand(es + 300) < 0.25) {
             target = sPick(livingMinions, es + 301);
             targetIsMinion = true;
@@ -2443,7 +2644,23 @@ function buildSimulation(aq, quest) {
               // All living members are phased — skip this enemy attack
               continue;
             }
-            target = sPick(targetableParty, es + 302);
+            // Taunt targeting: taunted enemies MUST attack a Knight (if any
+            // living Knight is targetable). Falls back to normal targeting
+            // if no Knight is available (e.g. all Knights are phased/dead).
+            if (tauntedEnemies[attacker.id] > 0) {
+              const knights = targetableParty.filter(p => p.class === 'KNIGHT');
+              target = knights.length > 0 ? sPick(knights, es + 302) : sPick(targetableParty, es + 302);
+            } else {
+              target = sPick(targetableParty, es + 302);
+            }
+            // Arcane Construct intercept — always blocks hits aimed at its Mage
+            if (target && target.class === 'MAGE' && livingConstructs.length > 0) {
+              const myConstruct = livingConstructs.find(c => c.ownerId === target.id);
+              if (myConstruct) {
+                target = myConstruct;
+                targetIsConstruct = true;
+              }
+            }
           }
 
           if (targetIsMinion) {
@@ -2484,7 +2701,31 @@ function buildSimulation(aq, quest) {
             atbGauges[attacker.id].attack = 0;
             continue;
           }
-  
+
+          // Arcane Construct intercept — takes the hit instead of the Mage
+          if (targetIsConstruct) {
+            const discordAtkMult = (discordRounds > 0 ? 0.80 : 1.0) * (frostbiteRounds > 0 ? 0.85 : 1.0);
+            const rawDmg = Math.max(1, Math.floor(attacker.atk * discordAtkMult * (COMBAT_TUNING.ENEMY_DMG_MIN_MULT + sRand(es + 309) * COMBAT_TUNING.ENEMY_DMG_SPREAD)));
+            const cAfterDef = Math.max(1, Math.floor(rawDmg * (1 - target.def / (target.def + COMBAT_TUNING.DEF_SOFTCAP))));
+            target.hp = Math.max(0, target.hp - cAfterDef);
+            text = sPick(T_ENEMY_ATK, es + 310)(attacker.name, target.name, cAfterDef);
+            icon = '🔮'; type = 'enemy';
+
+            if (target.hp <= 0) {
+              events.push({ text, type, icon, phase: 'battle' });
+              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+              text = sPick(T_CONSTRUCT_DEATH, es + 311)();
+              icon = '🔮'; type = 'defeat';
+              // Start respawn cooldown
+              constructCooldowns[target.ownerId] = 2;
+              arcaneConstructs.splice(arcaneConstructs.indexOf(target), 1);
+            }
+            events.push({ text, type, icon, phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+            atbGauges[attacker.id].attack = 0;
+            continue;
+          }
+
           // Discord fumble
           if (discordRounds > 0 && sRand(es + 310) < 0.25) {
             text = `${attacker.name} staggers from the Discord — the attack goes wide!`;
@@ -2661,6 +2902,10 @@ function buildSimulation(aq, quest) {
             // KNT_TAUNT_AURA secondary hook — Bulwark intercept marks attacker.
             if (talentTauntAura && attacker.alive) {
               tauntedEnemies[attacker.id] = 2;
+              events.push({ text, type, icon, phase: 'battle' });
+              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+              text = `${knight.name}'s oppressive presence taunts ${attacker.name} — forced to attack the Knight for 2 rounds!`;
+              icon = '😤'; type = 'debuff';
             }
 
             events.push({ text, type, icon, phase: 'battle' });
@@ -2822,7 +3067,13 @@ function buildSimulation(aq, quest) {
                 text = sPick(T_DIVINE_INTERVENTION, es + 333)(diSave.name, target.name);
                 icon = '🕊'; type = 'divine';
                 _logReactive('Divine Intervention', diSave.name, target.name, 'saved from KO');
-                if (talentWrath) wrathBuff[target.id] = 2;
+                if (talentWrath) {
+                  wrathBuff[target.id] = 2;
+                  events.push({ text, type, icon, phase: 'battle' });
+                  snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                  text = `Righteous wrath fills ${target.name} — <span class="sk-buff">+30% damage</span> for 2 rounds!`;
+                  icon = '⚡'; type = 'buff';
+                }
               } else {
                 events.push({ text, type, icon, phase: 'battle' });
                 snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
@@ -2900,6 +3151,10 @@ function buildSimulation(aq, quest) {
                   for (const p of livingParty) {
                     if (p.hp > 0) sacredWarmthRounds[p.id] = 2;
                   }
+                  events.push({ text, type, icon, phase: 'battle' });
+                  snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                  text = `Rally Cry's warmth lingers — party gains <span class="sk-buff">5% HP/round HoT</span> for 2 rounds!`;
+                  icon = '🌸'; type = 'heal';
                 }
               }
             }
@@ -3080,9 +3335,19 @@ function buildSimulation(aq, quest) {
         const buffSkills = memberBuffSkills[buffMember.id];
         const readySkills = buffSkills.filter(sid => !skillCooldowns[buffMember.id][sid]);
         const skillPool = readySkills.length > 0 ? readySkills : buffSkills;
-  
+
         if (skillPool.length > 0) {
-          const skillId = sPick(skillPool, es + 400);
+          // Knight Taunt priority: if Taunt is available and no enemies are
+          // currently taunted, always pick Taunt. Tanking is the Knight's
+          // core identity — it shouldn't be left to a coin flip.
+          let skillId;
+          const hasTauntReady = skillPool.includes('TAUNT');
+          const anyTaunted = hasTauntReady && Object.values(tauntedEnemies).some(r => r > 0);
+          if (hasTauntReady && !anyTaunted && buffMember.class === 'KNIGHT') {
+            skillId = 'TAUNT';
+          } else {
+            skillId = sPick(skillPool, es + 400);
+          }
           const skill = getSkill(skillId);
           const buffProcRoll = sRand(es + 401);
           const buffProcThreshold = skill ? (skill.procChance || 0.60) : 0.60;
@@ -3218,24 +3483,40 @@ function buildSimulation(aq, quest) {
               icon = '⛨';
               if (talentSacredWarmth) {
                 for (const p of livingParty) { sacredWarmthRounds[p.id] = 3; }
+                events.push({ text, type: 'buff', icon, phase: 'battle' });
+                snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                text = `Sacred warmth radiates from the shield — party gains <span class="sk-buff">5% HP/round HoT</span> for 3 rounds!`;
+                icon = '🌸'; type = 'heal';
               }
             } else if (skillId === 'KI_BARRIER') {
               text = sPick(T_KI_BARRIER, es + 414)(buffMember.name, Math.floor(buffMember.maxHp * 0.25));
               icon = '🔮';
             } else if (skillId === 'SMOKE_BOMB') {
-              const livingMembers = livingParty.filter(p => p.hp > 0);
-              if (talentSmokeHeal) {
-                for (const p of livingMembers) {
-                  const smokHeal = Math.max(1, Math.floor(p.maxHp * 0.05));
-                  const bef = p.hp;
-                  p.hp = Math.min(p.maxHp, p.hp + smokHeal);
-                  const act = p.hp - bef;
-                  if (act > 0 && combatStats[p.id]) combatStats[p.id].healingReceived += act;
-                }
-              }
               smokeBombRounds = 2;
               text = `${buffMember.name} deploys <span class="sk-buff">Smoke Bomb</span> — party gains +30% dodge for 2 rounds!`;
               icon = '💨';
+              // Smoke Bomb heal (talent) — skip KO'd members; smoke cannot revive.
+              if (talentSmokeHeal) {
+                let smokeHealTotal = 0;
+                const livingMembers = livingParty.filter(p => p.hp > 0);
+                for (const p of livingMembers) {
+                  const smokHeal = Math.max(1, Math.floor(p.maxHp * 0.08));
+                  const bef = p.hp;
+                  p.hp = Math.min(p.maxHp, p.hp + smokHeal);
+                  const act = p.hp - bef;
+                  if (act > 0) {
+                    smokeHealTotal += act;
+                    if (combatStats[p.id]) combatStats[p.id].healingReceived += act;
+                  }
+                }
+                if (smokeHealTotal > 0) {
+                  if (combatStats[buffMember.id]) combatStats[buffMember.id].healingDone += smokeHealTotal;
+                  events.push({ text, type, icon, phase: 'battle' });
+                  snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+                  text = `Healing smoke mends the party — <span class="dmg-num dmg-heal">+${smokeHealTotal}</span> HP restored!`;
+                  icon = '💚'; type = 'heal';
+                }
+              }
             } else if (skillId === 'SWIFT_PALM') {
               swiftPalmRounds = 2;
               text = `${buffMember.name} channels <span class="sk-buff">Swift Palm</span> — party gains +25% ATK, +15% SPD for 2 rounds!`;
@@ -3274,6 +3555,7 @@ function buildSimulation(aq, quest) {
         const perMemberHeal = Math.floor(healAmt * 0.5);
   
         const healed = [];
+        let groupHealActualTotal = 0;
         // Skip KO'd members — group heals must not resurrect the dead.
         // `livingParty` is filtered at round start, so a member who was alive
         // then but has since been KO'd is still in this array with hp===0.
@@ -3284,19 +3566,21 @@ function buildSimulation(aq, quest) {
           p.hp = Math.min(p.maxHp, p.hp + perMemberHeal);
           const actual = p.hp - before;
           if (actual > 0) {
+            groupHealActualTotal += actual;
             if (combatStats[healer.id]) combatStats[healer.id].healingDone += actual;
             if (combatStats[p.id]) combatStats[p.id].healingReceived += actual;
             if (p.id !== healer.id) healed.push({ name: p.name, amt: actual });
           }
         }
-  
+
         for (const m of necroMinions) {
           if (m.hp > 0 && m.hp < m.maxHp) {
             m.hp = Math.min(m.maxHp, m.hp + perMemberHeal);
           }
         }
-  
-        text = getHealTemplate(es + 501)(healer.name, healAmt);
+
+        // Show actual total healed (not the raw healAmt which is 2× what each member gets)
+        text = getHealTemplate(es + 501)(healer.name, groupHealActualTotal || healAmt);
         icon = '💚';
         type = 'heal';
         events.push({ text, type, icon, phase: 'battle' });
@@ -3325,9 +3609,11 @@ function buildSimulation(aq, quest) {
           }
           if (talentSacredWarmth) {
             for (const p of livingParty) { sacredWarmthRounds[p.id] = 3; }
+            events.push({ text: `Sacred warmth radiates from the shield — party gains <span class="sk-buff">5% HP/round HoT</span> for 3 rounds!`, type: 'heal', icon: '🌸', phase: 'battle' });
+            snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
           }
         }
-  
+
         // Resurrection — search partyHp (full array), NOT livingParty
         // which is pre-filtered to hp > 0 and would never contain dead members.
         const deadParty = partyHp.filter(p => p.hp <= 0);
@@ -3459,6 +3745,98 @@ function buildSimulation(aq, quest) {
       }
     }
 
+    // Arcane Construct — single-target attack every round + Arcane Pulse AoE every 2 rounds
+    for (const construct of arcaneConstructs) {
+      if (construct.hp <= 0) continue;
+      const mage = partyHp.find(p => p.id === construct.ownerId && p.hp > 0);
+      if (!mage || livingEnemies.length === 0) continue;
+
+      // Single-target attack every round (matches thrall output: 110% owner MAG)
+      const cTarget = sPick(livingEnemies, es + 555 + arcaneConstructs.indexOf(construct));
+      const cDmg = Math.max(2, construct.dmgPerTick || Math.floor((mage.mag || 10) * 1.1));
+      cTarget.hp = Math.max(0, cTarget.hp - cDmg);
+      if (combatStats[mage.id]) combatStats[mage.id].dmgDealt += cDmg;
+      events.push({ text: `${construct.name} hurls an arcane bolt at ${cTarget.name} — <span class="dmg-num dmg-mag">${cDmg}</span> damage!`, type: 'magic', icon: '🔮', phase: 'battle' });
+      snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+      if (cTarget.hp <= 0) {
+        cTarget.alive = false;
+        fallenEnemies.push(cTarget.name);
+        tryRaiseDead(cTarget, es + 3162);
+        events.push({ text: sPick(T_ENEMY_DEFEAT, es + 556)(cTarget.name, construct.name), type: 'defeat', icon: '💥', phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+      }
+
+      // Arcane Pulse AoE fires every 2 rounds (~55% of Blizzard output: 0.30 × calcPartyDmg)
+      if (roundCount > 0 && roundCount % 2 === 0 && livingEnemies.length > 0) {
+        const pulseDmg = Math.max(3, Math.floor(calcPartyDmg(mage, es + 558, dmgBonus) * 0.30));
+        const pulseTargetCount = livingEnemies.length;
+        let totalPulseDmg = 0;
+        for (const e of livingEnemies) {
+          e.hp = Math.max(0, e.hp - pulseDmg);
+          totalPulseDmg += pulseDmg;
+          if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); tryRaiseDead(e, es + 3165); }
+        }
+        if (totalPulseDmg > 0) {
+          if (combatStats[mage.id]) combatStats[mage.id].dmgDealt += totalPulseDmg;
+          events.push({ text: sPick(T_CONSTRUCT_PULSE, es + 560)(pulseDmg, pulseTargetCount), type: 'magic', icon: '🔮', phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        }
+      }
+    }
+    // Arcane Construct respawn — if destroyed and cooldown expired, re-summon
+    for (const mage of livingParty.filter(p => p.class === 'MAGE' && magesWithConstruct.has(p.id))) {
+      if (arcaneConstructs.some(c => c.ownerId === mage.id && c.hp > 0)) continue; // already alive
+      if (constructCooldowns[mage.id] > 0) {
+        constructCooldowns[mage.id]--;
+        continue;
+      }
+      // Cooldown expired and no living construct — re-summon
+      // Remove any dead construct entries first
+      for (let ci = arcaneConstructs.length - 1; ci >= 0; ci--) {
+        if (arcaneConstructs[ci].ownerId === mage.id) arcaneConstructs.splice(ci, 1);
+      }
+      const cHp = Math.max(50, Math.floor((mage.mag || 10) * 1.50));
+      const cDef = Math.max(10, Math.floor((mage.mag || 10) * 1.50));
+      const cDmg = Math.max(2, Math.floor((mage.mag || 10) * 1.1));
+      arcaneConstructs.push({
+        id: `construct_${mage.id}`,
+        name: `${mage.name}'s Construct`,
+        hp: cHp, maxHp: cHp,
+        def: cDef,
+        dmgPerTick: cDmg,
+        ownerId: mage.id,
+        mageRef: mage,
+      });
+      events.push({ text: sPick(T_CONSTRUCT_RESUMMON, es + 565)(mage.name), type: 'magic', icon: '🔮', phase: 'battle' });
+      snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+    }
+
+    // Necrotic Cleave — raised minions OR Army of the Damned unleash AoE every
+    // 3 rounds (NEC_NECRO_CLEAVE). Scales at 25% of Necromancer's MAG per enemy.
+    // Living minions boost the per-hit damage; Army presence alone is enough to
+    // trigger the cleave at base (1×) scaling.
+    const _cleaveMinions = necroMinions.filter(m => m.hp > 0).length;
+    const _cleaveArmyActive = armyRounds > 0;
+    if (talentNecroticCleave && (_cleaveMinions > 0 || _cleaveArmyActive) && roundCount > 0 && roundCount % 3 === 0) {
+      const cleaveScale = Math.max(1, _cleaveMinions) + (_cleaveArmyActive ? 1 : 0);
+      const necro = partyHp.find(p => p.class === 'NECROMANCER' && p.hp > 0);
+      if (necro && livingEnemies.length > 0) {
+        const cleaveDmgPer = Math.max(2, Math.floor((necro.mag || 10) * 0.25 * cleaveScale));
+        let totalCleaveDmg = 0;
+        for (const e of livingEnemies) {
+          e.hp = Math.max(0, e.hp - cleaveDmgPer);
+          totalCleaveDmg += cleaveDmgPer;
+          if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); tryRaiseDead(e, es + 3170); }
+        }
+        if (totalCleaveDmg > 0) {
+          if (combatStats[necro.id]) combatStats[necro.id].dmgDealt += totalCleaveDmg;
+          const cleaveLabel = _cleaveMinions > 0 && _cleaveArmyActive ? 'The undead horde' : _cleaveMinions > 0 ? 'The raised dead' : 'The spectral army';
+          events.push({ text: `${cleaveLabel} unleashes a necrotic cleave — <span class="dmg-num dmg-mag">${cleaveDmgPer}</span> damage rips through ${livingEnemies.length} ${livingEnemies.length === 1 ? 'foe' : 'foes'}!`, type: 'magic', icon: '💀', phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        }
+      }
+    }
+
     // Blight DoT — 40% MAG per enemy per tick, 3 rounds
     // As the Necromancer's signature L10 AoE DoT this needs to actually
     // compete with their direct-damage kit. Shadow Bolt scales at 130% MAG
@@ -3525,13 +3903,13 @@ function buildSimulation(aq, quest) {
     }
 
     // Consecration duration tick — applies party HoT then decrements
-    // HoT bumped 5% → 6% maxHp so the consecrated-ground tick feels like
-    // more than a rounding error (especially on Knights with big HP pools).
+    // HoT bumped 6% → 8% maxHp so the consecrated-ground tick is a
+    // meaningful sustain layer over its 2-round duration (~16% total).
     if (consecrationRounds > 0) {
       let totalHealed = 0;
       for (const p of livingParty) {
         if (p.hp <= 0) continue;
-        const healAmt = Math.max(2, Math.floor(p.maxHp * 0.06));
+        const healAmt = Math.max(2, Math.floor(p.maxHp * 0.08));
         const before = p.hp;
         p.hp = Math.min(p.maxHp, p.hp + healAmt);
         const actual = p.hp - before;
@@ -3548,6 +3926,32 @@ function buildSimulation(aq, quest) {
       consecrationRounds--;
       if (consecrationRounds === 0) {
         events.push({ text: `The Consecration fades — the ground is no longer hallowed.`, type: 'buff', icon: '🌅', phase: 'battle' });
+        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+      }
+    }
+
+    // Sacred Warmth HoT tick (CLR_SHIELD_HOT / HRO_RALLYING_HEAL talents)
+    // Heals each living party member for 5% max HP per round while active.
+    {
+      let warmthTotal = 0;
+      const warmthHealed = [];
+      for (const p of livingParty) {
+        if (p.hp <= 0 || !sacredWarmthRounds[p.id] || sacredWarmthRounds[p.id] <= 0) continue;
+        const healAmt = Math.max(1, Math.floor(p.maxHp * 0.05));
+        const before = p.hp;
+        p.hp = Math.min(p.maxHp, p.hp + healAmt);
+        const actual = p.hp - before;
+        if (actual > 0) {
+          warmthTotal += actual;
+          warmthHealed.push(`${p.name} (+${actual})`);
+          if (combatStats[p.id]) combatStats[p.id].healingReceived += actual;
+        }
+      }
+      if (warmthTotal > 0) {
+        // Credit healing to the cleric if present
+        const clr = livingParty.find(p => p.class === 'CLERIC' && p.hp > 0);
+        if (clr && combatStats[clr.id]) combatStats[clr.id].healingDone += warmthTotal;
+        events.push({ text: `Sacred warmth soothes the party — <span class="dmg-num dmg-heal">+${warmthTotal}</span> HP restored!`, type: 'heal', icon: '🌸', phase: 'battle' });
         snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
       }
     }
@@ -3763,12 +4167,19 @@ function buildSimulation(aq, quest) {
       // Compute damage: baseDmg × powerMultiplier × (1 + statBonus) × rarityScalar
       // The rarity scalar keeps weapon procs below class skill damage:
       //   non-celestial = bonus hits, celestial = matches L6-L10 skills
+      // DEF-scaling: Knight/Paladin weapons with defScaling blend DEF into the
+      // raw base so tanky classes deal meaningful proc damage despite low ATK.
       const eff = eqSkill.effects || {};
       const powerMult = eff.powerMultiplier || 1.0;
       const bonusMult = 1.0 + (eff.atkBonus || 0) + (eff.magBonus || 0);
       const itemRarity = (boundItem && boundItem.rarity) ? boundItem.rarity.toLowerCase() : 'common';
       const procScalar = WEAPON_PROC_SCALAR[itemRarity] || WEAPON_PROC_SCALAR.common;
-      const rawBase = calcPartyDmg(m, es + 812, dmgBonus);
+      let rawBase = calcPartyDmg(m, es + 812, dmgBonus);
+      // Blend DEF into raw base for skills that opt in (e.g. Knight weapon procs)
+      if (eff.defScaling && m.def) {
+        const defMultiplier = COMBAT_TUNING.PARTY_DMG_MIN_MULT + sRand(es + 818) * COMBAT_TUNING.PARTY_DMG_SPREAD;
+        rawBase += Math.floor(m.def * eff.defScaling * defMultiplier);
+      }
       let baseDmg = Math.max(3, Math.floor(rawBase * powerMult * bonusMult * procScalar));
 
       // Extra crit chance from skill effects stacks with member's base crit
@@ -4136,6 +4547,15 @@ function makeSnapshot(party, enemies, buffs) {
           pBuffs.push(cd > 0
             ? { id: 'raise_cd', icon: '💀', label: 'Raise', desc: `CD: ${cd}`, cooldown: true }
             : { id: 'raise', icon: '💀', label: 'Raise', desc: 'Ready' });
+        }
+      }
+      // Mage Arcane Construct indicator
+      if (b.arcaneConstructs && b.magesWithConstruct && b.magesWithConstruct.has(p.id)) {
+        const myC = b.arcaneConstructs.find(c => c.ownerId === p.id && c.hp > 0);
+        if (myC) {
+          pBuffs.push({ id: 'construct', icon: '🔮', label: 'Construct', desc: `${myC.name} (${myC.hp}/${myC.maxHp})` });
+        } else if (b.constructCooldowns && b.constructCooldowns[p.id] > 0) {
+          pBuffs.push({ id: 'construct_cd', icon: '🔮', label: 'Construct', desc: `Reforming (${b.constructCooldowns[p.id]}rd)`, cooldown: true });
         }
       }
       // Necromancer active minion indicator

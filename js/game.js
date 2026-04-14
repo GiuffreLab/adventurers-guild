@@ -470,8 +470,8 @@ const Game = (() => {
   const LEGACY_TALENTS = {
     // ── HERO (HRO) ──
     HRO_CHAIN_STRIKE:   { id: 'HRO_CHAIN_STRIKE',   tier: 1, cost: 1, reqLevel: 1, classId: 'HERO',        label: 'Chain Strike',       icon: '⚔', desc: 'Heroic Strike chains to a 2nd target at 50% damage.' },
-    HRO_RALLYING_HEAL:  { id: 'HRO_RALLYING_HEAL',  tier: 2, cost: 2, reqLevel: 3, classId: 'HERO',        label: 'Rallying Heal',      icon: '📣', desc: 'Rally Cry also applies a heal-over-time (3% max HP/round, 2 rounds) to all allies.' },
-    HRO_WHIRLWIND_HEAL: { id: 'HRO_WHIRLWIND_HEAL', tier: 3, cost: 3, reqLevel: 6, classId: 'HERO',        label: 'Whirlwind Heal',     icon: '🌀', desc: 'Whirlwind Dance heals the party for 4% max HP per enemy struck.' },
+    HRO_RALLYING_HEAL:  { id: 'HRO_RALLYING_HEAL',  tier: 2, cost: 2, reqLevel: 3, classId: 'HERO',        label: 'Rallying Heal',      icon: '📣', desc: 'Rally Cry also applies a heal-over-time (5% max HP/round, 2 rounds) to all allies.' },
+    HRO_WHIRLWIND_HEAL: { id: 'HRO_WHIRLWIND_HEAL', tier: 3, cost: 3, reqLevel: 6, classId: 'HERO',        label: 'Whirlwind Heal',     icon: '🌀', desc: 'Whirlwind Dance heals the party for 6% max HP per enemy struck.' },
 
     // ── KNIGHT (KNT) ──
     KNT_DEF_SHRED:      { id: 'KNT_DEF_SHRED',      tier: 1, cost: 1, reqLevel: 1, classId: 'KNIGHT',     label: 'Armor Rend',         icon: '🛡', desc: 'Shield Charge hits shred the target\'s armor — they take +15% damage for 2 rounds.' },
@@ -485,12 +485,12 @@ const Game = (() => {
 
     // ── ROGUE (ROG) ──
     ROG_POISON:         { id: 'ROG_POISON',           tier: 1, cost: 1, reqLevel: 1, classId: 'ROGUE',      label: 'Venomous Blades',    icon: '🗡', desc: 'Shadow Strike has a 30% chance to poison the target (7% max HP/round, 3 rounds). Poisoned enemies also deal -15% damage.' },
-    ROG_SMOKE_HEAL:     { id: 'ROG_SMOKE_HEAL',       tier: 2, cost: 2, reqLevel: 3, classId: 'ROGUE',      label: 'Healing Smoke',      icon: '💨', desc: 'Smoke Bomb also heals the entire party for 5% max HP.' },
+    ROG_SMOKE_HEAL:     { id: 'ROG_SMOKE_HEAL',       tier: 2, cost: 2, reqLevel: 3, classId: 'ROGUE',      label: 'Healing Smoke',      icon: '💨', desc: 'Smoke Bomb also heals the entire party for 8% max HP.' },
     ROG_EXECUTE:        { id: 'ROG_EXECUTE',           tier: 3, cost: 3, reqLevel: 6, classId: 'ROGUE',      label: 'Executioner',        icon: '☠', desc: 'Assassinate always crits against enemies below 25% HP.' },
 
     // ── CLERIC (CLR) ──
-    CLR_SHIELD_HOT:     { id: 'CLR_SHIELD_HOT',       tier: 1, cost: 1, reqLevel: 1, classId: 'CLERIC',     label: 'Sacred Warmth',      icon: '💚', desc: 'Divine Shield also applies a HoT (3% max HP/round, 3 rounds) to all allies.' },
-    CLR_SMITE_BURN:     { id: 'CLR_SMITE_BURN',       tier: 2, cost: 2, reqLevel: 3, classId: 'CLERIC',     label: 'Righteous Burn',     icon: '🔥', desc: 'Smite also applies a burning DoT (30% MAG per round, 3 rounds) to its target.' },
+    CLR_SHIELD_HOT:     { id: 'CLR_SHIELD_HOT',       tier: 1, cost: 1, reqLevel: 1, classId: 'CLERIC',     label: 'Sacred Warmth',      icon: '💚', desc: 'Divine Shield also applies a HoT (5% max HP/round, 3 rounds) to all allies.' },
+    CLR_SMITE_BURN:     { id: 'CLR_SMITE_BURN',       tier: 2, cost: 2, reqLevel: 3, classId: 'CLERIC',     label: 'Righteous Burn',     icon: '🔥', desc: 'Smite also applies a burning DoT (40% MAG per round, 3 rounds) to its target.' },
     CLR_WRATH:          { id: 'CLR_WRATH',             tier: 3, cost: 3, reqLevel: 6, classId: 'CLERIC',     label: 'Righteous Wrath',    icon: '⚡', desc: 'Divine Intervention grants the saved ally +30% damage for 2 rounds.' },
 
     // ── RANGER (RNG) ──
@@ -501,7 +501,7 @@ const Game = (() => {
     // ── BARD (BRD) ──
     BRD_DISCORD_DMG:    { id: 'BRD_DISCORD_DMG',      tier: 1, cost: 1, reqLevel: 1, classId: 'BARD',       label: 'Lingering Discord',  icon: '🎵', desc: 'Discord\'s duration is extended by 1 round (3 → 4).' },
     BRD_CRESCENDO_ALLY: { id: 'BRD_CRESCENDO_ALLY',   tier: 2, cost: 2, reqLevel: 3, classId: 'BARD',       label: 'Grand Crescendo',    icon: '🎶', desc: 'Crescendo\'s guaranteed crit also applies to the next 2 ally attacks.' },
-    BRD_SYMPHONY_LEECH: { id: 'BRD_SYMPHONY_LEECH',   tier: 3, cost: 3, reqLevel: 6, classId: 'BARD',       label: 'Vampiric Symphony',  icon: '🎻', desc: 'Symphony of War grants +5% lifesteal to the entire party.' },
+    BRD_SYMPHONY_LEECH: { id: 'BRD_SYMPHONY_LEECH',   tier: 3, cost: 3, reqLevel: 6, classId: 'BARD',       label: 'Vampiric Symphony',  icon: '🎻', desc: 'Symphony of War grants +10% lifesteal to the entire party.' },
 
     // ── MONK (MNK) ──
     MNK_KI_BOOST:       { id: 'MNK_KI_BOOST',         tier: 1, cost: 1, reqLevel: 1, classId: 'MONK',       label: 'Ki Barrier Resurgence', icon: '🔵', desc: 'Pressure Point grants the Monk a Ki Shield equal to 10% of their max HP, absorbing incoming damage.' },
@@ -510,7 +510,7 @@ const Game = (() => {
 
     // ── NECROMANCER (NEC) ──
     NEC_GRAVE_HUNGER:   { id: 'NEC_GRAVE_HUNGER',      tier: 1, cost: 1, reqLevel: 1, classId: 'NECROMANCER',label: 'Grave Hunger',       icon: '🩸', desc: 'Shroud of Decay grows stronger as enemies fall. Each kill grants +2% party damage, +1% party crit, and +1% party DEF (max 5 stacks). Combat starts with 1 stack already active.' },
-    NEC_NECRO_CLEAVE:   { id: 'NEC_NECRO_CLEAVE',      tier: 2, cost: 2, reqLevel: 3, classId: 'NECROMANCER',label: 'Necrotic Cleave',    icon: '🪓', desc: 'Raised minions unleash a necrotic cleave every 3 rounds, dealing MAG-scaled AoE damage to all enemies.' },
+    NEC_NECRO_CLEAVE:   { id: 'NEC_NECRO_CLEAVE',      tier: 2, cost: 2, reqLevel: 3, classId: 'NECROMANCER',label: 'Necrotic Cleave',    icon: '🪓', desc: 'Raised minions and Army of the Damned unleash a necrotic cleave every 3 rounds, dealing MAG-scaled AoE damage to all enemies.' },
     NEC_SUMMON_SHIELD:  { id: 'NEC_SUMMON_SHIELD',     tier: 3, cost: 3, reqLevel: 6, classId: 'NECROMANCER',label: 'Undead Vanguard',    icon: '🪦', desc: 'Army of the Damned duration is extended by 1 round (3 → 4).' },
 
     // ── PARTY-WIDE ──
@@ -1004,14 +1004,39 @@ const Game = (() => {
     const goldEarned = success ? Math.floor(baseGold * (0.8 + cappedRatio * 0.4) * goldXpMult) : 0;
     const expEarned  = Math.floor(baseExp * (success ? 1 : 0.2) * goldXpMult);
 
+    // ── §10 Sub-difficulty loot quality + quantity scaling ─────────────
     // Quest rarity boosts loot drop chance at resolution time
     const questRarityMult = questDef.rarity === 'legendary' ? 1.4
       : questDef.rarity === 'rare' ? 1.2
       : questDef.rarity === 'uncommon' ? 1.1 : 1.0;
 
+    // Sub-tier quality shift: hard/brutal quests boost equipment drop
+    // chances AND add bonus drop slots. This makes sub-difficulty matter
+    // for loot quality, not just XP/gold/RP.
+    const subTier = questDef.subTier || 'standard';
+
+    // ── Quality-weighted sub-tier drop multipliers ──────────────────────
+    // Harder sub-tiers give progressively bigger boosts to higher-rarity
+    // items. A Brutal quest doesn't just drop more items — it shifts the
+    // quality distribution upward so epic/legendary/celestial gear drops
+    // more frequently relative to common/magic filler.
+    //
+    // Rarity key:  common  magic  rare   epic  legendary  celestial
+    // Easy:         0.80   0.80   0.80  0.80    0.80      0.80
+    // Standard:     1.00   1.00   1.00  1.00    1.00      1.00
+    // Hard:         1.10   1.15   1.25  1.40    1.50      1.60
+    // Brutal:       1.20   1.30   1.50  1.80    2.00      2.20
+    const SUB_TIER_QUALITY_MULT = {
+      easy:     { common: 0.80, magic: 0.80, rare: 0.80, epic: 0.80, legendary: 0.80, celestial: 0.80 },
+      standard: { common: 1.00, magic: 1.00, rare: 1.00, epic: 1.00, legendary: 1.00, celestial: 1.00 },
+      hard:     { common: 1.10, magic: 1.15, rare: 1.25, epic: 1.40, legendary: 1.50, celestial: 1.60 },
+      brutal:   { common: 1.20, magic: 1.30, rare: 1.50, epic: 1.80, legendary: 2.00, celestial: 2.20 },
+    };
+    const subQualityTable = SUB_TIER_QUALITY_MULT[subTier] || SUB_TIER_QUALITY_MULT.standard;
+
     const loot = [];
     if (success) {
-      // Track failed entries for boss loot guarantee
+      // Track failed entries for loot guarantee system
       const failedEntries = [];
 
       for (const entry of questDef.lootTable) {
@@ -1023,9 +1048,13 @@ const Game = (() => {
         const lootRatio = Math.min(ratio, 3.0);
         const baseChance = entry.chance * (0.7 + lootRatio * 0.3) + luckBonus * 0.02;
         // Legacy celestial bonus applies on top for celestial items
-        const isCelItem = getItemRarity(getItem(entry.itemId))?.id === 'celestial';
+        const item = getItem(entry.itemId);
+        const itemRarity = getItemRarity(item)?.id || 'common';
+        const isCelItem = itemRarity === 'celestial';
         const celBonus = isCelItem ? legacy.celestialBonus : 0;
-        const chance = Math.min(0.95, baseChance * (1 + itemFindBonus + celBonus) * questRarityMult);
+        // Quality-weighted sub-tier multiplier: higher rarity = bigger boost
+        const subTierDropMult = subQualityTable[itemRarity] || 1.0;
+        const chance = Math.min(0.95, baseChance * (1 + itemFindBonus + celBonus) * questRarityMult * subTierDropMult);
         if (Math.random() < chance) {
           loot.push({ itemId: entry.itemId, quantity: randInt(entry.quantity[0], entry.quantity[1]) });
         } else {
@@ -1033,23 +1062,66 @@ const Game = (() => {
         }
       }
 
-      // Boss loot guarantee: bosses always drop 4-8 items
-      // Raid bosses: 8-12 items guaranteed
-      if (questDef.boss) {
-        const isRaid = !!questDef.raidBoss;
-        const bossMinLoot = isRaid ? 8 : 4;
-        const bossMaxLoot = isRaid ? 12 : 8;
-        // Cap at max even if natural rolls exceeded it (unlikely but safety)
-        while (loot.length > bossMaxLoot) loot.pop();
-        // Fill up to minimum from failed rolls, sorted by drop chance (most likely first)
-        if (loot.length < bossMinLoot && failedEntries.length > 0) {
-          failedEntries.sort((a, b) => b.chance - a.chance);
-          for (const { entry } of failedEntries) {
-            if (loot.length >= bossMinLoot) break;
-            // Avoid duplicates — don't force an item that already dropped
-            if (loot.some(l => l.itemId === entry.itemId)) continue;
-            loot.push({ itemId: entry.itemId, quantity: randInt(entry.quantity[0], entry.quantity[1]) });
-          }
+      // ── Loot drop guarantees ──────────────────────────────────────────
+      // Base drops per rank tier (at Easy difficulty):
+      //   F-E: 2, D-C: 3, B-A: 4, S/S+/S++: 5
+      // Each sub-difficulty step above Easy adds +1:
+      //   Standard +1, Hard +2, Brutal +3
+      // Boss Hard: 6-8, Boss Brutal: 7-9, Raid: 10
+      const RANK_BASE_DROPS = {
+        F: 2, E: 2, D: 3, C: 3, B: 4, A: 4,
+        S: 5, 'S+': 5, 'S++': 5,
+      };
+      const SUB_TIER_DROP_BONUS = {
+        easy: 0, standard: 1, hard: 2, brutal: 3,
+      };
+
+      const isRaid = !!questDef.raidBoss;
+      const isBoss = !!questDef.boss;
+      let minLoot, maxLoot;
+
+      if (isRaid) {
+        // Raid bosses: flat 10 guaranteed drops ("celestial piñatas")
+        minLoot = 10;
+        maxLoot = 10;
+      } else if (isBoss) {
+        // Boss Hard: 6-8, Boss Brutal: 7-9, other bosses: rank base + sub bonus
+        if (subTier === 'brutal') {
+          minLoot = 7; maxLoot = 9;
+        } else if (subTier === 'hard') {
+          minLoot = 6; maxLoot = 8;
+        } else {
+          const base = RANK_BASE_DROPS[questDef.rank] || 2;
+          const bonus = SUB_TIER_DROP_BONUS[subTier] || 0;
+          minLoot = base + bonus;
+          maxLoot = minLoot + 2; // bosses still get a small range above min
+        }
+      } else {
+        // Normal quests: rank base + sub-difficulty bonus
+        const base = RANK_BASE_DROPS[questDef.rank] || 2;
+        const bonus = SUB_TIER_DROP_BONUS[subTier] || 0;
+        minLoot = base + bonus;
+        maxLoot = minLoot; // no range for non-boss, just the guarantee floor
+      }
+
+      // Cap at max if natural rolls exceeded it
+      if (maxLoot && loot.length > maxLoot) {
+        while (loot.length > maxLoot) loot.pop();
+      }
+
+      // Fill up to minimum from failed rolls, sorted by drop chance (best first)
+      if (loot.length < minLoot && failedEntries.length > 0) {
+        failedEntries.sort((a, b) => {
+          // Prioritize equipment over consumables for forced drops
+          const aEquip = EQUIPMENT[a.entry.itemId] ? 1 : 0;
+          const bEquip = EQUIPMENT[b.entry.itemId] ? 1 : 0;
+          if (aEquip !== bEquip) return bEquip - aEquip;
+          return b.chance - a.chance;
+        });
+        for (const fe of failedEntries) {
+          if (loot.length >= minLoot) break;
+          if (loot.some(l => l.itemId === fe.entry.itemId)) continue;
+          loot.push({ itemId: fe.entry.itemId, quantity: randInt(fe.entry.quantity[0], fe.entry.quantity[1]) });
         }
       }
     }

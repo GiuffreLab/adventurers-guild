@@ -62,14 +62,14 @@ export const CLASS_SKILLS = {
   SHIELD_BASH: {
     id: 'SHIELD_BASH', name: 'Shield Bash', type: 'active', source: 'class',
     classId: 'KNIGHT', unlockLevel: 1,
-    description: 'A trained shield strike that doubles as an offensive opener. 55% proc, 1.0× power (routed through the standard 1.25× skill path).',
+    description: 'A trained shield strike that doubles as an offensive opener. 55% proc, 1.0× power. Partially scales with DEF.',
     icon: '🛡', effects: { powerMultiplier: 1.0 }, procChance: 0.55,
     narrative: 'smashes forward with a Shield Bash!',
   },
   SHIELD_CHARGE: {
     id: 'SHIELD_CHARGE', name: 'Shield Charge', type: 'active', source: 'class',
     classId: 'KNIGHT', unlockLevel: 2,
-    description: 'Knight presses forward and crushes a foe with their shield. 70% proc, 1.25× power, ATK +25%.',
+    description: 'Knight presses forward and crushes a foe with their shield. 70% proc, 1.25× power, ATK +25%. Partially scales with DEF.',
     icon: '🛡', effects: { powerMultiplier: 1.25, atkBonus: 0.25 }, procChance: 0.70,
     narrative: 'barrels forward with a Shield Charge!',
   },
@@ -83,7 +83,7 @@ export const CLASS_SKILLS = {
   SWEEPING_BLOW: {
     id: 'SWEEPING_BLOW', name: 'Sweeping Blow', type: 'active', source: 'class',
     classId: 'KNIGHT', unlockLevel: 10,
-    description: 'CLASS SKILL — A wide arc that hits all enemies. 55% proc, 1.25× power, ATK +20%.',
+    description: 'CLASS SKILL — A wide arc that hits all enemies. 55% proc, 1.25× power, ATK +20%. Partially scales with DEF.',
     icon: '⚔', effects: { powerMultiplier: 1.25, atkBonus: 0.20 }, procChance: 0.55,
     narrative: 'swings in a wide arc — Sweeping Blow cleaves the line!',
   },
@@ -97,7 +97,7 @@ export const CLASS_SKILLS = {
   UNBREAKABLE: {
     id: 'UNBREAKABLE', name: 'Unbreakable', type: 'active', source: 'class',
     classId: 'KNIGHT', unlockLevel: 18,
-    description: 'EPIC — The Knight transcends mortal limits. 40% proc, 1.5× power, DEF +50%.',
+    description: 'EPIC — The Knight transcends mortal limits. 40% proc, 1.5× power, DEF +50%. Scales with DEF.',
     icon: '💎', effects: { powerMultiplier: 1.5, defBonus: 0.50 }, procChance: 0.40,
     narrative: 'becomes absolutely Unbreakable — a wall of steel and will!',
   },
@@ -134,20 +134,31 @@ export const CLASS_SKILLS = {
     icon: '❄', effects: { powerMultiplier: 1.3, magBonus: 0.15 }, procChance: 0.70,
     narrative: 'hurls a Frostbolt — frozen shards tear the air!',
   },
-  // L6 — Blizzard (new). MAG-scaled AoE replacing Spell Echo's L6 slot.
+  // L6 — Arcane Construct (swapped with Blizzard for early Mage survivability).
+  ARCANE_CONSTRUCT: {
+    id: 'ARCANE_CONSTRUCT', name: 'Arcane Construct', type: 'active', source: 'class',
+    classId: 'MAGE', unlockLevel: 6,
+    description: 'CLASS SKILL — Summons a permanent Arcane Construct (150% MAG as HP and DEF) that bodyguards the Mage (absorbs all hits aimed at the Mage). It attacks each round and fires an Arcane Pulse AoE every 2 rounds. Re-summons after 2-round cooldown if destroyed.',
+    icon: '🔮', effects: { summon: true }, procChance: 1.0,
+    reactive: true,
+    narrative: 'conjures an Arcane Construct — crystallized magic takes form!',
+  },
+  // L10 — Blizzard. MAG-scaled AoE (swapped with Arcane Construct for early survivability).
   BLIZZARD: {
     id: 'BLIZZARD', name: 'Blizzard', type: 'active', source: 'class',
-    classId: 'MAGE', unlockLevel: 6,
+    classId: 'MAGE', unlockLevel: 10,
     description: 'A frigid storm engulfs every foe. 55% proc, 1.3× AoE power, MAG +25%.',
     icon: '🌨', effects: { powerMultiplier: 1.3, magBonus: 0.25 }, procChance: 0.55,
     narrative: 'conjures a roaring Blizzard — every foe freezes in the gale!',
   },
+  // Legacy — Arcane Cataclysm replaced by Arcane Construct (L10 pet).
+  // Entry preserved for old save compatibility.
   ARCANE_CATACLYSM: {
-    id: 'ARCANE_CATACLYSM', name: 'Arcane Cataclysm', type: 'active', source: 'class',
-    classId: 'MAGE', unlockLevel: 10,
-    description: 'CLASS SKILL — Unleashes a devastating area-of-effect magical explosion. 50% proc, MAG +50%, 1.4× power.',
-    icon: '💥', effects: { magBonus: 0.50, powerMultiplier: 1.4 }, procChance: 0.50,
-    narrative: 'channels an Arcane Cataclysm — raw magical destruction!',
+    id: 'ARCANE_CATACLYSM', name: 'Arcane Cataclysm (Legacy)', type: 'legacy', source: 'legacy',
+    classId: 'MAGE', unlockLevel: 99,
+    description: 'LEGACY — Arcane Cataclysm was replaced by Arcane Construct in the Mage rework.',
+    icon: '💥', effects: { magBonus: 0.50, powerMultiplier: 1.4 }, procChance: 0.0,
+    narrative: '',
   },
   // L14 — Arcane Aftershock (NEW, reactive). Renamed and rewired from the
   // old L6 Spell Echo: now triggers when ANY party member lands a killing blow
@@ -302,7 +313,7 @@ export const CLASS_SKILLS = {
   RIGHTEOUS_BURN: {
     id: 'RIGHTEOUS_BURN', name: 'Righteous Burn', type: 'active', source: 'class',
     classId: 'CLERIC', unlockLevel: 18,
-    description: 'EPIC — Pillars of holy fire engulf every foe. 35% proc, 1.5× AoE power, MAG +40%. Applies a burning DoT (30% MAG per round, 3 rounds) to all struck enemies.',
+    description: 'EPIC — Pillars of holy fire engulf every foe. 35% proc, 1.5× AoE power, MAG +40%. Applies a burning DoT (40% MAG per round, 3 rounds) to all struck enemies.',
     icon: '🔥', effects: { powerMultiplier: 1.5, magBonus: 0.40, appliesBurn: true }, procChance: 0.35,
     narrative: 'channels a Righteous Burn — pillars of sacred flame scorch the unworthy!',
   },
