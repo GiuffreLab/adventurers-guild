@@ -471,7 +471,7 @@ const Game = (() => {
     // ── HERO (HRO) ──
     HRO_CHAIN_STRIKE:   { id: 'HRO_CHAIN_STRIKE',   tier: 1, cost: 1, reqLevel: 1, classId: 'HERO',        label: 'Chain Strike',       icon: '⚔', desc: 'Heroic Strike chains to a 2nd target at 50% damage.' },
     HRO_RALLYING_HEAL:  { id: 'HRO_RALLYING_HEAL',  tier: 2, cost: 2, reqLevel: 3, classId: 'HERO',        label: 'Rallying Heal',      icon: '📣', desc: 'Rally Cry also applies a heal-over-time (5% max HP/round, 2 rounds) to all allies.' },
-    HRO_WHIRLWIND_HEAL: { id: 'HRO_WHIRLWIND_HEAL', tier: 3, cost: 3, reqLevel: 6, classId: 'HERO',        label: 'Whirlwind Heal',     icon: '🌀', desc: 'Whirlwind Dance heals the party for 6% max HP per enemy struck.' },
+    HRO_WHIRLWIND_HEAL: { id: 'HRO_WHIRLWIND_HEAL', tier: 3, cost: 3, reqLevel: 6, classId: 'HERO',        label: 'Whirlwind Heal',     icon: '🌀', desc: 'Hero AoE skills (Sword Dance / Whirlwind Dance) heal the party for 6% max HP per enemy struck.' },
 
     // ── KNIGHT (KNT) ──
     KNT_DEF_SHRED:      { id: 'KNT_DEF_SHRED',      tier: 1, cost: 1, reqLevel: 1, classId: 'KNIGHT',     label: 'Armor Rend',         icon: '🛡', desc: 'Shield Charge hits shred the target\'s armor — they take +15% damage for 2 rounds.' },
@@ -510,7 +510,7 @@ const Game = (() => {
 
     // ── NECROMANCER (NEC) ──
     NEC_GRAVE_HUNGER:   { id: 'NEC_GRAVE_HUNGER',      tier: 1, cost: 1, reqLevel: 1, classId: 'NECROMANCER',label: 'Grave Hunger',       icon: '🩸', desc: 'Shroud of Decay grows stronger as enemies fall. Each kill grants +2% party damage, +1% party crit, and +1% party DEF (max 5 stacks). Combat starts with 1 stack already active.' },
-    NEC_NECRO_CLEAVE:   { id: 'NEC_NECRO_CLEAVE',      tier: 2, cost: 2, reqLevel: 3, classId: 'NECROMANCER',label: 'Necrotic Cleave',    icon: '🪓', desc: 'Raised minions and Army of the Damned unleash a necrotic cleave every 3 rounds, dealing MAG-scaled AoE damage to all enemies.' },
+    NEC_NECRO_CLEAVE:   { id: 'NEC_NECRO_CLEAVE',      tier: 2, cost: 2, reqLevel: 3, classId: 'NECROMANCER',label: 'Necrotic Cleave',    icon: '🪓', desc: 'Raised minions and Army of the Damned unleash a necrotic cleave every 2 rounds, dealing MAG-scaled AoE damage to all enemies.' },
     NEC_SUMMON_SHIELD:  { id: 'NEC_SUMMON_SHIELD',     tier: 3, cost: 3, reqLevel: 6, classId: 'NECROMANCER',label: 'Undead Vanguard',    icon: '🪦', desc: 'Army of the Damned duration is extended by 1 round (3 → 4).' },
 
     // ── PARTY-WIDE ──

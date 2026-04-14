@@ -865,7 +865,7 @@ function buildSimulation(aq, quest) {
   const talentGraveHunger = _ht('NEC_GRAVE_HUNGER') && partyHasNecromancer;
   const talentNecroticCleave = _ht('NEC_NECRO_CLEAVE');
   const talentUndeadVanguard = _ht('NEC_SUMMON_SHIELD');
-  // necroticCleaveTimer removed — uses roundCount % 3 directly
+  // necroticCleaveTimer removed — uses roundCount % 2 directly
   // Grave Hunger (reworked, §7.7 final): enhances Shroud of Decay per enemy kill.
   // Per-stack: +2% party damage (covers ATK+MAG via calcPartyDmg's bonus),
   // +1% party crit, +1% party DEF. Starts at 1 stack when talent active, max 5. No decay.
@@ -882,8 +882,8 @@ function buildSimulation(aq, quest) {
   const defShredTargets = {}; // { enemyId: roundsRemaining } — KNT_DEF_SHRED
   const tauntedEnemies = {}; // { enemyId: roundsRemaining } — KNT_TAUNT_AURA
   const exposedTargets = {}; // { enemyId: roundsRemaining } — ROG Fan of Knives Exposed (+10% dmg taken, 2r)
-  const poisonTargets = {}; // { enemyId: { rounds, dmgPerTick } } — ROG_POISON
-  const burnTargets = {}; // { enemyId: { rounds, dmgPerTick, source } } — MAG_METEOR_BURN / CLR_SMITE_BURN. source: 'MAG' | 'CLR'
+  const poisonTargets = {}; // { enemyId: { rounds, dmgPerTick, ownerId } } — ROG_POISON
+  const burnTargets = {}; // { enemyId: { rounds, dmgPerTick, source, ownerId } } — MAG_METEOR_BURN / CLR_SMITE_BURN
   const sacredWarmthRounds = {}; // { memberId: roundsRemaining } — CLR_SHIELD_HOT HoT
   const wrathBuff = {}; // { memberId: roundsRemaining } — CLR_WRATH +30% dmg
   const stormMarkRounds = {}; // { enemyId: roundsRemaining } — RNG_STORM_MARK
@@ -1270,7 +1270,7 @@ function buildSimulation(aq, quest) {
       if (pMe) {
         const cHp = Math.max(50, Math.floor((pMe.mag || 10) * 1.50));
         const cDef = Math.max(10, Math.floor((pMe.mag || 10) * 1.50));
-        const cDmg = Math.max(2, Math.floor((pMe.mag || 10) * 1.1));
+        const cDmg = Math.max(2, Math.floor((pMe.mag || 10) * 0.85));
         arcaneConstructs.push({
           id: `construct_${m.id}`,
           name: `${pMe.name}'s Construct`,
@@ -2112,7 +2112,7 @@ function buildSimulation(aq, quest) {
                   const burnDmg = Math.max(2, Math.floor((attacker.mag || 10) * 0.15));
                   let burnCount = 0;
                   for (const e of currentLiving) {
-                    if (e.alive) { burnTargets[e.id] = { rounds: 3, dmgPerTick: burnDmg, source: 'MAG' }; burnCount++; }
+                    if (e.alive) { burnTargets[e.id] = { rounds: 3, dmgPerTick: burnDmg, source: 'MAG', ownerId: attacker.id }; burnCount++; }
                   }
                   if (burnCount > 0) {
                     events.push({ text, type, icon, phase: 'battle' });
@@ -2154,7 +2154,7 @@ function buildSimulation(aq, quest) {
                   for (const e of currentLiving) {
                     if (!e.alive) continue;
                     const pDmg = Math.max(2, Math.floor(e.maxHp * 0.07));
-                    poisonTargets[e.id] = { rounds: 3, dmgPerTick: pDmg };
+                    poisonTargets[e.id] = { rounds: 3, dmgPerTick: pDmg, ownerId: attacker.id };
                     exposedTargets[e.id] = 2;
                   }
                 }
@@ -2165,13 +2165,14 @@ function buildSimulation(aq, quest) {
                   const burnDmg = Math.max(2, Math.floor((attacker.mag || 10) * 0.40));
                   for (const e of currentLiving) {
                     if (!e.alive) continue;
-                    burnTargets[e.id] = { rounds: 3, dmgPerTick: burnDmg, source: 'CLR' };
+                    burnTargets[e.id] = { rounds: 3, dmgPerTick: burnDmg, source: 'CLR', ownerId: attacker.id };
                   }
                 }
 
-                // HRO_WHIRLWIND_HEAL "Whirlwind Heal" — Whirlwind Dance heals the
-                // party for 6% max HP per enemy struck.
-                if (talentWhirlwindHeal && skillId === 'WHIRLWIND_DANCE') {
+                // HRO_WHIRLWIND_HEAL "Whirlwind Heal" — Hero AoE skills
+                // (Sword Dance / Whirlwind Dance) heal the party for 6% max HP
+                // per enemy struck. Wired to all spec variants so it never dead-talents.
+                if (talentWhirlwindHeal && (skillId === 'WHIRLWIND_DANCE' || skillId === 'SWORD_DANCE')) {
                   const struck = currentLiving.filter(e => e.alive).length;
                   if (struck > 0) {
                     let totalHealed = 0;
@@ -2188,9 +2189,10 @@ function buildSimulation(aq, quest) {
                       }
                     }
                     if (totalHealed > 0) {
+                      const skillLabel = skillId === 'SWORD_DANCE' ? 'Sword Dance' : 'Whirlwind Dance';
                       events.push({ text, type, icon, phase: 'battle' });
                       snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-                      text = `${attacker.name}'s Whirlwind Dance revitalizes the party — <span class="dmg-num dmg-heal">${totalHealed}</span> HP restored!`;
+                      text = `${attacker.name}'s ${skillLabel} revitalizes the party — <span class="dmg-num dmg-heal">${totalHealed}</span> HP restored!`;
                       icon = '🌀'; type = 'heal';
                     }
                   }
@@ -2415,7 +2417,7 @@ function buildSimulation(aq, quest) {
                 // Rogue Venomous Blades — Shadow Strike has a 30% chance to poison
                 if (talentPoison && skillId === 'SHADOW_STRIKE' && target.alive !== false && target.hp > 0 && sRand(es + 215) < 0.30) {
                   const pDmg = Math.max(2, Math.floor(target.maxHp * 0.07));
-                  poisonTargets[target.id] = { rounds: 3, dmgPerTick: pDmg };
+                  poisonTargets[target.id] = { rounds: 3, dmgPerTick: pDmg, ownerId: attacker.id };
                   events.push({ text, type, icon, phase: 'battle' });
                   snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
                   text = `${attacker.name}'s venomous blade poisons ${target.name} — <span class="dmg-num dmg-phys">${pDmg}</span>/round for 3 rounds!`;
@@ -2425,7 +2427,7 @@ function buildSimulation(aq, quest) {
                 // CLR_SMITE_BURN "Righteous Burn" — Smite applies a burn DoT (40% MAG/r)
                 if (talentSmiteBurn && skillId === 'SMITE' && target.hp > 0) {
                   const burnDmg = Math.max(2, Math.floor((attacker.mag || 10) * 0.40));
-                  burnTargets[target.id] = { rounds: 3, dmgPerTick: burnDmg, source: 'CLR' };
+                  burnTargets[target.id] = { rounds: 3, dmgPerTick: burnDmg, source: 'CLR', ownerId: attacker.id };
                   events.push({ text, type, icon, phase: 'battle' });
                   snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
                   text = `${attacker.name}'s Smite ignites ${target.name} — sacred fire burns for <span class="dmg-num dmg-mag">${burnDmg}</span>/round!`;
@@ -2634,32 +2636,36 @@ function buildSimulation(aq, quest) {
           let target;
           let targetIsMinion = false;
           let targetIsConstruct = false;
-          if (livingMinions.length > 0 && sRand(es + 300) < 0.25) {
-            target = sPick(livingMinions, es + 301);
-            targetIsMinion = true;
+
+          // Filter out phased Mages — they are untargetable
+          const targetableParty = livingParty.filter(p => !(phaseShiftRounds[p.id] > 0));
+          if (targetableParty.length === 0) {
+            // All living members are phased — skip this enemy attack
+            continue;
+          }
+          // Taunt targeting: taunted enemies MUST attack a Knight (if any
+          // living Knight is targetable). Falls back to normal targeting
+          // if no Knight is available (e.g. all Knights are phased/dead).
+          if (tauntedEnemies[attacker.id] > 0) {
+            const knights = targetableParty.filter(p => p.class === 'KNIGHT');
+            target = knights.length > 0 ? sPick(knights, es + 302) : sPick(targetableParty, es + 302);
           } else {
-            // Filter out phased Mages — they are untargetable
-            const targetableParty = livingParty.filter(p => !(phaseShiftRounds[p.id] > 0));
-            if (targetableParty.length === 0) {
-              // All living members are phased — skip this enemy attack
-              continue;
+            target = sPick(targetableParty, es + 302);
+          }
+          // Arcane Construct intercept — always blocks hits aimed at its Mage
+          if (target && target.class === 'MAGE' && livingConstructs.length > 0) {
+            const myConstruct = livingConstructs.find(c => c.ownerId === target.id);
+            if (myConstruct) {
+              target = myConstruct;
+              targetIsConstruct = true;
             }
-            // Taunt targeting: taunted enemies MUST attack a Knight (if any
-            // living Knight is targetable). Falls back to normal targeting
-            // if no Knight is available (e.g. all Knights are phased/dead).
-            if (tauntedEnemies[attacker.id] > 0) {
-              const knights = targetableParty.filter(p => p.class === 'KNIGHT');
-              target = knights.length > 0 ? sPick(knights, es + 302) : sPick(targetableParty, es + 302);
-            } else {
-              target = sPick(targetableParty, es + 302);
-            }
-            // Arcane Construct intercept — always blocks hits aimed at its Mage
-            if (target && target.class === 'MAGE' && livingConstructs.length > 0) {
-              const myConstruct = livingConstructs.find(c => c.ownerId === target.id);
-              if (myConstruct) {
-                target = myConstruct;
-                targetIsConstruct = true;
-              }
+          }
+          // Necro Thrall intercept — always blocks hits aimed at its Necromancer
+          if (target && target.class === 'NECROMANCER' && livingMinions.length > 0) {
+            const myMinion = livingMinions.find(m => m.ownerId === target.id);
+            if (myMinion) {
+              target = myMinion;
+              targetIsMinion = true;
             }
           }
 
@@ -2710,6 +2716,18 @@ function buildSimulation(aq, quest) {
             target.hp = Math.max(0, target.hp - cAfterDef);
             text = sPick(T_ENEMY_ATK, es + 310)(attacker.name, target.name, cAfterDef);
             icon = '🔮'; type = 'enemy';
+
+            // Arcane Reflection — construct reflects 20% of damage back to attacker
+            if (talentArcaneReflect && cAfterDef > 0 && attacker.alive) {
+              const reflDmg = Math.max(1, Math.floor(cAfterDef * 0.20));
+              attacker.hp = Math.max(0, attacker.hp - reflDmg);
+              if (combatStats[target.ownerId]) combatStats[target.ownerId].dmgReflected = (combatStats[target.ownerId].dmgReflected || 0) + reflDmg;
+              events.push({ text, type, icon, phase: 'battle' });
+              snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+              text = `Arcane wards flare from the Construct — <span class="sk-magic">Arcane Reflection</span> lashes ${attacker.name} for <span class="dmg-num dmg-mag">${reflDmg}</span>!`;
+              icon = '💜'; type = 'magic';
+              if (attacker.hp <= 0) { attacker.alive = false; fallenEnemies.push(attacker.name); tryRaiseDead(attacker, es + 2714); }
+            }
 
             if (target.hp <= 0) {
               events.push({ text, type, icon, phase: 'battle' });
@@ -3751,9 +3769,9 @@ function buildSimulation(aq, quest) {
       const mage = partyHp.find(p => p.id === construct.ownerId && p.hp > 0);
       if (!mage || livingEnemies.length === 0) continue;
 
-      // Single-target attack every round (matches thrall output: 110% owner MAG)
+      // Single-target attack every round (85% owner MAG — tuned down from thrall's 110%)
       const cTarget = sPick(livingEnemies, es + 555 + arcaneConstructs.indexOf(construct));
-      const cDmg = Math.max(2, construct.dmgPerTick || Math.floor((mage.mag || 10) * 1.1));
+      const cDmg = Math.max(2, construct.dmgPerTick || Math.floor((mage.mag || 10) * 0.85));
       cTarget.hp = Math.max(0, cTarget.hp - cDmg);
       if (combatStats[mage.id]) combatStats[mage.id].dmgDealt += cDmg;
       events.push({ text: `${construct.name} hurls an arcane bolt at ${cTarget.name} — <span class="dmg-num dmg-mag">${cDmg}</span> damage!`, type: 'magic', icon: '🔮', phase: 'battle' });
@@ -3766,9 +3784,9 @@ function buildSimulation(aq, quest) {
         snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
       }
 
-      // Arcane Pulse AoE fires every 2 rounds (~55% of Blizzard output: 0.30 × calcPartyDmg)
+      // Arcane Pulse AoE fires every 2 rounds (~40% of Blizzard output: 0.22 × calcPartyDmg)
       if (roundCount > 0 && roundCount % 2 === 0 && livingEnemies.length > 0) {
-        const pulseDmg = Math.max(3, Math.floor(calcPartyDmg(mage, es + 558, dmgBonus) * 0.30));
+        const pulseDmg = Math.max(3, Math.floor(calcPartyDmg(mage, es + 558, dmgBonus) * 0.22));
         const pulseTargetCount = livingEnemies.length;
         let totalPulseDmg = 0;
         for (const e of livingEnemies) {
@@ -3797,7 +3815,7 @@ function buildSimulation(aq, quest) {
       }
       const cHp = Math.max(50, Math.floor((mage.mag || 10) * 1.50));
       const cDef = Math.max(10, Math.floor((mage.mag || 10) * 1.50));
-      const cDmg = Math.max(2, Math.floor((mage.mag || 10) * 1.1));
+      const cDmg = Math.max(2, Math.floor((mage.mag || 10) * 0.85));
       arcaneConstructs.push({
         id: `construct_${mage.id}`,
         name: `${mage.name}'s Construct`,
@@ -3812,12 +3830,12 @@ function buildSimulation(aq, quest) {
     }
 
     // Necrotic Cleave — raised minions OR Army of the Damned unleash AoE every
-    // 3 rounds (NEC_NECRO_CLEAVE). Scales at 25% of Necromancer's MAG per enemy.
+    // 2 rounds (NEC_NECRO_CLEAVE). Scales at 25% of Necromancer's MAG per enemy.
     // Living minions boost the per-hit damage; Army presence alone is enough to
     // trigger the cleave at base (1×) scaling.
     const _cleaveMinions = necroMinions.filter(m => m.hp > 0).length;
     const _cleaveArmyActive = armyRounds > 0;
-    if (talentNecroticCleave && (_cleaveMinions > 0 || _cleaveArmyActive) && roundCount > 0 && roundCount % 3 === 0) {
+    if (talentNecroticCleave && (_cleaveMinions > 0 || _cleaveArmyActive) && roundCount > 0 && roundCount % 2 === 0) {
       const cleaveScale = Math.max(1, _cleaveMinions) + (_cleaveArmyActive ? 1 : 0);
       const necro = partyHp.find(p => p.class === 'NECROMANCER' && p.hp > 0);
       if (necro && livingEnemies.length > 0) {
@@ -4017,6 +4035,7 @@ function buildSimulation(aq, quest) {
           const b = burnTargets[eid];
           const dmg = b.dmgPerTick;
           e.hp = Math.max(0, e.hp - dmg);
+          if (b.ownerId && combatStats[b.ownerId]) combatStats[b.ownerId].dmgDealt += dmg;
           const src = (b.source === 'MAG') ? 'MAG' : 'CLR';
           bucket[src].dmg += dmg;
           bucket[src].hits++;
@@ -4051,6 +4070,7 @@ function buildSimulation(aq, quest) {
           e.hp = Math.max(0, e.hp - dmg);
           totalPoisonDmg += dmg;
           poisonHits++;
+          if (p.ownerId && combatStats[p.ownerId]) combatStats[p.ownerId].dmgDealt += dmg;
           if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); tryRaiseDead(e, es + 3315); }
           p.rounds--;
           if (p.rounds <= 0) delete poisonTargets[eid];
