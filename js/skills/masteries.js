@@ -273,7 +273,7 @@ export const MASTERIES = {
     id: 'MONK_M_ENLIGHTENMENT', name: 'Enlightenment', type: 'passive', source: 'mastery',
     classId: 'MONK', unlockLevel: 16,
     description: 'ATK +10%, DEF +10%, SPD +10%, MAG +10%, DODGE +10%.',
-    icon: '🪷', effects: { atkBonus: 0.10, defBonus: 0.10, spdBonus: 0.10, magBonus: 0.10, dodgeBonus: 0.10, dodgeChance: 0.10 }, procChance: 1.0,
+    icon: '🪷', effects: { atkBonus: 0.10, defBonus: 0.10, spdBonus: 0.10, magBonus: 0.10, dodgeBonus: 0.10 }, procChance: 1.0,
     narrative: null,
   },
   MONK_M_TRANSCENDENCE: {

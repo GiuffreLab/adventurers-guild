@@ -2027,10 +2027,10 @@ function buildSimulation(aq, quest) {
                   }
                 }
 
-                // Righteous Burn — always applies burn DoT to struck enemies (12% MAG/r, 3r)
-                // Bumped from 8% so the sacred-flame tail contributes real dmg.
+                // Righteous Burn — always applies burn DoT to struck enemies (30% MAG/r, 3r)
+                // Bumped from 12% to sit slightly below Blight (40% MAG).
                 if (skillId === 'RIGHTEOUS_BURN') {
-                  const burnDmg = Math.max(2, Math.floor((attacker.mag || 10) * 0.12));
+                  const burnDmg = Math.max(2, Math.floor((attacker.mag || 10) * 0.30));
                   for (const e of currentLiving) {
                     if (!e.alive) continue;
                     burnTargets[e.id] = { rounds: 3, dmgPerTick: burnDmg, source: 'CLR' };
@@ -2259,9 +2259,9 @@ function buildSimulation(aq, quest) {
                   poisonTargets[target.id] = { rounds: 3, dmgPerTick: pDmg };
                 }
 
-                // CLR_SMITE_BURN "Righteous Burn" — Smite applies a burn DoT (12% MAG/r)
+                // CLR_SMITE_BURN "Righteous Burn" — Smite applies a burn DoT (30% MAG/r)
                 if (talentSmiteBurn && skillId === 'SMITE' && target.hp > 0) {
-                  const burnDmg = Math.max(2, Math.floor((attacker.mag || 10) * 0.12));
+                  const burnDmg = Math.max(2, Math.floor((attacker.mag || 10) * 0.30));
                   burnTargets[target.id] = { rounds: 3, dmgPerTick: burnDmg, source: 'CLR' };
                 }
 
@@ -2832,15 +2832,16 @@ function buildSimulation(aq, quest) {
             }
           }
   
-          // Last Stand revival
-          const koCount = livingParty.filter(p => p.hp <= 0).length;
+          // Last Stand revival — search partyHp (full array), NOT livingParty
+          // which is pre-filtered to hp > 0 and would never contain dead members.
+          const koCount = partyHp.filter(p => p.hp <= 0).length;
           if (koCount >= 2) {
-            const lastStandHero = livingParty.find(p =>
+            const lastStandHero = partyHp.find(p =>
               p.hp > 0 && heroesWithLastStand.has(p.id) && !lastStandUsed[p.id]
             );
             if (lastStandHero) {
               lastStandUsed[lastStandHero.id] = true;
-              const fallen = livingParty.filter(p => p.hp <= 0);
+              const fallen = partyHp.filter(p => p.hp <= 0);
               fallen.forEach(p => {
                 const reviveHp = Math.max(1, Math.floor(p.maxHp * 0.25));
                 p.hp = reviveHp;
@@ -3327,8 +3328,9 @@ function buildSimulation(aq, quest) {
           }
         }
   
-        // Resurrection
-        const deadParty = livingParty.filter(p => p.hp <= 0);
+        // Resurrection — search partyHp (full array), NOT livingParty
+        // which is pre-filtered to hp > 0 and would never contain dead members.
+        const deadParty = partyHp.filter(p => p.hp <= 0);
         if (deadParty.length > 0) {
           const availableRezzer = livingParty.find(p =>
             p.hp > 0 && clericsWithResurrection.has(p.id) && resurrectionCooldowns[p.id] === 0
@@ -3795,7 +3797,7 @@ function buildSimulation(aq, quest) {
         }
         if (combatStats[m.id]) combatStats[m.id].dmgDealt += totalDmg;
         const tmpl = isCelestial ? T_CELESTIAL_SKILL : T_EQUIP_SKILL;
-        equipText = sPick(tmpl, es + 814)(m.name, eqSkill.name, `${currentLiving.length} foes`, totalDmg);
+        equipText = sPick(tmpl, es + 814)(m.name, eqSkill.name, `${currentLiving.length} ${_f(currentLiving.length)}`, totalDmg);
       } else {
         // Single-target fire
         const tgt = sPick(livingEnemies, es + 815);

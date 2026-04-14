@@ -228,8 +228,8 @@ export const CLASS_SKILLS = {
     // LIFTED to Rogue L16 mastery per §4.2. Was L14 class skill; now a mastery active group-buff.
     id: 'SMOKE_BOMB', name: 'Smoke Bomb', type: 'active', source: 'mastery',
     classId: 'ROGUE', unlockLevel: 16,
-    description: 'MASTERY — Throws a smoke bomb, granting the Rogue self dodge +25% and ATK +15% for 2 rounds. 60% proc.',
-    icon: '💣', effects: { dodgeChance: 0.25, atkBonus: 0.15 }, procChance: 0.60,
+    description: 'MASTERY — Throws a smoke bomb, granting the party +30% dodge for 2 rounds. 60% proc.',
+    icon: '💣', effects: { dodgeChance: 0.30 }, procChance: 0.60,
     narrative: 'vanishes in a cloud of smoke — impossible to pin down!',
   },
   ASSASSINATE: {
@@ -275,7 +275,7 @@ export const CLASS_SKILLS = {
     // LIFTED to Cleric L8 mastery per §4.2. Was L10 class skill.
     id: 'DIVINE_SHIELD', name: 'Divine Shield', type: 'active', source: 'mastery',
     classId: 'CLERIC', unlockLevel: 8,
-    description: 'MASTERY — Wraps the entire party in divine protection. 55% proc, party DEF +18%, party heal 10%.',
+    description: 'MASTERY — Wraps the entire party in divine protection. 55% proc, -15% incoming damage for 3 rounds.',
     icon: '⛑', effects: { partyDefBonus: 0.18, partyHealPct: 0.10 }, procChance: 0.55,
     narrative: 'calls forth a Divine Shield — holy light protects all!',
   },
@@ -302,7 +302,7 @@ export const CLASS_SKILLS = {
   RIGHTEOUS_BURN: {
     id: 'RIGHTEOUS_BURN', name: 'Righteous Burn', type: 'active', source: 'class',
     classId: 'CLERIC', unlockLevel: 18,
-    description: 'EPIC — Pillars of holy fire engulf every foe. 35% proc, 1.5× AoE power, MAG +40%. Applies a burning DoT (12% MAG per round, 3 rounds) to all struck enemies.',
+    description: 'EPIC — Pillars of holy fire engulf every foe. 35% proc, 1.5× AoE power, MAG +40%. Applies a burning DoT (30% MAG per round, 3 rounds) to all struck enemies.',
     icon: '🔥', effects: { powerMultiplier: 1.5, magBonus: 0.40, appliesBurn: true }, procChance: 0.35,
     narrative: 'channels a Righteous Burn — pillars of sacred flame scorch the unworthy!',
   },
@@ -418,7 +418,7 @@ export const CLASS_SKILLS = {
   SWIFT_PALM: {
     id: 'SWIFT_PALM', name: 'Swift Palm', type: 'active', source: 'class',
     classId: 'MONK', unlockLevel: 2,
-    description: 'A lightning-fast combo. 70% proc, ATK +25%, SPD +15%.',
+    description: 'A lightning-fast combo. 70% proc, party +25% ATK, +15% SPD for 2 rounds.',
     icon: '👊', effects: { atkBonus: 0.25, spdBonus: 0.15 }, procChance: 0.70,
     narrative: 'executes a Swift Palm combo!',
   },

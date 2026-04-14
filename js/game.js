@@ -490,7 +490,7 @@ const Game = (() => {
 
     // ── CLERIC (CLR) ──
     CLR_SHIELD_HOT:     { id: 'CLR_SHIELD_HOT',       tier: 1, cost: 1, reqLevel: 1, classId: 'CLERIC',     label: 'Sacred Warmth',      icon: '💚', desc: 'Divine Shield also applies a HoT (3% max HP/round, 3 rounds) to all allies.' },
-    CLR_SMITE_BURN:     { id: 'CLR_SMITE_BURN',       tier: 2, cost: 2, reqLevel: 3, classId: 'CLERIC',     label: 'Righteous Burn',     icon: '🔥', desc: 'Smite also applies a burning DoT (12% MAG per round, 3 rounds) to its target.' },
+    CLR_SMITE_BURN:     { id: 'CLR_SMITE_BURN',       tier: 2, cost: 2, reqLevel: 3, classId: 'CLERIC',     label: 'Righteous Burn',     icon: '🔥', desc: 'Smite also applies a burning DoT (30% MAG per round, 3 rounds) to its target.' },
     CLR_WRATH:          { id: 'CLR_WRATH',             tier: 3, cost: 3, reqLevel: 6, classId: 'CLERIC',     label: 'Righteous Wrath',    icon: '⚡', desc: 'Divine Intervention grants the saved ally +30% damage for 2 rounds.' },
 
     // ── RANGER (RNG) ──
