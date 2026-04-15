@@ -57,7 +57,7 @@ const Game = (() => {
   const BASE_PARTY_SIZE = 4;      // default max active slots (Hero always present separately)
   const MAX_PARTY_SIZE = 5;       // ultimate max after expansion (base game)
   const MAX_PARTY_SIZE_TALENT = 6; // with Sixth Slot talent
-  const PARTY_EXPANSION_COSTS = [1000000]; // 1M gold for the 5th active slot
+  const PARTY_EXPANSION_COSTS = [500000]; // 500K gold for the 5th active slot
 
   function getMaxPartySize() {
     const expansions = state.partyExpansions || 0;
@@ -1200,8 +1200,9 @@ const Game = (() => {
   ];
 
   // Rank required to purchase each shop level (1-indexed: index 0 = level 1 requirement)
-  // 2 levels per rank: F(1-2), E(3-4), D(5-6), C(7-8), B(9-10)
-  const SHOP_LEVEL_RANK_REQ = ['F', 'F', 'E', 'E', 'D', 'D', 'C', 'C', 'B', 'B'];
+  // F(1-3), E(4-5), D(6-7), C(8-9), B(10)
+  // Level 3 at Rank F unlocks +1 tier bonus → Magic items available early
+  const SHOP_LEVEL_RANK_REQ = ['F', 'F', 'F', 'E', 'E', 'D', 'D', 'C', 'C', 'B'];
 
   // Base weights at level 0, and weights at level 10
   // Intermediate levels interpolate linearly between these
