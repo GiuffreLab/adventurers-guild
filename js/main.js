@@ -25,7 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Smooth quest timer (updates every 250ms without full re-render)
   setInterval(() => {
-    updateQuestTimer();
+    try { updateQuestTimer(); }
+    catch (err) { console.error('[QuestTimer] Error:', err); }
   }, 250);
 
 });

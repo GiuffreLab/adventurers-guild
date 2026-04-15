@@ -1702,7 +1702,7 @@ function buildSimulation(aq, quest) {
     divineShieldRounds: 0, clericsWithDivineShield, divineShieldSource: null,
     clericsWithIntervention, interventionCooldowns,
     clericsWithResurrection, resurrectionCooldowns,
-    bardsWithDiscord, discordCooldowns, discordRounds: 0, discordSource: null,
+    bardsWithDiscord, discordCooldowns, discordRounds: 0, discordSource: null, discordAtkRedBonusTotal, discordFumbleBonusTotal,
     bardsWithCrescendo, crescendoCooldowns, crescendoActive: false,
     cadenceCooldowns, cadenceRounds: 0,
     frostbiteRounds: 0,
@@ -5121,7 +5121,7 @@ function makeSnapshot(party, enemies, buffs) {
       }
       // Discord debuff on enemies
       if (b.discordRounds > 0) {
-        eDebuffs.push({ id: 'discord', icon: '🎸', label: 'Discord', desc: `${b.discordRounds}rd — -${Math.round((0.20 + discordAtkRedBonusTotal) * 100)}% ATK, ${Math.round((0.25 + discordFumbleBonusTotal) * 100)}% fumble, DoT` });
+        eDebuffs.push({ id: 'discord', icon: '🎸', label: 'Discord', desc: `${b.discordRounds}rd — -${Math.round((0.20 + (b.discordAtkRedBonusTotal || 0)) * 100)}% ATK, ${Math.round((0.25 + (b.discordFumbleBonusTotal || 0)) * 100)}% fumble, DoT` });
       }
       // Blight debuff on enemies
       if (b.blightRounds > 0) {

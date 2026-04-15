@@ -2145,23 +2145,27 @@ const Game = (() => {
 
   function startTick(onTick) {
     tickInterval = setInterval(() => {
-      const now = Date.now();
-      const rawElapsed = (now - state.lastTick) / 1000;
-      state.lastTick = now;
-      // Cap elapsed to 2s so idle-time doesn't instantly full-heal the party.
-      // This makes HP recovery visible tick-by-tick after returning from a quest.
-      const elapsed = Math.min(rawElapsed, 2);
-      healTick(elapsed);
-      if (state.guild.activeQuest && isQuestComplete()) {
-        // Tower mode: handle floor completion differently
-        if (state.tower && state.tower.active) {
-          finishTowerFloor();
-        } else {
-          finishQuest();
+      try {
+        const now = Date.now();
+        const rawElapsed = (now - state.lastTick) / 1000;
+        state.lastTick = now;
+        // Cap elapsed to 2s so idle-time doesn't instantly full-heal the party.
+        // This makes HP recovery visible tick-by-tick after returning from a quest.
+        const elapsed = Math.min(rawElapsed, 2);
+        healTick(elapsed);
+        if (state.guild.activeQuest && isQuestComplete()) {
+          // Tower mode: handle floor completion differently
+          if (state.tower && state.tower.active) {
+            finishTowerFloor();
+          } else {
+            finishQuest();
+          }
         }
+        refreshShopIfNeeded();
+        if (onTick) onTick();
+      } catch (err) {
+        console.error('[GameTick] Error in game tick:', err);
       }
-      refreshShopIfNeeded();
-      if (onTick) onTick();
     }, 1000);
 
     saveInterval = setInterval(save, 60000);
