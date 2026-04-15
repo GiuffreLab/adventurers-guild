@@ -1199,6 +1199,10 @@ const Game = (() => {
     500, 1500, 4000, 8000, 15000, 25000, 40000, 60000, 80000, 100000
   ];
 
+  // Rank required to purchase each shop level (1-indexed: index 0 = level 1 requirement)
+  // 2 levels per rank: F(1-2), E(3-4), D(5-6), C(7-8), B(9-10)
+  const SHOP_LEVEL_RANK_REQ = ['F', 'F', 'E', 'E', 'D', 'D', 'C', 'C', 'B', 'B'];
+
   // Base weights at level 0, and weights at level 10
   // Intermediate levels interpolate linearly between these
   const RARITY_WEIGHT_BASE = { common: 40, magic: 30, rare: 18, epic: 8, legendary: 4 };
@@ -1220,11 +1224,29 @@ const Game = (() => {
     return SHOP_UPGRADE_COSTS[level];
   }
 
-  function upgradeShop() {
+  function getShopUpgradeRankReq() {
+    const level = state.shop.level || 0;
+    if (level >= 10) return null;
+    return SHOP_LEVEL_RANK_REQ[level] || 'F';
+  }
+
+  function canUpgradeShop() {
     const level = state.shop.level || 0;
     if (level >= 10) return { ok: false, reason: 'Shop is already max level!' };
+    const reqRank = SHOP_LEVEL_RANK_REQ[level] || 'F';
+    if (rankIndex(state.guild.rank) < rankIndex(reqRank)) {
+      return { ok: false, reason: `Requires Guild Rank ${reqRank}` };
+    }
     const cost = SHOP_UPGRADE_COSTS[level];
     if (state.gold < cost) return { ok: false, reason: `Need ${cost.toLocaleString()}g (have ${state.gold.toLocaleString()}g)` };
+    return { ok: true };
+  }
+
+  function upgradeShop() {
+    const check = canUpgradeShop();
+    if (!check.ok) return check;
+    const level = state.shop.level || 0;
+    const cost = SHOP_UPGRADE_COSTS[level];
     state.gold -= cost;
     state.shop.level = level + 1;
     logEvent(`Shop upgraded to level ${state.shop.level}!`);
@@ -1232,8 +1254,19 @@ const Game = (() => {
     return { ok: true, newLevel: state.shop.level };
   }
 
+  // Shop levels can unlock the NEXT rarity tier one rank early (max +1).
+  // Kicks in at shop level 3 — you see gear one tier above your guild rank.
+  // Higher shop levels improve rarity weights but don't unlock additional tiers.
+  function getShopBonusRanks() {
+    return (state.shop.level || 0) >= 3 ? 1 : 0;
+  }
+
+  function getShopEffectiveRankIndex() {
+    return Math.min(RANK_ORDER.length - 1, rankIndex(state.guild.rank) + getShopBonusRanks());
+  }
+
   function refreshShop() {
-    const ri = rankIndex(state.guild.rank);
+    const ri = getShopEffectiveRankIndex();
     const available = Object.values(EQUIPMENT).filter(item => item.rarity !== 'celestial' && item.shopMinRank != null && rankIndex(item.shopMinRank) <= ri);
     if (available.length === 0) { state.shop.stock = []; state.shop.lastRefreshed = Date.now(); return; }
 
@@ -2172,7 +2205,7 @@ const Game = (() => {
     logEvent, addRankPoints, addExp, addToInventory, removeFromInventory,
     healTick, recruitMember, dismissMember, setActive, equipItem, unequipItem,
     setHeroSpec, respecHeroSpec, getRespecCost,
-    refreshShop, buyItem, sellItem, sellAllItems, toggleKeepItem, upgradeShop, getShopUpgradeCost, getShopRarityWeights, rushRestock,
+    refreshShop, buyItem, sellItem, sellAllItems, toggleKeepItem, upgradeShop, canUpgradeShop, getShopUpgradeCost, getShopUpgradeRankReq, getShopRarityWeights, getShopBonusRanks, getShopEffectiveRankIndex, rushRestock,
     expandParty, getPartyExpansionCost, getMaxPartySize,
 
     // Engine

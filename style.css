@@ -709,6 +709,23 @@ input[type="text"]::placeholder { color: var(--text-muted); }
   display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.7rem; font-weight: 600;
 }
 .shop-rarity-label { opacity: 0.85; }
+.shop-milestone {
+  font-size: 0.78rem; font-weight: 600; color: var(--gold);
+  margin-bottom: 8px; text-align: center;
+}
+.shop-next-milestone {
+  font-size: 0.7rem; color: var(--text-muted); margin-top: 6px;
+  font-style: italic; text-align: center;
+}
+.shop-rank-locked {
+  font-size: 0.78rem; font-weight: 600; color: var(--text-muted);
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+  border-radius: 4px; padding: 3px 10px;
+}
+.shop-locked-rarities {
+  font-size: 0.7rem; color: var(--text-muted); margin-top: 6px;
+  text-align: center;
+}
 
 /* ── Results Modal ─────────────────────────────────────────────────────── */
 .result-outcome {

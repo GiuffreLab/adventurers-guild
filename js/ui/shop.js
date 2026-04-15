@@ -1,5 +1,5 @@
 import Game from '../game.js';
-import { getItem, getItemRarity, CLASSES, ITEM_RARITIES } from '../data.js';
+import { getItem, getItemRarity, CLASSES, ITEM_RARITIES, RANK_ORDER, rankIndex } from '../data.js';
 import { showToast } from './helpers.js';
 import { floatText } from './effects.js';
 
@@ -10,26 +10,71 @@ function buildUpgradePanel() {
   const level = s.shop.level || 0;
   const maxed = level >= 10;
   const cost = Game.getShopUpgradeCost();
-  const canAfford = !maxed && s.gold >= cost;
+  const upgradeCheck = !maxed ? Game.canUpgradeShop() : { ok: false };
+  const reqRank = Game.getShopUpgradeRankReq();
+  const rankLocked = !maxed && reqRank && rankIndex(reqRank) > rankIndex(s.guild.rank);
+  const canAfford = upgradeCheck.ok;
   const weights = Game.getShopRarityWeights();
 
-  // Build the rarity distribution bar
-  const rarities = ['common', 'magic', 'rare', 'epic', 'legendary'];
-  const rarityColors = { common: '#9a9a9a', magic: '#2ecc71', rare: '#3498db', epic: '#9b59b6', legendary: '#e67e22' };
-  const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);
-  const barSegments = rarities
-    .filter(r => weights[r] > 0)
+  // Determine which rarities are actually available at the effective shop rank
+  const RARITY_RANK_GATES = { common: 'F', magic: 'E', rare: 'D', epic: 'C', legendary: 'B' };
+  const effectiveRI = Game.getShopEffectiveRankIndex();
+  const allRarities = ['common', 'magic', 'rare', 'epic', 'legendary'];
+  const availableRarities = allRarities.filter(r => rankIndex(RARITY_RANK_GATES[r]) <= effectiveRI);
+
+  // Compute weights only for available rarities, then normalize
+  const rawWeights = {};
+  let rawTotal = 0;
+  for (const r of availableRarities) {
+    rawWeights[r] = weights[r] || 0;
+    rawTotal += rawWeights[r];
+  }
+  // If all available weights are 0 (e.g., shop level 10 but only common available), fallback to equal
+  if (rawTotal === 0) {
+    for (const r of availableRarities) rawWeights[r] = 1;
+    rawTotal = availableRarities.length;
+  }
+
+  // Build the rarity distribution bar — use canonical ITEM_RARITIES colors
+  const barSegments = availableRarities
+    .filter(r => rawWeights[r] > 0)
     .map(r => {
-      const pct = totalWeight > 0 ? (weights[r] / totalWeight * 100).toFixed(0) : 0;
-      return `<div class="shop-rarity-bar-seg" style="width:${pct}%;background:${rarityColors[r]}" title="${r}: ${pct}%"></div>`;
+      const pct = (rawWeights[r] / rawTotal * 100).toFixed(0);
+      const color = ITEM_RARITIES[r]?.color || '#999';
+      return `<div class="shop-rarity-bar-seg" style="width:${pct}%;background:${color}" title="${ITEM_RARITIES[r]?.label || r}: ${pct}%"></div>`;
     }).join('');
 
-  const barLabels = rarities
-    .filter(r => weights[r] > 0)
+  const barLabels = availableRarities
+    .filter(r => rawWeights[r] > 0)
     .map(r => {
-      const pct = totalWeight > 0 ? (weights[r] / totalWeight * 100).toFixed(0) : 0;
-      return `<span class="shop-rarity-label" style="color:${rarityColors[r]}">${r.charAt(0).toUpperCase() + r.slice(1)} ${pct}%</span>`;
+      const pct = (rawWeights[r] / rawTotal * 100).toFixed(0);
+      const color = ITEM_RARITIES[r]?.color || '#999';
+      const label = ITEM_RARITIES[r]?.label || r.charAt(0).toUpperCase() + r.slice(1);
+      return `<span class="shop-rarity-label" style="color:${color}">${label} ${pct}%</span>`;
     }).join('');
+
+  // Show which rarities are locked and what unlocks them
+  const lockedRarities = allRarities.filter(r => !availableRarities.includes(r));
+  const bonusRanks = Game.getShopBonusRanks();
+  const guildRank = Game.state.guild.rank;
+
+  // Milestone: show what the current level provides
+  // Level 3 unlocks the next rarity tier early (+1 rank); rest improve weights
+  const SHOP_MILESTONES = [
+    '', // level 0 — base weights
+    'Improved rarity odds',
+    'Higher quality items more common',
+    'Next rarity tier unlocked early!',                       // +1 bonus rank
+    'Rarity weights shifted toward higher tiers',
+    'Premium items increasingly frequent',
+    'High-tier items appear more often',
+    'Rare items become the baseline',
+    'Common & Magic fading from stock',
+    'Epic & Legendary dominate the shelves',
+    'Maximum quality — only the finest stock remains',
+  ];
+  const milestone = SHOP_MILESTONES[level] || '';
+  const nextMilestone = !maxed && SHOP_MILESTONES[level + 1] ? SHOP_MILESTONES[level + 1] : '';
 
   // Progress pips
   const pips = Array.from({ length: 10 }, (_, i) =>
@@ -42,14 +87,19 @@ function buildUpgradePanel() {
         <span class="shop-upgrade-title">Shop Level ${level}/10</span>
         ${maxed
           ? '<span class="shop-upgrade-maxed">MAX</span>'
-          : `<button class="btn btn-sm${canAfford ? ' btn-upgrade' : ''}" id="btn-shop-upgrade" ${canAfford ? '' : 'disabled'}>
-              Upgrade — ${cost.toLocaleString()}g
-            </button>`
+          : rankLocked
+            ? `<span class="shop-rank-locked">🔒 Requires Rank ${reqRank}</span>`
+            : `<button class="btn btn-sm${canAfford ? ' btn-upgrade' : ''}" id="btn-shop-upgrade" ${canAfford ? '' : 'disabled'}>
+                Upgrade — ${cost.toLocaleString()}g
+              </button>`
         }
       </div>
       <div class="shop-upgrade-pips">${pips}</div>
+      ${milestone ? `<div class="shop-milestone">${milestone}</div>` : ''}
       <div class="shop-rarity-bar">${barSegments}</div>
       <div class="shop-rarity-labels">${barLabels}</div>
+      ${lockedRarities.length > 0 ? `<div class="shop-locked-rarities">🔒 ${lockedRarities.map(r => `<span style="color:${ITEM_RARITIES[r]?.color || '#999'}">${ITEM_RARITIES[r]?.label || r}</span>`).join(', ')} — unlock via rank + shop level</div>` : ''}
+      ${nextMilestone ? `<div class="shop-next-milestone">Next: ${nextMilestone}</div>` : ''}
     </div>
   `;
 }
