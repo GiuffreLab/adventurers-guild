@@ -386,9 +386,9 @@ const AOE_SKILLS = {
   BLIZZARD:             { dmgScale: 0.55, templates: T_MAGE_AOE, icon: '🌨', type: 'skill',     triggerCamo: false },
   FROSTBITE:            { dmgScale: 0.50, templates: T_MAGE_AOE, icon: '❄',  type: 'skill',     triggerCamo: false },
   METEOR_STORM:         { dmgScale: 0.70, templates: T_MAGE_AOE, icon: '☄',  type: 'skill',     triggerCamo: false },
-  VOID_BURST:            { dmgScale: 0.55, templates: T_MAGE_AOE, icon: '🌀', type: 'equip',     triggerCamo: false },
-  ARCANE_CATACLYSM_EQ:  { dmgScale: 0.60, templates: T_MAGE_AOE, icon: '💥', type: 'equip',     triggerCamo: false },
-  CEL_ARCANUM_CATACLYSM:{ dmgScale: 0.75, templates: T_MAGE_AOE, icon: '💥', type: 'celestial', triggerCamo: false },
+  VOID_BURST:            { dmgScale: 0.45, templates: T_MAGE_AOE, icon: '🌀', type: 'equip',     triggerCamo: false },
+  ARCANE_CATACLYSM_EQ:  { dmgScale: 0.50, templates: T_MAGE_AOE, icon: '💥', type: 'equip',     triggerCamo: false },
+  CEL_ARCANUM_CATACLYSM:{ dmgScale: 0.60, templates: T_MAGE_AOE, icon: '💥', type: 'celestial', triggerCamo: false },
   // Monk AoE (class rework — Hundred Fists L6 class-defining workhorse)
   HUNDRED_FISTS:        { dmgScale: 0.55, templates: T_MONK_AOE, icon: '👊', type: 'skill',     triggerCamo: false },
   // Knight AoE (class rework — Sweeping Blow L10 capstone damage)
@@ -451,6 +451,10 @@ const T_SHADOW_BOLT = [
 const T_SHADOW_BOLT_LEECH = [
   (count, totalHeal) => `The dark energy floods back into the party — <span class="dmg-num dmg-heal">${count}</span> ${count === 1 ? 'ally drinks' : 'allies drink'} a combined <span class="dmg-num dmg-heal">${totalHeal}</span> HP from the shadow!`,
   (count, totalHeal) => `Siphoned life returns to the living — <span class="dmg-num dmg-heal">${count}</span> ${count === 1 ? 'ally recovers' : 'allies recover'} for <span class="dmg-num dmg-heal">${totalHeal}</span> total HP!`,
+];
+const T_GROUP_SIPHON = [
+  (count, totalHeal) => `Stolen life floods back into the party — <span class="dmg-num dmg-heal">${count}</span> ${count === 1 ? 'ally recovers' : 'allies recover'} for <span class="dmg-num dmg-heal">${totalHeal}</span> total HP!`,
+  (count, totalHeal) => `Necrotic siphon channels life to the living — <span class="dmg-num dmg-heal">${count}</span> ${count === 1 ? 'ally heals' : 'allies heal'} for <span class="dmg-num dmg-heal">${totalHeal}</span> total HP!`,
 ];
 const T_FORGO_DEATH = [
   (minion, name) => `${minion} hurls itself before the killing blow — it crumbles to dust, but <span class="sk-magic">${name} endures!</span>`,
@@ -1251,6 +1255,7 @@ function buildSimulation(aq, quest) {
   let armyDmgPerTick = 0;
   let armySource = null;
   let necroticReflectMag = 0; // MAG of necro with Shroud of Decay (0 = no reflect)
+  let necGroupSiphonPct = 0;   // passive group siphon heal % from offhand (Skull Whisper etc.)
   let minionDmgBonusTotal = 0; // accumulated from Lord of the Dead + Soul Anchor + scythe auras
   let minionHpBonusTotal = 0;  // accumulated from scythe auras (Death's Harvest line)
   let blightAmpTotal = 0;      // accumulated from scythe auras (Blight tick multiplier)
@@ -1446,6 +1451,10 @@ function buildSimulation(aq, quest) {
         if (sk.effects.minionHpBonus) minionHpBonusTotal += sk.effects.minionHpBonus;
         if (sk.effects.blightAmp) blightAmpTotal += sk.effects.blightAmp;
         if (sk.effects.minionAoe) minionAoe = true;
+        // Passive group siphon from offhand (Skull Whisper etc.) — highest value wins
+        if (sk.effects.groupSiphon && sk.type === 'passive' && sk.effects.siphonHealPct) {
+          necGroupSiphonPct = Math.max(necGroupSiphonPct, sk.effects.siphonHealPct);
+        }
       }
     }
     // Accumulate Bard equipment aura bonuses (Lute/Drum passives)
@@ -1711,7 +1720,7 @@ function buildSimulation(aq, quest) {
     // Necromancer state
     necroMinions, necrosWithRaiseDead, raiseDeadCooldowns,
     necrosWithForgoDeath, blightRounds: 0, armyRounds: 0,
-    necroticReflectMag, darkPactRounds: 0, darkPactSource: null,
+    necroticReflectMag, necGroupSiphonPct, darkPactRounds: 0, darkPactSource: null,
     // DoT trackers — passed by reference so snapshot sees live state
     poisonTargets, equipPoisonTargets, chiBurnTargets, deflectBuffs, burnTargets,
     // Monk reactives + buffs
@@ -2756,6 +2765,36 @@ function buildSimulation(aq, quest) {
                 const bard = partyHp.find(p => p.class === 'BARD' && p.hp > 0);
                 if (bard && combatStats[bard.id]) combatStats[bard.id].healingDone += actual;
                 events.push({ text: `The symphony's melody drains life — ${attacker.name} recovers <span class="dmg-num dmg-heal">+${actual}</span> HP!`, type: 'heal', icon: '🎵', phase: 'battle' });
+                snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+              }
+            }
+          }
+
+          // Necro Passive Group Siphon — when a necromancer with a passive siphon
+          // offhand (Skull Whisper etc.) deals damage, the whole party heals for
+          // necGroupSiphonPct of each member's maxHP. Only triggers on the necro's
+          // own attack turns, not on other party members' turns.
+          if (necGroupSiphonPct > 0 && attacker.class === 'NECROMANCER' && combatStats[attacker.id] && attacker.hp > 0) {
+            const turnDmg = combatStats[attacker.id].dmgDealt - _dmgBefore;
+            if (turnDmg > 0) {
+              let siphonCount = 0;
+              let siphonTotal = 0;
+              for (const ally of livingParty) {
+                if (ally.hp <= 0) continue;
+                const healAmt = Math.max(1, Math.floor(ally.maxHp * necGroupSiphonPct));
+                const before = ally.hp;
+                ally.hp = Math.min(ally.maxHp, ally.hp + healAmt);
+                const actual = ally.hp - before;
+                if (actual > 0) {
+                  siphonCount++;
+                  siphonTotal += actual;
+                  if (combatStats[ally.id]) combatStats[ally.id].healingReceived += actual;
+                  if (combatStats[attacker.id]) combatStats[attacker.id].healingDone += actual;
+                }
+              }
+              if (siphonCount > 0) {
+                const siphonText = sPick(T_GROUP_SIPHON, es + 835)(siphonCount, siphonTotal);
+                events.push({ text: siphonText, type: 'heal', icon: '💬', phase: 'battle' });
                 snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
               }
             }
@@ -4020,9 +4059,9 @@ function buildSimulation(aq, quest) {
       const mage = partyHp.find(p => p.id === construct.ownerId && p.hp > 0);
       if (!mage || livingEnemies.length === 0) continue;
 
-      // Single-target attack every round (85% owner MAG — tuned down from thrall's 110%)
+      // Single-target attack every round (70% owner MAG — tuned down from 85%)
       const cTarget = sPick(livingEnemies, es + 555 + arcaneConstructs.indexOf(construct));
-      const cDmg = Math.max(2, construct.dmgPerTick || Math.floor((mage.mag || 10) * 0.85));
+      const cDmg = Math.max(2, construct.dmgPerTick || Math.floor((mage.mag || 10) * 0.70));
       cTarget.hp = Math.max(0, cTarget.hp - cDmg);
       if (combatStats[mage.id]) combatStats[mage.id].dmgDealt += cDmg;
       events.push({ text: `${construct.name} hurls an arcane bolt at ${cTarget.name} — <span class="dmg-num dmg-mag">${cDmg}</span> damage!`, type: 'magic', icon: '🔮', phase: 'battle' });
@@ -4035,9 +4074,9 @@ function buildSimulation(aq, quest) {
         snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
       }
 
-      // Arcane Pulse AoE fires every 2 rounds (~40% of Blizzard output: 0.22 × calcPartyDmg)
+      // Arcane Pulse AoE fires every 2 rounds (~30% of Blizzard output: 0.17 × calcPartyDmg)
       if (roundCount > 0 && roundCount % 2 === 0 && livingEnemies.length > 0) {
-        const pulseDmg = Math.max(3, Math.floor(calcPartyDmg(mage, es + 558, dmgBonus) * 0.22));
+        const pulseDmg = Math.max(3, Math.floor(calcPartyDmg(mage, es + 558, dmgBonus) * 0.17));
         const pulseTargetCount = livingEnemies.length;
         let totalPulseDmg = 0;
         for (const e of livingEnemies) {
@@ -4322,11 +4361,15 @@ function buildSimulation(aq, quest) {
           const e = enemies.find(en => en.id === eid);
           if (!e || !e.alive || e.hp <= 0) { delete equipPoisonTargets[eid]; continue; }
           const p = equipPoisonTargets[eid];
-          e.hp = Math.max(0, e.hp - p.dmgPerTick);
-          totalDmg += p.dmgPerTick;
-          hits++;
-          if (p.ownerId && combatStats[p.ownerId]) combatStats[p.ownerId].dmgDealt += p.dmgPerTick;
-          if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); tryRaiseDead(e, es + 3520); }
+          // Only deal damage & count as a poison hit if dmgPerTick > 0.
+          // Entries with dmgPerTick 0 are pure ATK-debuff piggybacks (e.g. Monk deflect).
+          if (p.dmgPerTick > 0) {
+            e.hp = Math.max(0, e.hp - p.dmgPerTick);
+            totalDmg += p.dmgPerTick;
+            hits++;
+            if (p.ownerId && combatStats[p.ownerId]) combatStats[p.ownerId].dmgDealt += p.dmgPerTick;
+            if (e.hp <= 0) { e.alive = false; fallenEnemies.push(e.name); tryRaiseDead(e, es + 3520); }
+          }
           p.rounds--;
           if (p.rounds <= 0) delete equipPoisonTargets[eid];
         }
@@ -4445,45 +4488,22 @@ function buildSimulation(aq, quest) {
       const isWeaponProc = boundItem && boundItem.slot === 'weapon' && !eqSkill.pendingBuff;
       const isCelestial = boundItem && boundItem.rarity === 'celestial';
 
-      // ── Deflect proc (Monk 2H Flowing Defense) → set deflect buff ────
-      const skillEff = eqSkill.effects || {};
-      if (skillEff.isDeflect && eqSkill.type !== 'passive') {
-        const dr = skillEff.deflectRounds || 2;
-        deflectBuffs[m.id] = {
-          rounds: dr,
-          chance: skillEff.deflectChance || 0.25,
-          reduction: skillEff.dmgReduction || 0.30,
-          reflect: skillEff.reflectPct || 0.25,
-          atkDebuff: skillEff.atkDebuff || 0,
-          kiShieldPct: skillEff.kiShieldPct || 0,
-          ownerId: m.id,
-        };
-        const narrativeText = eqSkill.narrative ? `${m.name} ${eqSkill.narrative}` : `${m.name} activates ${eqSkill.name}!`;
-        const deflIcon = eqSkill.icon || '🪨';
-        const deflType = isCelestial ? 'celestial' : 'equip';
-        events.push({ text: `${narrativeText} <span class="sk-buff">Deflect active for ${dr} rounds!</span>`, type: deflType, icon: deflIcon, phase: 'battle' });
-        snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
-        equipProcCooldowns[m.id] = isCelestial ? CELESTIAL_PROC_COOLDOWN : 2;
-        skillCooldowns[m.id][pickedSid] = SKILL_COOLDOWN;
-        continue;
-      }
-
       // ── Offhand DoT proc → apply DoT to target ──────────────────────
-      const dotEff = eqSkill.effects || {};
-      if (dotEff.dotAtkScale) {
+      const skillEff = eqSkill.effects || {};
+      if (skillEff.dotAtkScale) {
         const tgt = sPick(livingEnemies, es + 819);
         if (!tgt) continue;
-        const dotDmg = Math.max(2, Math.floor(m.atk * dotEff.dotAtkScale));
-        const dotRounds = dotEff.dotRounds || 3;
+        const dotDmg = Math.max(2, Math.floor(m.atk * skillEff.dotAtkScale));
+        const dotRounds = skillEff.dotRounds || 3;
         const dotIcon = eqSkill.icon || '🧪';
         const dotType = isCelestial ? 'celestial' : 'equip';
 
-        if (dotEff.atkDebuff) {
+        if (skillEff.atkDebuff) {
           // Rogue poison DoT
-          equipPoisonTargets[tgt.id] = { rounds: dotRounds, dmgPerTick: dotDmg, ownerId: m.id, atkDebuff: dotEff.atkDebuff };
-        } else if (dotEff.spdDebuff) {
+          equipPoisonTargets[tgt.id] = { rounds: dotRounds, dmgPerTick: dotDmg, ownerId: m.id, atkDebuff: skillEff.atkDebuff };
+        } else if (skillEff.spdDebuff) {
           // Monk chi burn DoT
-          chiBurnTargets[tgt.id] = { rounds: dotRounds, dmgPerTick: dotDmg, ownerId: m.id, spdDebuff: dotEff.spdDebuff };
+          chiBurnTargets[tgt.id] = { rounds: dotRounds, dmgPerTick: dotDmg, ownerId: m.id, spdDebuff: skillEff.spdDebuff };
         }
         const narrativeText = eqSkill.narrative ? `${m.name} ${eqSkill.narrative}` : `${m.name} applies ${eqSkill.name} to ${tgt.name}!`;
         events.push({ text: `${narrativeText} <span class="dmg-num dmg-phys">${dotDmg}</span>/round for ${dotRounds} rounds!`, type: dotType, icon: dotIcon, phase: 'battle' });
@@ -4591,9 +4611,49 @@ function buildSimulation(aq, quest) {
       events.push({ text: equipText, type: procType, icon: procIcon, phase: 'battle' });
       snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
 
+      // ── Weapon proc lifesteal (Whisper Drain, Deathrattle — self-heal) ──
+      // Heals the caster for a % of the damage dealt by this proc.
+      if (eff.lifesteal && eff.lifesteal > 0 && procDmgDealt > 0 && m.hp > 0) {
+        const leechAmt = Math.max(1, Math.floor(procDmgDealt * eff.lifesteal));
+        const before = m.hp;
+        m.hp = Math.min(m.maxHp, m.hp + leechAmt);
+        const actual = m.hp - before;
+        if (actual > 0) {
+          if (combatStats[m.id]) { combatStats[m.id].healingDone += actual; combatStats[m.id].healingReceived += actual; }
+          const drainText = sPick(T_SHADOW_BOLT_LEECH, es + 8850)(1, actual);
+          events.push({ text: drainText, type: 'heal', icon: '🩸', phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        }
+      }
+
+      // ── Weapon proc party leech (Celestial Soul Drain — party-wide heal) ──
+      // Like Shadow Bolt's party leech: each living ally heals X% of their max HP.
+      if (eff.partyLeechPct && eff.partyLeechPct > 0 && procDmgDealt > 0) {
+        let leechCount = 0;
+        let leechTotal = 0;
+        for (const ally of livingParty) {
+          if (ally.hp <= 0) continue;
+          const healAmt = Math.max(1, Math.floor(ally.maxHp * eff.partyLeechPct));
+          const before = ally.hp;
+          ally.hp = Math.min(ally.maxHp, ally.hp + healAmt);
+          const actual = ally.hp - before;
+          if (actual > 0) {
+            leechCount++;
+            leechTotal += actual;
+            if (combatStats[ally.id]) combatStats[ally.id].healingReceived += actual;
+            if (combatStats[m.id]) combatStats[m.id].healingDone += actual;
+          }
+        }
+        if (leechCount > 0) {
+          const drainText = sPick(T_SHADOW_BOLT_LEECH, es + 8855)(leechCount, leechTotal);
+          events.push({ text: drainText, type: 'heal', icon: '🩸', phase: 'battle' });
+          snapshots.push(makeSnapshot(partyHp, enemies, _bufState));
+        }
+      }
+
       // ── Celestial Cascade on weapon proc ──────────────────────────
       if (isCelestial && procDmgDealt > 0) {
-        tryCelestialCascade(procDmgDealt, procHitTarget, m, es + 8800 + round);
+        tryCelestialCascade(procDmgDealt, procHitTarget, m, es + 8800 + roundCount);
       }
 
       // ── Celestial Echo (PARTY_CEL_ECHO talent) ────────────────────
@@ -5022,6 +5082,10 @@ function makeSnapshot(party, enemies, buffs) {
       // Dark Pact active (party-wide)
       if (b.darkPactRounds > 0) {
         pBuffs.push({ id: 'dark_pact', icon: '🩸', label: 'D.Pact', desc: `${b.darkPactRounds}rd — life siphon` });
+      }
+      // Necro passive group siphon (from offhand like Skull Whisper)
+      if (b.necGroupSiphonPct > 0 && p.class === 'NECROMANCER') {
+        pBuffs.push({ id: 'group_siphon', icon: '💬', label: 'Siphon', desc: `${Math.round(b.necGroupSiphonPct * 100)}% party heal on attack` });
       }
       // Grave Hunger stacks (party-wide dmg/crit/def from kills)
       if (b.graveHungerStacks > 0) {

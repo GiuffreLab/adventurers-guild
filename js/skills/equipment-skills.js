@@ -79,11 +79,11 @@ export const EQUIPMENT_SKILLS = {
     narrative: 'channels draconic ki and unleashes a Dragon Fist!',
   },
   HEAVENLY_PALM: {
-    id: 'HEAVENLY_PALM', name: 'Retribution Stance', type: 'active', source: 'equipment',
+    id: 'HEAVENLY_PALM', name: 'Retribution Stance', type: 'passive', source: 'equipment',
     itemId: 'CELESTIAL_BO', unlockLevel: null,
-    description: 'The Celestial Bo hums with divine energy. For 2 rounds, attacks are deflected back at the attacker, weakening their assault.',
-    icon: '✨', effects: { isDeflect: true, deflectChance: 0.25, dmgReduction: 0.30, reflectPct: 0.25, atkDebuff: 0.10, deflectRounds: 2 }, procChance: 0.50,
-    narrative: 'raises the Celestial Bo — divine energy forms a barrier of retribution!',
+    description: 'The Celestial Bo hums with divine energy, creating a constant deflective aura. Incoming blows are turned aside and reflected back, weakening the attacker.',
+    icon: '✨', effects: { isDeflect: true, deflectChance: 0.20, dmgReduction: 0.30, reflectPct: 0.20, atkDebuff: 0.10 }, procChance: 1.0,
+    narrative: null,
   },
   DIVINE_GRACE_EQ: {
     id: 'DIVINE_GRACE_EQ', name: 'Staff of Grace', type: 'active', source: 'equipment',
@@ -241,7 +241,7 @@ export const EQUIPMENT_SKILLS = {
     id: 'VOID_BURST', name: 'Void Burst', type: 'active', source: 'equipment',
     itemId: 'ARCHMAGE_STAFF', unlockLevel: null,
     description: 'The Archmage Staff tears open a void rift, unleashing unstable magic across all enemies.',
-    icon: '🌀', effects: { powerMultiplier: 1.4, magBonus: 0.65, critChance: 0.15 }, procChance: 0.50,
+    icon: '🌀', effects: { powerMultiplier: 1.2, magBonus: 0.50, critChance: 0.15 }, procChance: 0.50,
     narrative: 'tears open a void rift — unstable magic detonates across the enemy ranks!',
   },
   VOID_ATTUNEMENT: {
@@ -372,11 +372,11 @@ export const EQUIPMENT_SKILLS = {
   },
 
   MONKEY_KING: {
-    id: 'MONKEY_KING', name: "Monkey King's Reflection", type: 'active', source: 'equipment',
+    id: 'MONKEY_KING', name: "Monkey King's Reflection", type: 'passive', source: 'equipment',
     itemId: 'RUYI_JINGU', unlockLevel: null,
-    description: "The Ruyi Jingu Bang spins a barrier of legendary force. Deflected blows are reflected with devastating power, and the wielder's ki hardens into a shield.",
-    icon: '🐵', effects: { isDeflect: true, deflectChance: 0.30, dmgReduction: 0.35, reflectPct: 0.35, atkDebuff: 0.15, kiShieldPct: 0.05, deflectRounds: 2 }, procChance: 0.55,
-    narrative: "spins the Ruyi Jingu Bang — the Monkey King's barrier manifests!",
+    description: "The Ruyi Jingu Bang radiates legendary force. A constant barrier deflects incoming blows with devastating reflection, and the wielder's ki hardens into a shield.",
+    icon: '🐵', effects: { isDeflect: true, deflectChance: 0.25, dmgReduction: 0.35, reflectPct: 0.30, atkDebuff: 0.15, kiShieldPct: 0.05 }, procChance: 1.0,
+    narrative: null,
   },
   CELESTIAL_VOLLEY: {
     id: 'CELESTIAL_VOLLEY', name: 'Celestial Volley', type: 'active', source: 'equipment',
@@ -389,7 +389,7 @@ export const EQUIPMENT_SKILLS = {
     id: 'ARCANE_CATACLYSM_EQ', name: 'Cataclysm: Staff of Ages', type: 'active', source: 'equipment',
     itemId: 'STAFF_OF_AGES', unlockLevel: null,
     description: 'The Staff of Ages unleashes a devastating Arcane Cataclysm.',
-    icon: '💥', effects: { powerMultiplier: 1.6, magBonus: 0.85, critChance: 0.25, defPierce: 0.20 }, procChance: 0.55,
+    icon: '💥', effects: { powerMultiplier: 1.35, magBonus: 0.65, critChance: 0.25, defPierce: 0.20 }, procChance: 0.55,
     narrative: 'unleashes an Arcane Cataclysm!',
   },
   WORLD_BLESSING: {
@@ -542,8 +542,8 @@ export const EQUIPMENT_SKILLS = {
   DEATHRATTLE: {
     id: 'DEATHRATTLE', name: 'Deathrattle', type: 'active', source: 'equipment',
     itemId: 'DEATHRATTLE_STAFF', unlockLevel: null,
-    description: 'Deathrattle Staff unleashes a death scream that damages all enemies.',
-    icon: '📯', effects: { magBonus: 0.50, powerMultiplier: 1.3 }, procChance: 0.45,
+    description: 'Deathrattle Staff unleashes a death scream that damages and drains life from the target.',
+    icon: '📯', effects: { magBonus: 0.50, powerMultiplier: 1.3, lifesteal: 0.35 }, procChance: 0.45,
     narrative: 'slams the Deathrattle Staff — a piercing death scream echoes across the battlefield!',
   },
   // ── Necromancer Scythe Auras (Death Lord identity) ──
@@ -585,23 +585,23 @@ export const EQUIPMENT_SKILLS = {
   SKULL_WHISPER: {
     id: 'SKULL_WHISPER', name: 'Skull Whisper', type: 'passive', source: 'equipment',
     itemId: 'WHISPERING_SKULL', unlockLevel: null,
-    description: 'Whispering Skull grants +12% MAG and +6% CRIT.',
-    icon: '💬', effects: { magBonus: 0.12, critChance: 0.06 }, procChance: 1.0,
+    description: 'The Whispering Skull channels necrotic energy into a passive siphon. When the Necromancer deals damage, the party heals for 6% of each member\'s max HP.',
+    icon: '💬', effects: { groupSiphon: true, siphonHealPct: 0.06 }, procChance: 1.0,
     narrative: null,
   },
   SOUL_SIPHON: {
-    id: 'SOUL_SIPHON', name: 'Soul Siphon', type: 'active', source: 'equipment',
+    id: 'SOUL_SIPHON', name: 'Soul Siphon', type: 'passive', source: 'equipment',
     itemId: 'GRIMOIRE_OF_SOULS', unlockLevel: null,
-    description: 'Grimoire of Souls siphons soul energy for a burst of dark power.',
-    icon: '📖', effects: { magBonus: 0.45, spdBonus: 0.15 }, procChance: 0.45,
-    narrative: 'opens the Grimoire of Souls — spectral chains lash out and drain the target!',
+    description: 'The Grimoire of Souls maintains a constant soul-drain. When the Necromancer deals damage, the party heals for 8% of each member\'s max HP.',
+    icon: '📖', effects: { groupSiphon: true, siphonHealPct: 0.08 }, procChance: 1.0,
+    narrative: null,
   },
   DAMNED_CHORUS: {
-    id: 'DAMNED_CHORUS', name: 'Damned Chorus', type: 'active', source: 'equipment',
+    id: 'DAMNED_CHORUS', name: 'Damned Chorus', type: 'passive', source: 'equipment',
     itemId: 'SKULL_OF_THE_DAMNED', unlockLevel: null,
-    description: 'Skull of the Damned unleashes a chorus of anguished souls.',
-    icon: '🗣', effects: { magBonus: 0.50, critChance: 0.15, powerMultiplier: 1.3 }, procChance: 0.45,
-    narrative: 'raises the Skull of the Damned — a chorus of anguished souls wails across the battlefield!',
+    description: 'The Skull of the Damned emits a constant chorus of anguished souls. When the Necromancer deals damage, the party heals for 12% of each member\'s max HP.',
+    icon: '🗣', effects: { groupSiphon: true, siphonHealPct: 0.12 }, procChance: 1.0,
+    narrative: null,
   },
   CEL_ASCENDANT_WRATH: {
     id: 'CEL_ASCENDANT_WRATH', name: 'Ascendant Wrath', type: 'active', source: 'equipment',
@@ -677,7 +677,7 @@ export const EQUIPMENT_SKILLS = {
     id: 'CEL_ARCANUM_CATACLYSM', name: 'Infinite Cataclysm', type: 'active', source: 'equipment',
     itemId: 'CEL_INFINITY_STAFF', unlockLevel: null,
     description: 'The Infinity Staff tears open reality itself, unleashing a cataclysm of pure arcane energy.',
-    icon: '💥', effects: { magBonus: 0.45, critChance: 0.20, powerMultiplier: 2.0 }, procChance: 0.55,
+    icon: '💥', effects: { magBonus: 0.45, critChance: 0.20, powerMultiplier: 1.7 }, procChance: 0.55,
     narrative: 'channels Infinite Cataclysm — the Infinity Staff tears reality apart with impossible power!',
   },
   CEL_VOID_BARRIER: {
@@ -877,11 +877,18 @@ export const EQUIPMENT_SKILLS = {
     narrative: null,
   },
   CEL_SIPHON_OF_SOULS: {
-    id: 'CEL_SIPHON_OF_SOULS', name: 'Siphon of Souls', type: 'active', source: 'equipment',
+    id: 'CEL_SIPHON_OF_SOULS', name: 'Siphon of Souls', type: 'passive', source: 'equipment',
     itemId: 'CEL_SOULWEAVER', unlockLevel: null,
-    description: 'The Soulweaver drains the life force of enemies and channels it back to the caster, dealing enhanced necrotic damage with potent lifesteal.',
-    icon: '🩸', effects: { magBonus: 0.35, lifesteal: 0.50, powerMultiplier: 1.5 }, procChance: 0.55,
-    narrative: 'channels the Soulweaver — threads of stolen life surge from the enemy into the caster!',
+    description: 'The Soulweaver weaves an unbreakable soul-drain across the battlefield. When the Necromancer deals damage, the party heals for 16% of each member\'s max HP.',
+    icon: '🩸', effects: { groupSiphon: true, siphonHealPct: 0.16 }, procChance: 1.0,
+    narrative: null,
+  },
+  CEL_SOULWEAVER_DRAIN: {
+    id: 'CEL_SOULWEAVER_DRAIN', name: 'Soul Drain', type: 'active', source: 'equipment',
+    itemId: 'CEL_SOULWEAVER', unlockLevel: null,
+    description: 'The Soulweaver fires a devastating bolt of stolen life force. On hit, each living ally heals for 10% of their max HP.',
+    icon: '🩸', effects: { powerMultiplier: 1.6, magBonus: 0.60, partyLeechPct: 0.10 }, procChance: 0.50,
+    narrative: 'channels the Soulweaver — a bolt of stolen life force tears through the enemy!',
   },
   CEL_DEATHS_HARVEST: {
     id: 'CEL_DEATHS_HARVEST', name: "Death's Dominion", type: 'passive', source: 'equipment',
@@ -903,6 +910,13 @@ export const EQUIPMENT_SKILLS = {
     description: 'The Skull reveals the exact moment of each enemy\'s death, dealing devastating targeted damage.',
     icon: '👁', effects: { magBonus: 0.60, critChance: 0.30, powerMultiplier: 1.6 }, procChance: 0.50,
     narrative: 'holds aloft the Skull of Eternal Whispers — it speaks the true name of death!',
+  },
+  CEL_ETERNAL_SIPHON: {
+    id: 'CEL_ETERNAL_SIPHON', name: 'Eternal Siphon', type: 'passive', source: 'equipment',
+    itemId: 'CEL_SKULL_OF_ETERNAL_WHISPERS', unlockLevel: null,
+    description: 'The Skull of Eternal Whispers sustains an unbreakable soul-drain. When the Necromancer deals damage, the party heals for 16% of each member\'s max HP.',
+    icon: '💬', effects: { groupSiphon: true, siphonHealPct: 0.16 }, procChance: 1.0,
+    narrative: null,
   },
   CEL_SOUL_ANCHOR: {
     id: 'CEL_SOUL_ANCHOR', name: 'Soul Anchor', type: 'passive', source: 'equipment',

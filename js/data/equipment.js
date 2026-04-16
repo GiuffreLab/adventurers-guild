@@ -2693,7 +2693,7 @@ export const EQUIPMENT = {
     buyPrice: 250,
     shopMinRank: 'D',
     grantedSkill: 'SKULL_WHISPER',
-    desc: 'The skull chatters constantly in a dead language. Those who listen too long begin to understand.'
+    desc: 'The skull chatters constantly, whispering stolen life force back to the party. A faint but persistent siphon.'
   },
   GRIMOIRE_OF_SOULS: {
     id: 'GRIMOIRE_OF_SOULS',
@@ -2707,7 +2707,7 @@ export const EQUIPMENT = {
     buyPrice: 600,
     shopMinRank: 'C',
     grantedSkill: 'SOUL_SIPHON',
-    desc: 'Each page is written in the blood of a willing soul. Their sacrifice fuels terrible magic.'
+    desc: 'Each page is written in the blood of a willing soul. Their sacrifice siphons life from enemies back into the party.'
   },
   SKULL_OF_THE_DAMNED: {
     id: 'SKULL_OF_THE_DAMNED',
@@ -2721,7 +2721,7 @@ export const EQUIPMENT = {
     buyPrice: 2240,
     shopMinRank: 'B',
     grantedSkill: 'DAMNED_CHORUS',
-    desc: 'The skull of an ancient lich. A chorus of the damned screams from within.'
+    desc: 'The skull of an ancient lich. A chorus of the damned screams from within, ripping life from enemies and flooding it back to allies.'
   },
 
   // === CELESTIAL SET: Dominion of the Dead (Necromancer) ===
@@ -2729,9 +2729,9 @@ export const EQUIPMENT = {
     id: 'CEL_SOULWEAVER', name: 'Soulweaver', slot: 'weapon', tier: 6,
     rarity: 'celestial', classReq: ['NECROMANCER'],
     statBonus: { mag: 58, spd: 14, crit: 18, dodge: 6, def: 8, maxHp: 12 },
-    grantedSkill: 'CEL_SIPHON_OF_SOULS',
+    grantedSkill: 'CEL_SOULWEAVER_DRAIN',
     sellPrice: 80000, buyPrice: 0, shopMinRank: null,
-    desc: 'A staff woven from threads of stolen life force. Each strike drains the essence of the living and feeds it back to the wielder.'
+    desc: 'A staff woven from threads of stolen life force. Each strike drains the essence of the living and floods it back to the entire party.'
   },
   CEL_MORTALITYS_END: {
     id: 'CEL_MORTALITYS_END', name: "Mortality's End", slot: 'weapon', tier: 6,
@@ -2754,7 +2754,7 @@ export const EQUIPMENT = {
     id: 'CEL_SKULL_OF_ETERNAL_WHISPERS', name: 'Skull of Eternal Whispers', slot: 'offhand', tier: 6,
     rarity: 'celestial', classReq: ['NECROMANCER'],
     statBonus: { mag: 52, crit: 18, spd: 10, dodge: 8, maxHp: 30 },
-    grantedSkill: 'CEL_ETERNAL_WHISPER',
+    grantedSkills: ['CEL_ETERNAL_WHISPER', 'CEL_ETERNAL_SIPHON'],
     sellPrice: 80000, buyPrice: 0, shopMinRank: null,
     desc: 'This skull belonged to an oracle who foresaw their own death — and chose it anyway. Their whispers reveal the moment of every creature\'s demise.'
   },
